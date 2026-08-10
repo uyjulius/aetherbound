@@ -16,3 +16,6 @@ assets/model-candidates.png
 assets/live.png
 
 .DS_Store
+
+# Working screenshots from verification runs.
+shot-*.png
