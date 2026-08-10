@@ -85,10 +85,19 @@ class FieldCamera {
     this._place(dt);
   }
 
-  /** Convert an input vector into world-space movement for the current yaw. */
+  /**
+   * Convert an input vector into world-space movement for the current yaw.
+   *
+   * The camera sits *behind* the look target and faces along +forward, so
+   * "away from the camera" is the direction the player expects W to go. An
+   * earlier version negated both axes, which inverted all four keys — W drove
+   * the party down the screen and A drove them right. It survived a long time
+   * because the smoke test teleports the player with `place()` and never
+   * presses a movement key, so nothing exercised this path.
+   */
   transformInput(ix, iy) {
     const s = Math.sin(this.yaw), c = Math.cos(this.yaw);
-    return { x: -(ix * c - iy * s), z: -(ix * s + iy * c) };
+    return { x: ix * c - iy * s, z: ix * s + iy * c };
   }
 }
 
@@ -602,6 +611,16 @@ export class FieldState {
   // --- interaction --------------------------------------------------------
 
   _updateInteraction() {
+    // See `_interact`: nothing may start while the key that closed the last
+    // one is still held.
+    if (this._interactGuard) {
+      if (input.isDown('confirm')) {
+        this.promptEl.classList.add('hidden');
+        return;
+      }
+      this._interactGuard = false;
+    }
+
     // Look slightly ahead of the player so you interact with what you face.
     const ax = this.player.x + Math.sin(this.player.facing) * 0.9;
     const az = this.player.z + Math.cos(this.player.facing) * 0.9;
@@ -658,6 +677,12 @@ export class FieldState {
   _interact(target) {
     const self = this;
     this.busy = true;
+    // The press that *ends* a conversation is still flagged for the rest of
+    // this tick. Without a guard, `_updateInteraction` sees it again the
+    // moment `busy` clears and starts the same conversation over — so a
+    // one-page line could never be dismissed at all. Hold interaction until
+    // confirm is physically released.
+    this._interactGuard = true;
     scheduler.run(function* () {
       try {
         if (target.kind === 'npc') {

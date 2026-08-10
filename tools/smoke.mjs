@@ -129,24 +129,37 @@ const move = await page.evaluate(async () => {
   let ticks = 0;
   const orig = s.update.bind(s);
   s.update = (dt, game) => { ticks++; orig(dt, game); };
+  // Distance is measured as a magnitude, not as displacement along a chosen
+  // axis. The earlier version subtracted z the wrong way round and so quietly
+  // asserted that Up moved the player *toward* the camera — it passed for as
+  // long as all four movement keys were inverted, and only failed once they
+  // were fixed. Direction is covered separately by the on-screen checks.
+  const x0 = s.player.x;
   const z0 = s.player.z;
   window.dispatchEvent(new KeyboardEvent('keydown', { code: 'ArrowUp', bubbles: true }));
   await new Promise((r) => setTimeout(r, 1200));
   window.dispatchEvent(new KeyboardEvent('keyup', { code: 'ArrowUp', bubbles: true }));
   s.update = orig;
-  const moved = z0 - s.player.z;
+  const moved = Math.hypot(s.player.x - x0, s.player.z - z0);
   const perSecond = ticks > 0 ? moved / (ticks / 60) : 0;
 
   // Now walk into the map's north wall and confirm we stop.
-  s.player.place(35, 4, Math.PI);
-  window.dispatchEvent(new KeyboardEvent('keydown', { code: 'ArrowUp', bubbles: true }));
+  //
+  // North, not south: Harrowmere's southern edge carries the exit trigger to
+  // the overworld, so walking into it changes map mid-test and everything
+  // afterwards runs against a state that has been torn down. Up now travels
+  // away from the camera, so heading north means pressing Down.
+  s.player.place(35, 4);
+  window.dispatchEvent(new KeyboardEvent('keydown', { code: 'ArrowDown', bubbles: true }));
   await new Promise((r) => setTimeout(r, 900));
-  window.dispatchEvent(new KeyboardEvent('keyup', { code: 'ArrowUp', bubbles: true }));
-  return { moved, ticks, perSecond, blockedAt: s.player.z };
+  window.dispatchEvent(new KeyboardEvent('keyup', { code: 'ArrowDown', bubbles: true }));
+  return { moved, ticks, perSecond, blockedAt: s.player.z, mapId: window.__game.currentMapId };
 });
 check('player walks at the intended speed', Math.abs(move.perSecond - 4.4) < 0.35,
   `${move.perSecond.toFixed(2)} u/s over ${move.ticks} ticks`);
-check('collision stops the player at walls', move.blockedAt > 1.5, `stopped at z=${move.blockedAt.toFixed(2)}`);
+check('collision stops the player at walls',
+  move.blockedAt > 1.5 && move.mapId === 'harrowmere',
+  `stopped at z=${move.blockedAt.toFixed(2)} on ${move.mapId}`);
 
 // --- dialogue ---------------------------------------------------------------
 const talk = await page.evaluate(async () => {
@@ -1069,6 +1082,69 @@ check('buildings have enterable doors', interiors.doors >= 3, `${interiors.doors
 check('walking into a door loads the interior',
   !!interiors.entered && interiors.entered !== 'harrowmere', `entered ${interiors.entered}`);
 check('leaving an interior returns to the town', interiors.returned === 'harrowmere', `back to ${interiors.returned}`);
+
+// --- controls ----------------------------------------------------------------
+// Both of these shipped broken and neither was caught, because the suite
+// teleports the player with `place()` instead of walking, and drives dialogue
+// by mashing Enter — which hides a box that closes and immediately reopens.
+const controls = await page.evaluate(async () => {
+  const g = window.__game;
+  await g.gotoMap('harrowmere', 'default');
+  await new Promise((r) => setTimeout(r, 1600));
+  const st = g.state;
+  const V3 = window.THREE_V3;
+
+  // Which way does each key actually send the party, on screen?
+  const dirs = {};
+  for (const [key, vec] of Object.entries({ W: [0, -1], S: [0, 1], A: [-1, 0], D: [1, 0] })) {
+    const d = st.camera.transformInput(vec[0], vec[1]);
+    const a = new V3(st.player.x, 1, st.player.z).project(g.renderer.camera);
+    const b = new V3(st.player.x + d.x * 3, 1, st.player.z + d.z * 3).project(g.renderer.camera);
+    dirs[key] = { sx: b.x - a.x, sy: b.y - a.y };
+  }
+
+  // One confirm press must dismiss a one-page line, not restart it.
+  const npc = st.npcs.find((n) => n.def.talk && !n.def.event && !n.def.shop && !n.def.inn);
+  let closes = 0;
+  if (npc) {
+    const orig = g.dialogue.close.bind(g.dialogue);
+    g.dialogue.close = () => { closes++; orig(); };
+    st.player.place(npc.x, npc.z + 1.2, Math.PI);
+    await new Promise((r) => setTimeout(r, 300));
+    const tap = async () => {
+      window.dispatchEvent(new KeyboardEvent('keydown', { code: 'Enter', bubbles: true }));
+      await new Promise((r) => setTimeout(r, 60));
+      window.dispatchEvent(new KeyboardEvent('keyup', { code: 'Enter', bubbles: true }));
+      await new Promise((r) => setTimeout(r, 320));
+    };
+    await tap();                       // opens, and starts typing
+    const opened = !!g.dialogue.isOpen;
+
+    // Press until it goes away. The count is not fixed: the first press after
+    // opening skips the typewriter and only the next one dismisses, so a long
+    // line legitimately needs three. What matters is that it closes at all —
+    // before the interaction guard it never did, because the press that shut
+    // the box was still flagged when the interaction check ran again and
+    // immediately reopened the same conversation.
+    let presses = 1;
+    while (g.dialogue.isOpen && presses < 6) { await tap(); presses++; }
+    const closed = !g.dialogue.isOpen && !st.busy;
+
+    // And it must stay shut rather than reopening on its own.
+    await new Promise((r) => setTimeout(r, 700));
+    const stayedShut = !g.dialogue.isOpen && !st.busy;
+    g.dialogue.close = orig;
+    return { dirs, opened, closed, stayedShut, closes, presses };
+  }
+  return { dirs, opened: false, closed: false, stayedShut: false, closes };
+});
+check('W walks up the screen', controls.dirs.W.sy > 0.01, `screenY ${controls.dirs.W.sy.toFixed(2)}`);
+check('S walks down the screen', controls.dirs.S.sy < -0.01, `screenY ${controls.dirs.S.sy.toFixed(2)}`);
+check('A walks left', controls.dirs.A.sx < -0.01, `screenX ${controls.dirs.A.sx.toFixed(2)}`);
+check('D walks right', controls.dirs.D.sx > 0.01, `screenX ${controls.dirs.D.sx.toFixed(2)}`);
+check('talking to an NPC opens a line', controls.opened === true);
+check('confirm dismisses it', controls.closed === true, `${controls.presses} press(es)`);
+check('it does not reopen itself', controls.stayedShut === true);
 
 // --- the airship -------------------------------------------------------------
 const airship = await page.evaluate(async () => {
