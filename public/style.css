@@ -244,7 +244,10 @@ html, body {
    ========================================================================== */
 #dialogue-layer {
   position: absolute;
-  left: 50%; bottom: calc(24 * var(--u));
+  /* Clears the control bar, which owns the bottom of the screen. The two
+     used to overlap: the box is ~104u tall from 24u up, and the bar reaches
+     80u, so a conversation covered the buttons that advance it. */
+  left: 50%; bottom: calc(88 * var(--u));
   transform: translateX(-50%);
   width: min(calc(760 * var(--u)), 88%);
   z-index: 40;
@@ -417,6 +420,120 @@ html, body {
 }
 .title-menu { position: absolute; left: 50%; bottom: 18%; transform: translateX(-50%); min-width: calc(230 * var(--u)); }
 .title-version { position: absolute; right: calc(16 * var(--u)); bottom: calc(12 * var(--u)); font-size: calc(11 * var(--u)); color: #4d566e; letter-spacing: .14em; }
+
+/* --- place names ---------------------------------------------------------
+   Shown over a doorway or road as you approach it. Deliberately lighter than
+   the interact prompt: this is a signpost you read in passing, not a call to
+   action, and it must not be mistaken for something that needs a button. */
+.place-sign {
+  position: absolute;
+  transform: translate(-50%, -100%);
+  font-family: var(--font-display);
+  font-size: calc(15 * var(--u));
+  letter-spacing: .18em;
+  text-indent: .18em;
+  white-space: nowrap;
+  padding: calc(2 * var(--u)) calc(10 * var(--u)) calc(3 * var(--u));
+  color: #f2f6ff;
+  text-shadow: 0 calc(1 * var(--u)) calc(10 * var(--u)) rgba(4,8,24,.95), 0 calc(1 * var(--u)) 0 rgba(4,8,24,.9);
+  border-bottom: calc(1 * var(--u)) solid rgba(180,205,255,.42);
+  z-index: 30;
+}
+
+/* ==========================================================================
+   On-screen controls
+   --------------------------------------------------------------------------
+   A second route to what the keyboard already does, and the game's only
+   visible statement of what the controls are. It sits low and quiet so it
+   reads as part of the frame rather than a toolbar bolted on top — full
+   opacity only when the pointer is near it.
+   ========================================================================== */
+.control-bar {
+  position: absolute;
+  left: 50%;
+  bottom: calc(14 * var(--u));
+  transform: translateX(-50%);
+  display: flex;
+  align-items: stretch;
+  gap: calc(6 * var(--u));
+  padding: calc(6 * var(--u));
+  border-radius: calc(14 * var(--u));
+  background: linear-gradient(180deg, rgba(20,30,66,.72), rgba(7,11,30,.82));
+  box-shadow:
+    inset 0 0 0 calc(1 * var(--u)) rgba(143,166,232,.30),
+    0 calc(6 * var(--u)) calc(20 * var(--u)) rgba(0,0,0,.42);
+  backdrop-filter: blur(calc(6 * var(--u)));
+  opacity: .58;
+  transition: opacity .22s ease;
+  z-index: 40;
+}
+.control-bar:hover,
+.control-bar:focus-within,
+.control-bar.is-paused { opacity: 1; }
+
+.control-btn {
+  appearance: none;
+  border: 0;
+  margin: 0;
+  padding: calc(6 * var(--u)) calc(10 * var(--u)) calc(5 * var(--u));
+  min-width: calc(52 * var(--u));
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: calc(2 * var(--u));
+  border-radius: calc(9 * var(--u));
+  background: rgba(255,255,255,.045);
+  box-shadow: inset 0 0 0 calc(1 * var(--u)) rgba(143,166,232,.18);
+  color: var(--text);
+  font-family: var(--font-ui);
+  text-shadow: var(--shadow-text);
+  cursor: pointer;
+  transition: background .14s ease, transform .08s ease, box-shadow .14s ease;
+  -webkit-tap-highlight-color: transparent;
+  touch-action: manipulation;
+  user-select: none;
+}
+.control-btn:hover { background: rgba(255,255,255,.10); }
+.control-btn:active { transform: translateY(calc(1 * var(--u))); background: rgba(143,196,255,.20); }
+.control-btn:focus-visible { outline: calc(2 * var(--u)) solid var(--select); outline-offset: calc(2 * var(--u)); }
+
+.control-btn.is-primary {
+  background: rgba(63,198,214,.16);
+  box-shadow: inset 0 0 0 calc(1 * var(--u)) rgba(63,198,214,.45);
+}
+.control-btn.is-primary:hover { background: rgba(63,198,214,.26); }
+
+.control-btn.is-disabled { opacity: .34; pointer-events: none; }
+
+.control-btn svg {
+  width: calc(20 * var(--u));
+  height: calc(20 * var(--u));
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.9;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+.control-btn .control-label {
+  font-size: calc(10 * var(--u));
+  letter-spacing: .10em;
+  text-transform: uppercase;
+  line-height: 1;
+}
+.control-btn .control-hint {
+  font-size: calc(9 * var(--u));
+  letter-spacing: .06em;
+  color: var(--text-dim);
+  line-height: 1;
+}
+
+/* Coarse pointers get bigger targets and no hover-to-reveal, since there is
+   no pointer to hover with. */
+@media (pointer: coarse) {
+  .control-bar { opacity: .92; gap: calc(8 * var(--u)); }
+  .control-btn { min-width: calc(62 * var(--u)); padding: calc(9 * var(--u)) calc(12 * var(--u)) calc(8 * var(--u)); }
+  .control-btn .control-hint { display: none; }
+}
 
 /* ==========================================================================
    Utility

@@ -15,8 +15,16 @@ npm run serve        # → http://localhost:5177
 console error.
 
 **Controls** — arrows/WASD move, `Shift` run, `Enter`/`Z` confirm, `Esc`/`X`
-cancel, `C` menu, `Q`/`E` rotate camera, both shoulder buttons to flee a battle.
+cancel, `C` menu, `Q`/`E` rotate camera, `P` pause, both shoulder buttons to
+flee a battle. Movement is relative to the camera, so the same key always
+walks the same way *on screen* however the camera is turned. Gamepads work.
+Everything is also on the control bar along the bottom of the screen, which
+doubles as the game's statement of what the controls are.
 Debug: `B` starts a random encounter, `N` starts a boss fight.
+
+**Getting into a town** — walk onto its entrance; there is no button to press.
+The name of whatever doorway, gate or road you are approaching appears above
+it as you get close.
 
 **The playable arc** — talk to Elder Sabbath in Harrowmere, leave by the south
 bridge, and follow the road. The Fen Barrow is south-west, Solmere east, the

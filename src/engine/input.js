@@ -59,6 +59,7 @@ class InputManager {
     this._pendingPressed = new Set();
     this._pendingReleased = new Set();
     this._rawDown = new Set();   // physical keys currently held
+    this._virtualDown = new Set(); // actions held by the on-screen controls
     this._repeatAt = new Map();  // action → next auto-repeat timestamp (ms)
     this._padDown = new Set();
     this._anyKeyPressed = false;
@@ -119,7 +120,41 @@ class InputManager {
 
   clear() {
     this._rawDown.clear();
+    this._virtualDown.clear();
     for (const a of [...this.down]) this._release(a);
+  }
+
+  // --- on-screen controls ---------------------------------------------------
+  //
+  // The touch buttons drive actions directly rather than synthesising
+  // KeyboardEvents. Held state is tracked separately from `_rawDown` so that
+  // lifting a finger cannot cancel a key the player is also holding, and vice
+  // versa — otherwise tapping the on-screen Menu while walking would stop the
+  // walk.
+
+  virtualPress(action) {
+    if (this._virtualDown.has(action)) return;
+    this._virtualDown.add(action);
+    this._anyKeyPressed = true;
+    this._press(action);
+  }
+
+  virtualRelease(action) {
+    if (!this._virtualDown.delete(action)) return;
+    const heldOnKeyboard = (this.bindings[action] || []).some((k) => this._rawDown.has(k));
+    if (!heldOnKeyboard) this._release(action);
+  }
+
+  /**
+   * A press that releases itself.
+   *
+   * The release is deferred rather than immediate: `justPressed` is only
+   * visible to the simulation at poll time, and a press cancelled inside the
+   * same frame can be swapped in and out before any tick ever sees it.
+   */
+  virtualTap(action, holdMs = 130) {
+    this.virtualPress(action);
+    setTimeout(() => this.virtualRelease(action), holdMs);
   }
 
   /** Call once per frame, before game logic. */

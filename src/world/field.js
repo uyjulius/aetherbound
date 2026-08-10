@@ -16,6 +16,8 @@ import { DialogueBox } from '../ui/dialogue.js';
  */
 
 const PLAYER_RADIUS = 0.42;
+/** How close you have to be before a doorway names itself, in world units. */
+const SIGNPOST_RANGE = 6.5;
 const WALK_SPEED = 4.4;
 const RUN_SPEED = 7.6;
 
@@ -88,16 +90,27 @@ class FieldCamera {
   /**
    * Convert an input vector into world-space movement for the current yaw.
    *
-   * The camera sits *behind* the look target and faces along +forward, so
-   * "away from the camera" is the direction the player expects W to go. An
-   * earlier version negated both axes, which inverted all four keys — W drove
-   * the party down the screen and A drove them right. It survived a long time
-   * because the smoke test teleports the player with `place()` and never
-   * presses a movement key, so nothing exercised this path.
+   * Built from the camera's own basis rather than a guessed rotation. The rig
+   * sits at `look + (sin y, ·, cos y) * d`, so the way the camera faces —
+   * which is where the player expects W to go — is
+   *
+   *     forward = (-sin y, -cos y)
+   *     right   = forward × up = (cos y, -sin y)
+   *
+   * and the input is just `ix * right + (-iy) * forward`, since screen-up is
+   * iy = -1.
+   *
+   * Two earlier versions of this were wrong. The first negated both axes and
+   * inverted all four keys. The second fixed that by flipping the signs back,
+   * which is correct only where `sin(yaw)` is zero — so the controls were
+   * right at the default camera angle and at 180° from it, and *reversed* at
+   * 90° and 270°. Turning the camera a quarter turn made W walk down the
+   * screen. Both survived because the tests only ever measured the default
+   * angle; the check now sweeps four.
    */
   transformInput(ix, iy) {
     const s = Math.sin(this.yaw), c = Math.cos(this.yaw);
-    return { x: ix * c - iy * s, z: ix * s + iy * c };
+    return { x: ix * c + iy * s, z: -ix * s + iy * c };
   }
 }
 
@@ -162,6 +175,7 @@ export class FieldState {
     this.busy = false;              // a cutscene or conversation owns input
     this.interactTarget = null;
     this.promptEl = null;
+    this.signEl = null;             // names the doorway you are approaching
     this.stepAccum = 0;
     this.encounterThreshold = 0;
     this.onEncounter = null;        // set by the game to hand off to battle
@@ -169,6 +183,17 @@ export class FieldState {
     this.paused = false;
     this.vehicle = null;            // null on foot, else the airship rig
     this.parked = null;             // the ship sitting on this map, if any
+    this.suspended = false;         // parked behind a battle, not torn down
+  }
+
+  /** Every scene object this state owns, for detaching and re-attaching. */
+  *_sceneObjects() {
+    if (this.map) yield this.map.group;
+    if (this.player) yield this.player.root;
+    for (const f of this.followers) yield f.root;
+    for (const n of this.npcs) yield n.root;
+    if (this.vehicle) yield this.vehicle.rig.root;
+    if (this.parked) yield this.parked.rig.root;
   }
 
   // --- lifecycle ----------------------------------------------------------
@@ -219,6 +244,8 @@ export class FieldState {
     this.dialogue = game.dialogue || (game.dialogue = new DialogueBox(game.uiRoot));
     this.promptEl = el('div', { class: 'interact-prompt hidden' });
     game.uiRoot.appendChild(this.promptEl);
+    this.signEl = el('div', { class: 'place-sign hidden' });
+    game.uiRoot.appendChild(this.signEl);
 
     showAreaTitle(game.uiRoot, this.mapDef.name, this.mapDef.subtitle);
     if (this.mapDef.music) game.playMusic(this.mapDef.music, { fade: 1.4 });
@@ -252,7 +279,60 @@ export class FieldState {
     for (const f of this.followers) game.renderer.scene.remove(f.root);
     for (const n of this.npcs) game.renderer.scene.remove(n.root);
     this.promptEl?.remove();
+    this.signEl?.remove();
     this.dialogue?.close();
+  }
+
+  /**
+   * Step aside for a battle without being destroyed.
+   *
+   * A battle used to run `exit` on the way in and `enter` on the way out,
+   * which disposed the map and rebuilt the whole field from scratch — and
+   * `enter` places the party at the map's *spawn point*. So every fight
+   * teleported the player back to wherever they had arrived on that map:
+   * beat a random encounter halfway across the continent and you were
+   * standing at the town gate again. It also re-rolled NPC positions,
+   * re-showed the area title, and rebuilt geometry that was already fine.
+   *
+   * Suspending detaches the scene objects and leaves everything else — the
+   * player's position, the followers' trail, the camera angle — exactly where
+   * it was.
+   */
+  suspend(game) {
+    const r = game.renderer;
+    for (const obj of this._sceneObjects()) r.scene.remove(obj);
+    this.promptEl?.remove();
+    this.signEl?.remove();
+    this.dialogue?.close();
+    this.interactTarget = null;
+    this.suspended = true;
+  }
+
+  /** Come back from a battle, standing where the fight started. */
+  resume(game) {
+    const r = game.renderer;
+    for (const obj of this._sceneObjects()) r.scene.add(obj);
+    // The battle scene overwrote the sky, fog and lighting.
+    applyAtmosphere(r, this.mapDef);
+    if (this.promptEl) {
+      this.promptEl.classList.add('hidden');
+      game.uiRoot.appendChild(this.promptEl);
+    }
+    if (this.signEl) {
+      this.signEl.classList.add('hidden');
+      game.uiRoot.appendChild(this.signEl);
+    }
+    // The camera controller kept its own yaw and pitch, so the player's
+    // chosen angle survives the fight; this just pushes it back into the rig,
+    // which the battle camera has been driving.
+    this.camera.snapTo(this.player.x, this.player.z);
+    r.lights.follow(this.player.x, this.player.z);
+    if (this.mapDef.music) game.playMusic(this.mapDef.music, { fade: 1.4 });
+    // `busy` is deliberately left alone. Boss fights are started from inside a
+    // cutscene, which owns it for the rest of the scene — clearing it here
+    // would hand control back to the player mid-scene.
+    this.paused = false;
+    this.suspended = false;
   }
 
   _resolveSpawn() {
@@ -416,6 +496,7 @@ export class FieldState {
     this.player.root.visible = false;
     for (const f of this.followers) f.root.visible = false;
     this.promptEl.classList.add('hidden');
+    this.signEl?.classList.add('hidden');
 
     this.camera.targetDistance = AIRSHIP_CAMERA_DISTANCE;
     this.camera.pitch = AIRSHIP_CAMERA_PITCH;
@@ -652,6 +733,8 @@ export class FieldState {
       if (d < 3.4 && d < bestDist) { best = { kind: 'airship', label: 'Board' }; bestDist = d; }
     }
 
+    this._updateSignpost();
+
     this.interactTarget = best;
     if (best) {
       this.promptEl.classList.remove('hidden');
@@ -665,12 +748,60 @@ export class FieldState {
     }
   }
 
+  /**
+   * Name the way in.
+   *
+   * Every exit in the game already carried a `prompt` — 'Harrowmere', 'The
+   * Cinderspine Pass' — and nothing ever displayed it. Entering a village is
+   * just walking onto its threshold, with no button to press, so an unmarked
+   * threshold is indistinguishable from open ground: the player either
+   * stumbles in by accident or walks past a town they were looking for. The
+   * label appears as you approach and fades as you leave, which also tells
+   * you which of two adjacent doorways you are lined up with.
+   */
+  _updateSignpost() {
+    const px = this.player.x, pz = this.player.z;
+    let near = null;
+    let bestDist = Infinity;
+
+    for (const t of this.map.grid.triggers) {
+      if (t.kind !== 'exit' || !t.data?.prompt) continue;
+      // Distance to the trigger rectangle, not its corner, so a wide gate
+      // reads the same along its whole width.
+      const cx = Math.max(t.x, Math.min(px, t.x + t.w));
+      const cz = Math.max(t.z, Math.min(pz, t.z + t.d));
+      const d = Math.hypot(px - cx, pz - cz);
+      if (d < SIGNPOST_RANGE && d < bestDist) {
+        near = { t, cx: t.x + t.w / 2, cz: t.z + t.d / 2 };
+        bestDist = d;
+      }
+    }
+
+    if (!near) { this.signEl.classList.add('hidden'); return; }
+
+    // A point behind the camera still projects — to a mirrored position in
+    // front of it — so a doorway the party has already walked past would hang
+    // its name on the far side of the screen.
+    const pos = this._project(near.cx, 1.9, near.cz);
+    if (pos.behind) { this.signEl.classList.add('hidden'); return; }
+
+    this.signEl.classList.remove('hidden');
+    this.signEl.textContent = near.t.data.prompt;
+    // Fade in over the approach rather than popping into view.
+    this.signEl.style.opacity = String(Math.min(1, 1.35 - bestDist / SIGNPOST_RANGE));
+    this.signEl.style.left = `${pos.x}px`;
+    this.signEl.style.top = `${pos.y}px`;
+  }
+
   _project(x, y, z) {
-    const v = new THREE.Vector3(x, y, z).project(this.game.renderer.camera);
+    const cam = this.game.renderer.camera;
+    const v = new THREE.Vector3(x, y, z).project(cam);
     const rect = this.game.renderer.canvas.getBoundingClientRect();
     return {
       x: (v.x * 0.5 + 0.5) * rect.width,
       y: (-v.y * 0.5 + 0.5) * rect.height,
+      // Past the far plane in NDC means the point is behind the eye.
+      behind: v.z > 1,
     };
   }
 

@@ -229,6 +229,25 @@ const menuClosed = await page.evaluate(() => window.__game.menu.open);
 check('menu closes cleanly', menuClosed === false);
 
 // --- battle -----------------------------------------------------------------
+// Stand somewhere that is definitely not the map's arrival tile, so that
+// coming back to the spawn point after the fight is detectable. A battle used
+// to rebuild the field from scratch, which re-placed the party at the spawn —
+// every random encounter dragged the player back to the town gate.
+const preBattlePos = await page.evaluate(() => {
+  const f = window.__game.state;
+  const T = 2;
+  const sx = Math.round(f.player.x / T), sz = Math.round(f.player.z / T);
+  for (let r = 3; r < 12; r++) {
+    for (const [dx, dz] of [[r, 0], [0, r], [-r, 0], [0, -r]]) {
+      if (f.map.grid.isWalkTile(sx + dx, sz + dz)) {
+        f.player.place((sx + dx) * T + T / 2, (sz + dz) * T + T / 2, 0);
+        f.camera.snapTo(f.player.x, f.player.z);
+        return { x: f.player.x, z: f.player.z, spawn: { x: sx * T + T / 2, z: sz * T + T / 2 } };
+      }
+    }
+  }
+  return { x: f.player.x, z: f.player.z, spawn: null };
+});
 await page.evaluate(() => window.__game.startBattle({ enemies: ['fenrat', 'fenrat'] }));
 await page.waitForFunction(() => window.__game.state?.enemies?.length > 0, null, { timeout: 10000 });
 const battleStart = await page.evaluate(() => ({
@@ -260,8 +279,17 @@ const afterBattle = await page.evaluate(() => ({
   backOnField: !!window.__game.state?.player,
   gold: window.__game.party.gold,
   exp: window.__game.party.activeMembers[0].exp,
+  x: window.__game.state?.player?.x,
+  z: window.__game.state?.player?.z,
+  npcs: window.__game.state?.npcs?.length,
 }));
 check('returns to the field after battle', afterBattle.backOnField === true);
+const drift = afterBattle.backOnField
+  ? Math.hypot(afterBattle.x - preBattlePos.x, afterBattle.z - preBattlePos.z) : Infinity;
+check('the party stands where the fight started', drift < 0.75,
+  `moved ${drift.toFixed(2)}u${preBattlePos.spawn ? ` (spawn is ${Math.hypot(afterBattle.x - preBattlePos.spawn.x, afterBattle.z - preBattlePos.spawn.z).toFixed(2)}u away)` : ''}`);
+check('the field is not rebuilt by a battle', afterBattle.npcs === boot.npcs,
+  `${afterBattle.npcs} NPCs, was ${boot.npcs}`);
 check('rewards were granted', afterBattle.gold > 500 && afterBattle.exp > 0, `gil=${afterBattle.gold} exp=${afterBattle.exp}`);
 
 // --- overworld travel -------------------------------------------------------
@@ -1186,6 +1214,141 @@ check('D walks right', controls.dirs.D.sx > 0.01, `screenX ${controls.dirs.D.sx.
 check('talking to an NPC opens a line', controls.opened === true);
 check('confirm dismisses it', controls.closed === true, `${controls.presses} press(es)`);
 check('it does not reopen itself', controls.stayedShut === true);
+
+// Movement is camera-relative: turn the camera and the same key has to send
+// the party the same way *on screen*, not the same way in the world.
+const relative = await page.evaluate(async () => {
+  const g = window.__game;
+  const st = g.state;
+  const V3 = window.THREE_V3;
+  const screenDir = (key) => {
+    const vec = { W: [0, -1], S: [0, 1], A: [-1, 0], D: [1, 0] }[key];
+    const d = st.camera.transformInput(vec[0], vec[1]);
+    const a = new V3(st.player.x, 1, st.player.z).project(g.renderer.camera);
+    const b = new V3(st.player.x + d.x * 3, 1, st.player.z + d.z * 3).project(g.renderer.camera);
+    return { sx: b.x - a.x, sy: b.y - a.y };
+  };
+  const out = [];
+  for (const yaw of [Math.PI, 3 * Math.PI / 4, Math.PI / 2, Math.PI / 4,
+                     0, -Math.PI / 4, -Math.PI / 2, -3 * Math.PI / 4]) {
+    st.camera.yaw = st.camera.targetYaw = yaw;
+    st.camera.snapTo(st.player.x, st.player.z);
+    await new Promise((r) => setTimeout(r, 120));
+    out.push({ yaw, W: screenDir('W'), D: screenDir('D') });
+  }
+  st.camera.yaw = st.camera.targetYaw = Math.PI;
+  st.camera.snapTo(st.player.x, st.player.z);
+  return out;
+});
+const stillUp = relative.every((r) => r.W.sy > 0.01 && Math.abs(r.W.sx) < 0.05);
+const stillRight = relative.every((r) => r.D.sx > 0.01 && Math.abs(r.D.sy) < 0.05);
+check('movement follows the camera, not the world', stillUp && stillRight,
+  `${relative.length} camera angles`
+  + (stillUp && stillRight ? '' : ` — worst W (${relative.map((r) => r.W.sy.toFixed(2)).join(', ')})`));
+
+// --- on-screen controls ------------------------------------------------------
+// Driven with a real mouse rather than dispatched events: synthetic events
+// ignore `pointer-events`, so a bar that was visually present but unclickable
+// would still pass. This presses the actual pixels.
+const barIds = await page.evaluate(() =>
+  [...document.querySelectorAll('.control-btn')].map((b) => b.dataset.id));
+check('the control bar is on screen', barIds.length >= 6, barIds.join(', '));
+
+const holdButton = async (id, ms = 160) => {
+  const box = await page.locator(`.control-btn[data-id="${id}"]`).boundingBox();
+  if (!box) return false;
+  await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2);
+  await page.mouse.down();
+  await new Promise((r) => setTimeout(r, ms));
+  await page.mouse.up();
+  await new Promise((r) => setTimeout(r, 280));
+  return true;
+};
+
+const yawBefore = await page.evaluate(() => window.__game.state.camera.targetYaw);
+await holdButton('cam-left');
+const yawLeft = await page.evaluate(() => window.__game.state.camera.targetYaw);
+await holdButton('cam-right');
+const yawBack = await page.evaluate(() => window.__game.state.camera.targetYaw);
+check('a control-bar camera button turns the camera',
+  Math.abs(yawLeft - yawBefore - Math.PI / 4) < 0.01 && Math.abs(yawBack - yawBefore) < 0.01,
+  `${(yawBefore * 180 / Math.PI).toFixed(0)}° → ${(yawLeft * 180 / Math.PI).toFixed(0)}° → back`);
+
+await page.click('.control-btn[data-id="pause"]');
+await new Promise((r) => setTimeout(r, 250));
+const paused = await page.evaluate(async () => {
+  const t0 = window.__game.party.playTime;
+  await new Promise((r) => setTimeout(r, 500));
+  return { flag: window.__game.paused, frozen: Math.abs(window.__game.party.playTime - t0) < 1e-6 };
+});
+await page.click('.control-btn[data-id="pause"]');
+await new Promise((r) => setTimeout(r, 500));
+const resumed = await page.evaluate(async () => {
+  const t0 = window.__game.party.playTime;
+  await new Promise((r) => setTimeout(r, 400));
+  return { flag: window.__game.paused, ticking: window.__game.party.playTime > t0 };
+});
+check('the pause button stops the game', paused.flag === true && paused.frozen === true);
+check('and starts it again', resumed.flag === false && resumed.ticking === true);
+
+await page.click('.control-btn[data-id="menu"]');
+await new Promise((r) => setTimeout(r, 600));
+const menuOpened = await page.evaluate(() => !!window.__game.menu?.open);
+for (let i = 0; i < 5; i++) await tap('Escape', 200);
+const menuShut = await page.evaluate(() => !window.__game.menu?.open);
+check('the menu button opens the menu', menuOpened === true && menuShut === true);
+
+// --- signposting -------------------------------------------------------------
+// Every exit in the game carries a name and nothing ever displayed it, so a
+// village entrance was indistinguishable from open ground.
+const signs = await page.evaluate(async () => {
+  const g = window.__game;
+  await g.gotoMap('overworld', 'default');
+  await new Promise((r) => setTimeout(r, 1500));
+  const st = g.state;
+  const T = 2;
+  const named = st.map.grid.triggers.filter((t) => t.kind === 'exit' && t.data?.prompt);
+
+  // Stand just short of a town gate and see whether it names itself.
+  const gate = st.map.grid.triggers.find((t) => t.kind === 'exit' && t.data?.prompt === 'Harrowmere');
+  let shown = null, far = null;
+  if (gate) {
+    const gx = gate.x + gate.w / 2, gz = gate.z + gate.d / 2;
+    st.player.place(gx, gz - 2.4, 0);
+    st.camera.snapTo(st.player.x, st.player.z);
+    await new Promise((r) => setTimeout(r, 400));
+    const el = document.querySelector('.place-sign');
+    shown = el && !el.classList.contains('hidden') ? el.textContent : null;
+
+    // And go quiet away from every gate. Not simply "far from this one":
+    // the first attempt walked 24 units south and picked up Oxmere's gate
+    // instead, which is the feature working, not failing.
+    const T2 = 2;
+    let spot = null;
+    for (let tz = 2; tz < st.map.height - 2 && !spot; tz++) {
+      for (let tx = 2; tx < st.map.width - 2 && !spot; tx++) {
+        if (!st.map.grid.isWalkTile(tx, tz)) continue;
+        const wx = tx * T2 + T2 / 2, wz = tz * T2 + T2 / 2;
+        const clear = named.every((t) => {
+          const qx = Math.max(t.x, Math.min(wx, t.x + t.w));
+          const qz = Math.max(t.z, Math.min(wz, t.z + t.d));
+          return Math.hypot(wx - qx, wz - qz) > 12;
+        });
+        if (clear) spot = { wx, wz };
+      }
+    }
+    if (spot) {
+      st.player.place(spot.wx, spot.wz, 0);
+      st.camera.snapTo(st.player.x, st.player.z);
+      await new Promise((r) => setTimeout(r, 400));
+      far = el && !el.classList.contains('hidden') ? el.textContent : null;
+    }
+  }
+  return { named: named.length, total: st.map.grid.triggers.filter((t) => t.kind === 'exit').length, shown, far };
+});
+check('every world-map exit is named', signs.named === signs.total, `${signs.named}/${signs.total}`);
+check('approaching a village names it', signs.shown === 'Harrowmere', signs.shown || 'nothing shown');
+check('the name fades once you leave', signs.far === null, signs.far || 'hidden');
 
 // --- the airship -------------------------------------------------------------
 const airship = await page.evaluate(async () => {

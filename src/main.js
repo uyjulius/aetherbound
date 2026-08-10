@@ -6,9 +6,10 @@ import { assets } from './engine/assets.js';
 import { initKitMaterials } from './world/kit.js';
 import { FieldState } from './world/field.js';
 import { loadCharacterModels } from './world/charmodels.js';
-import { applyAtmosphere, resolveMap } from './world/map.js';
+import { resolveMap } from './world/map.js';
 import { BattleState } from './battle/battle.js';
 import { DialogueBox } from './ui/dialogue.js';
+import { ControlBar } from './ui/controls.js';
 import { Party } from './game/party.js';
 import { HARROWMERE } from './data/maps/harrowmere.js';
 import { OVERWORLD } from './data/maps/overworld.js';
@@ -235,9 +236,21 @@ class Game {
     };
     window.addEventListener('keydown', wake);
     window.addEventListener('pointerdown', wake);
+
+    this.controls = new ControlBar(this);
   }
 
-  setState(next) { this.pendingState = next; }
+  /**
+   * Queue a state change for the next simulation tick.
+   *
+   * `suspend: true` parks the outgoing state instead of tearing it down, for
+   * transitions the player is expected to come back from — a battle over the
+   * field being the only one. The state itself decides what that means.
+   */
+  setState(next, { suspend = false } = {}) {
+    this.pendingState = next;
+    this.pendingSuspend = suspend;
+  }
 
   /**
    * Run a coroutine on the global scheduler.
@@ -281,10 +294,20 @@ class Game {
   _applyPendingState() {
     if (!this.pendingState) return;
     const next = this.pendingState;
+    const suspend = this.pendingSuspend;
     this.pendingState = null;
-    this.state?.exit?.(this);
+    this.pendingSuspend = false;
+
+    const prev = this.state;
+    if (suspend && prev?.suspend) prev.suspend(this);
+    else prev?.exit?.(this);
+
     this.state = next;
-    this.state?.enter?.(this);
+    // A state that was parked rather than destroyed comes back through
+    // `resume`, which keeps everything it was holding — most importantly
+    // where the player was standing.
+    if (next?.suspended && next.resume) next.resume(this);
+    else next?.enter?.(this);
   }
 
   /** Fade the whole screen. Resolves when the transition finishes. */
@@ -502,7 +525,7 @@ class Game {
       onEnd: (result) => this._endBattle(result, field, opts),
     });
     this._suspendedField = field;
-    this.setState(battle);
+    this.setState(battle, { suspend: true });
     this._applyPendingState();
     await this.fade(0, 0.45);
   }
@@ -519,14 +542,11 @@ class Game {
       await new Promise((r) => setTimeout(r, 2600));
     }
     if (field) {
-      field.paused = false;
+      // `resume` restores the atmosphere, camera, lights and field music, and
+      // leaves the party standing where the fight started.
       this.setState(field);
       this._applyPendingState();
-      // Re-apply the field's atmosphere, which the battle overwrote.
-      applyAtmosphere(this.renderer, field.mapDef);
-      field.camera.snapTo(field.player.x, field.player.z);
       this.renderer.autofocus = true;
-      if (wiped && field.mapDef?.music) this.playMusic(field.mapDef.music, { fade: 1.4 });
     }
     opts.onComplete?.(result);
     await this.fade(0, 0.5);
@@ -568,6 +588,7 @@ class Game {
 
     this.state?.render?.(frame, this);
     this.renderer.render(frame);
+    this.controls?.update();
     this.frameCount++;
   };
 
