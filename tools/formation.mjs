@@ -129,8 +129,12 @@ const report = await page.evaluate(({ sizes }) => {
   };
 
   const cases = [];
-  for (const id of Object.keys(ENEMIES)) {
-    for (const n of sizes) cases.push({ label: `${id} x${n}`, ids: Array.from({ length: n }, () => id) });
+  for (const [id, def] of Object.entries(ENEMIES)) {
+    // Bosses are staged alone — the game never spawns six of them, and
+    // testing that invents a composition no player can reach. Their size is
+    // still exercised, at the count they actually appear in.
+    const counts = def.boss ? [1] : sizes;
+    for (const n of counts) cases.push({ label: `${id} x${n}`, ids: Array.from({ length: n }, () => id) });
   }
   // Every authored encounter group, which is where mixed species actually occur.
   for (const [key, table] of Object.entries(ENCOUNTERS)) {

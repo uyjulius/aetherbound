@@ -6,6 +6,7 @@ import { assets } from './engine/assets.js';
 import { initKitMaterials } from './world/kit.js';
 import { FieldState } from './world/field.js';
 import { loadCharacterModels } from './world/charmodels.js';
+import { loadMonsterModels } from './battle/monstermodels.js';
 import { resolveMap } from './world/map.js';
 import { BattleState } from './battle/battle.js';
 import { DialogueBox } from './ui/dialogue.js';
@@ -704,9 +705,17 @@ async function boot() {
   // constructed.
   status.textContent = 'Waking the cast…';
   const modelCount = await loadCharacterModels('assets/models/', (pct) => {
-    fill.style.width = `${84 + pct * 6}%`;
+    fill.style.width = `${84 + pct * 3}%`;
   });
   console.log(`[boot] ${modelCount} character models loaded`);
+
+  // The bestiary is preloaded too: a battle is entered from a fade, and
+  // fetching a creature's mesh at that moment would stall the transition.
+  status.textContent = 'Waking what sleeps…';
+  const monsterCount = await loadMonsterModels('assets/monsters/', (pct) => {
+    fill.style.width = `${87 + pct * 3}%`;
+  });
+  console.log(`[boot] ${monsterCount} monster models loaded`);
 
   status.textContent = 'Raising the village…';
   fill.style.width = '92%';

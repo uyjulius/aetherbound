@@ -1,6 +1,6 @@
 import * as THREE from 'three';
 import { buildCharacter, CharacterAnimator } from '../world/character.js';
-import { buildMonster, MonsterAnimator } from './monsters.js';
+import { buildMonster, MonsterAnimator, HOVER_HEIGHT } from './monsters.js';
 import { toonMaterial, skyMaterial } from '../fx/materials.js';
 import { assets } from '../engine/assets.js';
 import { kitMaterials, tree, bush, rock } from '../world/kit.js';
@@ -272,6 +272,9 @@ export class BattleView {
       const home = centre.clone()
         .addScaledVector(STAGE_U, offset)
         .addScaledVector(STAGE_FWD, -(u.depth * 0.25 + Math.abs(offset) * ARC));
+      // Fliers are staged in the air, so the camera frames where they will
+      // actually be rather than where their feet would have been.
+      if (u.built.flying) home.y = HOVER_HEIGHT;
       u.built.root.position.copy(home);
       this.group.add(u.built.root);
       this.actors.set(u.e.id, {
@@ -319,7 +322,7 @@ export class BattleView {
 
       // 8% of margin, so nothing sits flush against the edge of the screen.
       const FIT = 0.92;
-      for (let step = 0; step < 24; step++) {
+      for (let step = 0; step < 40; step++) {
         cam.position.copy(rig.position);
         cam.lookAt(rig.target);
         cam.updateMatrixWorld(true);
