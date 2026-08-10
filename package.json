@@ -3,7 +3,7 @@
   "version": "0.1.0",
   "private": true,
   "type": "module",
-  "description": "Aetherbound — a 3D turn-based RPG in the tradition of Final Fantasy VI",
+  "description": "Aetherbound \u2014 a 3D turn-based RPG in the tradition of Final Fantasy VI",
   "scripts": {
     "build": "node tools/build.mjs",
     "watch": "node tools/build.mjs --watch",
@@ -13,7 +13,8 @@
     "textures:raw": "node tools/gen-raw-textures.mjs",
     "smoke": "node tools/smoke.mjs",
     "audit": "node tools/audit.mjs",
-    "start": "npm run textures && npm run build && npm run serve"
+    "start": "npm run textures && npm run build && npm run serve",
+    "balance": "node tools/balance.mjs"
   },
   "dependencies": {
     "three": "^0.180.0"
