@@ -1,0 +1,67 @@
+# Build the game and publish it to GitHub Pages.
+#
+# The dev server mounts two directories — public/ at the root and assets/ at
+# /assets/ — so the deployed site has to be assembled the same way rather than
+# pointing Pages at a single folder.
+#
+# Textures and character models are committed, so this does not regenerate art:
+# `npm run textures:raw` needs network access and an image model, and the
+# quilted plates are deterministic given their sources anyway.
+name: Deploy to Pages
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: Install
+        run: npm ci
+
+      - name: Build the bundle
+        run: npm run build
+
+      - name: Assemble the site
+        run: |
+          mkdir -p _site
+          cp -r public/. _site/
+          mkdir -p _site/assets
+          # Only what the game loads at runtime. The raw generator inputs are
+          # not in the repo and the contact sheets are documentation.
+          cp -r assets/textures _site/assets/
+          cp -r assets/models _site/assets/
+          rm -f _site/game.js.map
+          echo 'aetherbound.uy.sg' > _site/CNAME
+          du -sh _site
+
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: _site
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@v4
