@@ -48,9 +48,31 @@ jobs:
           # not in the repo and the contact sheets are documentation.
           cp -r assets/textures _site/assets/
           cp -r assets/models _site/assets/
+          cp -r assets/monsters _site/assets/
           rm -f _site/game.js.map
           echo 'aetherbound.uy.sg' > _site/CNAME
           du -sh _site
+
+      # A missing asset directory does not fail the build, it just ships a
+      # game with no monsters in it — which is exactly what happened when the
+      # bestiary's models were added and this list was not. Fail loudly here
+      # instead of finding out from a screenshot.
+      - name: Check the runtime assets are present
+        run: |
+          for dir in textures models monsters; do
+            count=$(find "_site/assets/$dir" -type f | wc -l)
+            echo "assets/$dir: $count files"
+            [ "$count" -gt 0 ] || { echo "::error::_site/assets/$dir is empty"; exit 1; }
+          done
+          # Every model the loaders name has to actually be there.
+          missing=0
+          for id in $(grep -oE "id: '[A-Za-z0-9_-]+'" src/battle/monstermodels.js | cut -d"'" -f2); do
+            [ -f "_site/assets/monsters/$id.glb" ] || { echo "::error::missing monster $id"; missing=1; }
+          done
+          for f in $(grep -oE "file: '[A-Za-z0-9_-]+\.glb'" src/world/charmodels.js | cut -d"'" -f2); do
+            [ -f "_site/assets/models/$f" ] || { echo "::error::missing character model $f"; missing=1; }
+          done
+          exit $missing
 
       - uses: actions/upload-pages-artifact@v3
         with:
