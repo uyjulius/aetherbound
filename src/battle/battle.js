@@ -11,8 +11,9 @@ import { ELEMENT_COLOR } from '../engine/palette.js';
 import { audio } from '../audio/audio.js';
 import { playSpellFX } from '../fx/spellfx.js';
 import {
-  physicalDamage, magicDamage, healAmount, rollHit, rollCritical, rollStatus,
-  elementalMultiplier, atbRate, limitGain, expShare, STATUSES, TICK_RATES,
+  physicalDamage, monsterDamage, magicDamage, healAmount, rollHit, rollCritical,
+  rollStatus, elementalMultiplier, atbRate, limitGain, expShare, goldShare,
+  STATUSES, TICK_RATES, MONSTER_SPELL_REFERENCE,
 } from './formulas.js';
 
 /**
@@ -256,6 +257,15 @@ export class BattleState {
       yield wait(0.6);
       yield* this.game.dialogue.speak(boss.def.name, [boss.def.intro]);
     }
+    // A boss opens with its gauge part-filled.
+    //
+    // It has just been given a line of dialogue and a banner with its name on
+    // it; going down before it has taken a single turn makes all of that a
+    // joke. Half the bosses in the game were dying inside one round to a party
+    // that had brought the right element, which is correct play being rewarded
+    // — but the fight should still start.
+    for (const e of this.enemies) if (e.def.boss) e.atb = 55;
+
     // Pre-emptive and back-attack rolls, the classic openers.
     const roll = rng.battle.next();
     if (roll < 0.06) {
@@ -947,16 +957,32 @@ export class BattleState {
 
     // Tam's Quarry marks a target for the whole party, not just for Tam.
     const quarry = target._quarry ? 1.25 : 1;
-    let dmg = physicalDamage({
-      attackerLevel: actor.level,
-      vigour: actor.kind === 'party' ? actor.stat('vig') : actor.attack,
-      weaponPower: actor.kind === 'party' ? actor.attack : Math.floor(actor.attack * 0.9),
-      defence: target.hasStatus('protect') ? Math.floor(target.defence * 1.6) : target.defence,
-      rows: { attacker: actor.row, target: target.row },
-      critical: crit,
-      multiplier: power * (actor.hasStatus('berserk') ? 1.25 : 1) * quarry,
-      ignoreDefence,
-    });
+    const defence = target.hasStatus('protect') ? Math.floor(target.defence * 1.6) : target.defence;
+    const multiplier = power * (actor.hasStatus('berserk') ? 1.25 : 1) * quarry;
+
+    // The two sides do not share a damage curve. A party member's output has
+    // to climb from rats to a boss with eighty thousand hit points; a
+    // creature's job is to take a predictable bite out of a health bar, off
+    // the `atk` its bestiary entry actually authored.
+    let dmg = actor.kind === 'party'
+      ? physicalDamage({
+        attackerLevel: actor.level,
+        vigour: actor.stat('vig'),
+        weaponPower: actor.attack,
+        defence,
+        rows: { attacker: actor.row, target: target.row },
+        critical: crit,
+        multiplier,
+        ignoreDefence,
+      })
+      : monsterDamage({
+        level: actor.level,
+        power: actor.attack,
+        defence,
+        rows: { attacker: actor.row, target: target.row },
+        multiplier: multiplier * (crit ? 1.5 : 1),
+        ignoreDefence,
+      });
 
     const mult = elementalMultiplier(element, target.affinity);
     dmg = Math.round(dmg * Math.abs(mult));
@@ -1137,10 +1163,18 @@ export class BattleState {
     const casterMag = actor.kind === 'party' ? actor.stat('mag') : actor.def.stats.mag;
 
     if (spell.kind === 'attack') {
-      let dmg = magicDamage({
-        casterLevel: actor.level, magic: casterMag, spellPower: spell.power,
-        magicDefence: target.hasStatus('shell') ? Math.floor(target.magicDefence * 1.6) : target.magicDefence,
-      });
+      const mdef = target.hasStatus('shell')
+        ? Math.floor(target.magicDefence * 1.6) : target.magicDefence;
+      // Same split as a swing: the party's spells climb, a creature's spell is
+      // worth a multiple of its own attack.
+      let dmg = actor.kind === 'party'
+        ? magicDamage({
+          casterLevel: actor.level, magic: casterMag, spellPower: spell.power, magicDefence: mdef,
+        })
+        : monsterDamage({
+          level: actor.level, power: casterMag, defence: mdef,
+          multiplier: spell.power / MONSTER_SPELL_REFERENCE,
+        });
       const mult = elementalMultiplier(spell.element, target.affinity);
       dmg = Math.round(dmg * Math.abs(mult));
       if (mult < 0) {
@@ -1206,7 +1240,17 @@ export class BattleState {
         break;
       }
       case 'drainHP': {
-        const dmg = magicDamage({ casterLevel: actor.level, magic: actor.stat('mag'), spellPower: spell.power, magicDefence: target.magicDefence });
+        // Drain is cast by both sides, so it takes the same split as any
+        // other spell rather than handing creatures the party's curve.
+        const dmg = actor.kind === 'party'
+          ? magicDamage({
+            casterLevel: actor.level, magic: actor.stat('mag'),
+            spellPower: spell.power, magicDefence: target.magicDefence,
+          })
+          : monsterDamage({
+            level: actor.level, power: actor.stat('mag'), defence: target.magicDefence,
+            multiplier: spell.power / MONSTER_SPELL_REFERENCE,
+          });
         yield* this.applyDamage(actor, target, dmg, { magic: true });
         actor.hp = Math.min(actor.maxHP, actor.hp + dmg);
         this.ui.popup(this.view.project(this.view.anchor(actor.id, 1.5)), dmg, 'heal');
@@ -1609,17 +1653,18 @@ export class BattleState {
   }
 
   *awardSpoils() {
-    let exp = 0, gold = 0;
+    let exp = 0, rawGold = 0;
     const drops = [];
     for (const e of this.enemies) {
       exp += e.def.exp;
-      gold += e.def.gold;
+      rawGold += e.def.gold;
       for (const d of e.def.drops || []) {
         if (rng.loot.next() < d.chance) drops.push(d.id);
       }
     }
     const survivors = this.party.filter((p) => !p.isKO).length;
     const each = expShare(exp, survivors);
+    const gold = goldShare(rawGold);
     this.game.party.addGold(gold);
     for (const id of drops) this.game.party.addItem(id, 1);
 

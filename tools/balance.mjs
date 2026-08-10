@@ -27,7 +27,8 @@ import { ESPERS } from '../src/data/espers.js';
 import { CHARACTERS, CAST_ORDER, statAt, expForLevel, levelForExp } from '../src/data/characters.js';
 import {
   physicalDamage, magicDamage, healAmount, hitChance, elementalMultiplier,
-  atbRate, expShare, STATUSES, DEFENCE_CAP, AFFINITY, ELEMENTS, TICK_RATES,
+  atbRate, expShare, STATUSES, DEFENCE_SOFT, AFFINITY, ELEMENTS, TICK_RATES,
+  monsterDamage, MONSTER_SPELL_REFERENCE, effectiveDefence, goldShare, GOLD_RATE,
 } from '../src/battle/formulas.js';
 import { RNG } from '../src/engine/rng.js';
 import * as legendModule from '../src/world/map.js';
@@ -374,7 +375,9 @@ const ACTION_TIME = 1.1;            // roughly what the animations cost
  * hit the thing in front. Deliberately not optimal: a check that only passes
  * for perfect play tells you nothing about the game most people will meet.
  */
-function simulateBattle(party, enemyIds, { battleSpeed = 3, healAt = 0.4, useMagic = true } = {}) {
+function simulateBattle(party, enemyIds, {
+  battleSpeed = 3, healAt = 0.4, useMagic = true, allowHeal = true,
+} = {}) {
   const foes = enemyIds.map((id, i) => ENEMIES[id] ? new SimEnemy(ENEMIES[id], i) : null).filter(Boolean);
   if (!foes.length) return null;
 
@@ -382,7 +385,9 @@ function simulateBattle(party, enemyIds, { battleSpeed = 3, healAt = 0.4, useMag
     m, hp: m.hp, mp: m.mp, maxHP: m.maxHP, maxMP: m.maxMP,
     atb: 0, busy: 0, ko: m.hp <= 0, statuses: new Set(),
   }));
-  for (const f of foes) f.atb = 0, f.busy = 0;
+  // Bosses open with a part-filled gauge, as the battle state does, so they
+  // always land at least one move.
+  for (const f of foes) { f.atb = f.def.boss ? 55 : 0; f.busy = 0; }
 
   let t = 0;
   let damageTaken = 0;
@@ -439,7 +444,7 @@ function simulateBattle(party, enemyIds, { battleSpeed = 3, healAt = 0.4, useMag
     // Heal first, on the same rule a player uses: somebody is about to die.
     const hurt = aliveHeroes().filter((x) => x.hp / x.maxHP < healAt)
       .sort((a, b) => a.hp / a.maxHP - b.hp / b.maxHP)[0];
-    if (hurt && useMagic) {
+    if (hurt && allowHeal) {
       const heal = bestHeal(h);
       if (heal && h.mp >= heal.mp) {
         h.mp -= heal.mp;
@@ -494,9 +499,9 @@ function simulateBattle(party, enemyIds, { battleSpeed = 3, healAt = 0.4, useMag
       if (!spell) return;
       if (spell.kind !== 'attack') return;      // buffs/heals do not hurt anybody
       for (const h of targets) {
-        let dmg = magicDamage({
-          casterLevel: f.level, magic: f.def.stats.mag, spellPower: spell.power,
-          magicDefence: h.m.magicDefence,
+        let dmg = monsterDamage({
+          level: f.level, power: f.def.stats.mag, defence: h.m.magicDefence,
+          multiplier: spell.power / MONSTER_SPELL_REFERENCE,
         });
         dmg = Math.round(dmg * Math.max(0, elementalMultiplier(spell.element, h.m.affinity)));
         hurt(h, dmg);
@@ -507,10 +512,9 @@ function simulateBattle(party, enemyIds, { battleSpeed = 3, healAt = 0.4, useMag
     for (const h of targets) {
       const acc = hitChance({ accuracy: 106, targetEvade: h.m.evade });
       if (rng.next() > acc) continue;
-      let dmg = physicalDamage({
-        attackerLevel: f.level,
-        vigour: f.attack,
-        weaponPower: Math.floor(f.attack * 0.9),
+      let dmg = monsterDamage({
+        level: f.level,
+        power: f.attack,
         defence: h.m.defence,
         rows: { attacker: 'front', target: h.m.row },
         multiplier: spec.power ?? 1,
@@ -589,39 +593,48 @@ function bestAttackSpell(h, target) {
 function dataChecks() {
   head('1. Bestiary data');
 
-  // --- defence past the cap is a stat that does nothing ---------------------
-  const overDef = Object.values(ENEMIES).filter((e) => e.stats.def > DEFENCE_CAP);
-  const overMdef = Object.values(ENEMIES).filter((e) => e.stats.mdef > DEFENCE_CAP);
-  say(`defence cap ${DEFENCE_CAP}: ${overDef.length}/${Object.keys(ENEMIES).length} enemies exceed it on def, `
-    + `${overMdef.length} on mdef`);
-  if (overDef.length) {
-    const worst = [...overDef].sort((a, b) => b.stats.def - a.stats.def).slice(0, 6);
-    flag('major', 'enemy strength',
-      `${overDef.length} enemies carry defence above the ${DEFENCE_CAP} cap`,
-      `Everything above ${DEFENCE_CAP} is discarded by physicalDamage, so these creatures are all `
-      + `exactly as tough as each other and the authored numbers stop meaning anything. `
-      + `Worst: ${worst.map((e) => `${e.name} ${e.stats.def}`).join(', ')}. `
-      + `${overDef.filter((e) => !e.boss).length} of them are ordinary encounters, not bosses.`);
+  // --- does every point of armour still do something? ----------------------
+  //
+  // The old hard clamp discarded everything past 200, so fifty-three creatures
+  // carrying 201-232 were all exactly as tough as each other. The curve
+  // saturates instead, and this checks that: how much separation survives
+  // between the toughest thing in the bestiary and the merely tough.
+  const defs = Object.values(ENEMIES).map((e) => e.stats.def).sort((a, b) => b - a);
+  const top = defs[0], mid = defs[Math.floor(defs.length / 2)];
+  const shown = (d) => (255 - effectiveDefence(d)) / 256;
+  say(`defence softens above ${DEFENCE_SOFT}: `
+    + `the toughest creature (def ${top}) lets ${(shown(top) * 100).toFixed(0)}% through, `
+    + `a median one (def ${mid}) ${(shown(mid) * 100).toFixed(0)}%`);
+  // The question is whether the *top* of the range still separates. A first
+  // version asked whether each creature's defence resolved close to the soft
+  // point's, which just finds every creature whose defence is near 200 — a
+  // property of the number, not a defect.
+  const p90 = defs[Math.floor(defs.length * 0.1)];
+  const separation = shown(p90) - shown(top);
+  say(`the top decile (def ${p90}) and the toughest (def ${top}) differ by `
+    + `${(separation * 100).toFixed(1)} points of damage taken`);
+  if (separation < 0.01) {
+    flag('major', 'enemy strength', 'The toughest creatures are indistinguishable from each other',
+      `Defence ${p90} and defence ${top} resolve to the same damage taken, so the top of the `
+      + 'bestiary\'s armour range is decorative.');
   }
 
-  // --- can the party's own gear break the cap the other way? ---------------
+  // The party's own armour has to keep mattering too, in both directions.
   const bestArmourFor = (slot) => Object.values(ITEMS)
     .filter((i) => i.slot === slot && (i.stats?.def ?? 0) > 0)
     .sort((a, b) => (b.stats.def ?? 0) - (a.stats.def ?? 0))[0];
-  const headBest = bestArmourFor('head'), bodyBest = bestArmourFor('body'), offBest = bestArmourFor('offhand');
   const relicDef = Object.values(ITEMS).filter((i) => i.kind === 'relic' && (i.stats?.def ?? 0) > 0)
     .sort((a, b) => b.stats.def - a.stats.def).slice(0, 2);
-  const tankSta = statAt('rusk', 'sta', 60);
-  const maxPartyDef = Math.floor(tankSta * 0.7)
-    + (headBest?.stats.def ?? 0) + (bodyBest?.stats.def ?? 0) + (offBest?.stats.def ?? 0)
+  const maxPartyDef = Math.floor(statAt('rusk', 'sta', 60) * 0.7)
+    + ['head', 'body', 'offhand'].reduce((n, s2) => n + (bestArmourFor(s2)?.stats.def ?? 0), 0)
     + relicDef.reduce((n, r) => n + r.stats.def, 0);
-  say(`best-armoured party defence at level 60: ${maxPartyDef} (cap ${DEFENCE_CAP})`);
-  if (maxPartyDef < DEFENCE_CAP * 0.75) {
-    flag('minor', 'enemy strength',
-      `The defence cap is unreachable by the party (${maxPartyDef} of ${DEFENCE_CAP} at best)`,
-      'The cap exists to stop endgame armour trivialising physical damage, but the best gear in '
-      + 'the game does not come close to it, so it only ever fires on enemies — where it flattens '
-      + 'their authored numbers instead.');
+  say(`best-armoured party defence at level 60: ${maxPartyDef}, `
+    + `letting ${(shown(maxPartyDef) * 100).toFixed(0)}% of a hit through `
+    + `(unarmoured, ${(shown(0) * 100).toFixed(0)}%)`);
+  if (shown(maxPartyDef) < 0.12) {
+    flag('minor', 'enemy strength', 'The best armour in the game makes a character near-immune',
+      `${(shown(maxPartyDef) * 100).toFixed(0)}% of a physical hit gets through, which is close `
+      + 'enough to nothing that late-game physical enemies stop being a threat at all.');
   }
 
   // --- unknown ids ---------------------------------------------------------
@@ -822,11 +835,16 @@ function damageScaling() {
 
   // Boss HP against a single spell, which is the fight in one number.
   const bosses = Object.values(ENEMIES).filter((e) => e.boss).sort((a, b) => a.level - b.level);
+  // Spells come from espers, not from having the MP for them. Gating only on
+  // MP handed a level-12 mage Sunder and reported the game's first boss as
+  // dying to one cast of a spell nobody can own for another forty levels.
+  const spellTier = (level) => (level >= 60 ? 5 : level >= 44 ? 4 : level >= 28 ? 3 : level >= 14 ? 2 : 1);
   const oneShot = [];
   for (const b of bosses) {
     const mag = statAt('vesna', 'mag', b.level);
     const best = Object.values(SPELLS)
-      .filter((s) => s.kind === 'attack' && s.mp <= statAt('vesna', 'mp', b.level))
+      .filter((s) => s.kind === 'attack' && s.mp <= statAt('vesna', 'mp', b.level)
+        && (s.tier ?? 1) <= spellTier(b.level))
       .sort((a, c) => c.power - a.power)[0];
     if (!best) continue;
     const dmg = magicDamage({
@@ -865,7 +883,7 @@ function economy() {
       for (const id of g.enemies) {
         const e = ENEMIES[id];
         if (!e) continue;
-        exp += p * e.exp; gold += p * e.gold; lv += e.level; count++;
+        exp += p * e.exp; gold += p * e.gold * GOLD_RATE; lv += e.level; count++;
       }
     }
     // The party the region is written for. Floored at the level the game
@@ -1134,18 +1152,41 @@ function progression() {
     // condition a player actually plays under, rather than a fixed count.
     const nextLevel = order[order.indexOf(order.find(([n]) => n === table)) + 1]?.[1] ?? meanLevel + 4;
     let fights = 0, wipes = 0, deaths = 0, regionSeconds = 0, regionExp = 0, regionGold = 0;
-    let hpLossTotal = 0, closest = 1;
+    let hpLossTotal = 0, closest = 1, chain = 0, rests = 0;
+    const chains = [];
     const cap = 400;
+    for (const m of party) { m.hp = m.maxHP; m.mp = m.maxMP; }   // arrive rested
 
     while (fights < cap) {
       const roll = rng.next() * totalWeight;
       let acc = 0, group = groups[0];
       for (const g of groups) { acc += g.weight; if (roll <= acc) { group = g; break; } }
 
-      for (const m of party) { m.hp = m.maxHP; m.mp = m.maxMP; }   // an inn between fights, generously
+      // No free rest between fights. An earlier version restored the party to
+      // full before every encounter, which is an inn on every tile — it made
+      // every region cost "under 4% of the party's health" and reported the
+      // whole game as frictionless. Attrition is the entire point of a random
+      // encounter, so the party carries its wounds and rests only when it has
+      // to, and what gets measured is how many fights it can chain.
       const r = simulateBattle(party, group.enemies);
       if (!r) break;
       fights++; battles++;
+      chain++;
+      // Commit the battle's damage back onto the party.
+      for (let i = 0; i < party.length; i++) {
+        party[i].hp = r.heroes[i].ko ? 0 : r.heroes[i].hp;
+        party[i].mp = r.heroes[i].mp;
+      }
+      const pool = party.reduce((n, m) => n + Math.max(0, m.hp), 0)
+        / party.reduce((n, m) => n + m.maxHP, 0);
+      const dry = party.every((m) => m.mp < 20);
+      if (pool < 0.35 || dry || party.some((m) => m.hp <= 0)) {
+        // Back to an inn or a save point.
+        for (const m of party) { m.hp = m.maxHP; m.mp = m.maxMP; }
+        chains.push(chain);
+        chain = 0;
+        rests++;
+      }
       regionSeconds += r.seconds;
       seconds += r.seconds;
       hpLossTotal += r.hpLostFrac;
@@ -1153,8 +1194,8 @@ function progression() {
       deaths += r.deaths;
       if (!r.win) { wipes++; if (wipes > fights * 0.5 && fights > 12) break; }
       else {
-        regionExp += r.exp; regionGold += r.gold;
-        gold += r.gold;
+        regionExp += r.exp; regionGold += goldShare(r.gold);
+        gold += goldShare(r.gold);
         const each = expShare(r.exp, Math.max(1, r.survivors));
         for (const m of party) m.gainExp(each);
       }
@@ -1163,26 +1204,24 @@ function progression() {
     }
 
     const level = party.reduce((n, m) => n + m.level, 0) / party.length;
+    if (chain) chains.push(chain);
     rows.push({
       table, meanLevel, worst: tableMaxLevel.get(table),
-      fights, wipes, deaths,
-      arriveLevel: level - (party.reduce((n, m) => n + m.level, 0) / party.length - level),
-      level, gold,
+      fights, wipes, deaths, rests, level, gold,
+      chain: chains.length ? chains.reduce((n, c) => n + c, 0) / chains.length : fights,
       secondsEach: regionSeconds / Math.max(1, fights),
-      regionMinutes: regionSeconds / 60,
       hpLoss: hpLossTotal / Math.max(1, fights),
       closest,
     });
   }
 
-  say('table                     mean lv  party lv  fights  wipes  s/fight  HP lost  closest  gold');
+  say('table                     mean lv  party lv  fights  wipes  s/fight  HP lost  fights/rest');
   for (const r of rows) {
-    const warn = r.wipes > 0 ? '\x1b[31m' : r.fights >= 400 ? '\x1b[33m' : '';
+    const warn = r.wipes > 0 ? '\x1b[31m' : r.chain > 25 ? '\x1b[33m' : '';
     say(`${warn}${r.table.padEnd(24)} ${r.meanLevel.toFixed(0).padStart(7)} `
       + `${r.level.toFixed(1).padStart(9)} ${String(r.fights).padStart(7)} `
       + `${String(r.wipes).padStart(6)} ${r.secondsEach.toFixed(0).padStart(8)} `
-      + `${(r.hpLoss * 100).toFixed(0).padStart(7)}% ${(r.closest * 100).toFixed(0).padStart(7)}% `
-      + `${String(Math.round(r.gold)).padStart(7)}\x1b[0m`);
+      + `${(r.hpLoss * 100).toFixed(0).padStart(7)}% ${r.chain.toFixed(0).padStart(12)}\x1b[0m`);
   }
 
   const hours = seconds / 3600;
@@ -1213,16 +1252,26 @@ function progression() {
       trivial.slice(0, 8).map((r) => r.table).join(', ')
       + '. A region the party outlevels immediately is content nobody sees.');
   }
-  const deadly = rows.filter((r) => r.wipes > 0);
+  // A rare wipe is the game working. A region that kills the party more than
+  // one time in ten is not tuned, it is a wall.
+  const deadly = rows.filter((r) => r.fights > 5 && r.wipes / r.fights > 0.1);
   if (deadly.length) {
     flag('major', 'battles', `${deadly.length} regions wipe the party at their own level`,
-      deadly.slice(0, 8).map((r) => `${r.table} (${r.wipes}/${r.fights})`).join(', '));
+      deadly.slice(0, 8).map((r) => `${r.table} (${r.wipes} in ${r.fights})`).join(', '));
   }
-  const painless = rows.filter((r) => r.hpLoss < 0.04);
-  if (painless.length > rows.length * 0.4) {
-    flag('major', 'battles', `${painless.length} of ${rows.length} regions cost under 4% of the party's health`,
-      'A random encounter that never threatens anything is a toll booth: the player pays time and '
-      + 'gets no decision back. This is the single most common complaint about the genre.');
+  // How many encounters the party can chain before it has to go back and
+  // rest. This is what attrition actually feels like: a dungeon you can clear
+  // in one run without ever opening the menu has no encounters in it, it has
+  // a walking-speed tax.
+  const frictionless = rows.filter((r) => r.chain > 25);
+  const avgChain = rows.reduce((n, r) => n + r.chain, 0) / rows.length;
+  say(`the party can chain ${avgChain.toFixed(0)} encounters between rests on average`);
+  if (frictionless.length > rows.length * 0.4) {
+    flag('major', 'battles',
+      `${frictionless.length} of ${rows.length} regions can be crossed without ever resting`,
+      `The party chains ${avgChain.toFixed(0)} fights on average before HP or MP forces it back to `
+      + 'an inn. A random encounter that never threatens anything is a toll booth: the player pays '
+      + 'time and gets no decision back. This is the single most common complaint about the genre.');
   }
   const slow = rows.filter((r) => r.secondsEach > 90);
   if (slow.length) {
@@ -1251,7 +1300,10 @@ function bossChecks() {
     // A party at the boss's own level, in gear it could afford by then. Gold
     // is approximated from the level, which is what the progression run shows
     // it tracks.
-    const budget = Math.round(120 * Math.pow(b.level, 2.1));
+    // What the party could plausibly have spent by this level: the best kit in
+    // the game for four costs 220,800 gil, and they should only be able to
+    // afford all of it right at the end.
+    const budget = Math.round(0.36 * Math.pow(b.level, 3));
     const party = ['vesna', 'corvin', 'aurelian', 'wick'].map((id) => new SimMember(id, b.level));
     for (const m of party) {
       if (m.def.innateMagic) {
@@ -1262,12 +1314,19 @@ function bossChecks() {
         if (b.level >= 46) m.spells.add('sunder');
       }
       let purse = budget / 4;
+      // A player fighting a boss with a known weakness brings the weapon that
+      // exploits it — that is the whole point of the affinity table, and of
+      // Vesna's Attune. Scoring gear on raw stats alone made a heavily
+      // armoured boss with two elemental weaknesses look unbeatable by steel.
+      const weak = new Set(Object.entries(b.affinity ?? {})
+        .filter(([, v]) => v === 'weak').map(([k]) => k));
       for (const slot of EQUIP_SLOTS) {
         const wearable = purchasable.filter((it) => {
           const target = it.kind === 'relic' ? ['relic1', 'relic2'] : [it.slot];
           return target.includes(slot) && canEquip(m.id, it) && it.price <= purse;
         });
-        const best = wearable.sort((a, b2) => gearScore(b2) - gearScore(a))[0];
+        const score = (it) => gearScore(it) * (weak.has(it.element) ? 2 : 1);
+        const best = wearable.sort((a, b2) => score(b2) - score(a))[0];
         if (best) { purse -= best.price; m.equipment[slot] = best; }
       }
       m.hp = m.maxHP; m.mp = m.maxMP;
@@ -1275,32 +1334,43 @@ function bossChecks() {
 
     // Two runs: the way the numbers say to play, and the way the game reads as
     // if it wants to be played. The gap between them is the finding.
+    // The steel run turns off *offensive* spells only. An earlier version cut
+    // healing too, so it was not measuring whether a sword can win a fight, it
+    // was measuring whether a party with no healer can — and it reported five
+    // bosses as magic-only when three of them are simply written to resist
+    // physical damage and one is a straightforward slog.
     const run = (useMagic) => {
-      let wins = 0, seconds = 0, deaths = 0, timeouts = 0;
+      let wins = 0, seconds = 0, deaths = 0, timeouts = 0, bite = 0;
       const N = 10;
+      const pool = party.reduce((n, m) => n + m.maxHP, 0);
       for (let i = 0; i < N; i++) {
         for (const m of party) { m.hp = m.maxHP; m.mp = m.maxMP; }
-        const r = simulateBattle(party, [b.id], { useMagic });
+        const r = simulateBattle(party, [b.id], { useMagic, allowHeal: true });
         if (!r) break;
         if (r.win) wins++;
         if (r.timeout) timeouts++;
         seconds += r.seconds;
         deaths += r.deaths;
+        // How much of the party's health the boss actually took. A fight can
+        // be short and still be a fight; it cannot be a fight if nothing was
+        // ever at stake, and win/lose alone never shows that.
+        bite += Math.min(1, r.hpLost / pool);
       }
-      return { winRate: wins / N, seconds: seconds / N, deaths: deaths / N, timeouts };
+      return { winRate: wins / N, seconds: seconds / N, deaths: deaths / N, timeouts, bite: bite / N };
     };
     const magic = run(true);
     const steel = run(false);
     rows.push({ id: b.id, name: b.name, level: b.level, hp: b.stats.hp, magic, steel });
   }
 
-  say('                                        ── with magic ──   ── swords only ──');
-  say('boss                            lv      HP   win%  length   win%   length');
+  say('                                        ─── with magic ───   ── swords only ──');
+  say('boss                            lv      HP   win%  length  cost   win%   length');
   for (const r of rows) {
-    const colour = r.magic.seconds < 25 ? '\x1b[33m' : r.steel.winRate < 0.5 ? '\x1b[31m' : '';
+    const colour = r.magic.bite < 0.2 ? '\x1b[33m' : r.steel.winRate < 0.5 ? '\x1b[31m' : '';
     say(`${colour}${r.name.slice(0, 30).padEnd(30)} ${String(r.level).padStart(3)} `
       + `${String(r.hp).padStart(7)} ${(r.magic.winRate * 100).toFixed(0).padStart(5)}% `
-      + `${r.magic.seconds.toFixed(0).padStart(6)}s ${(r.steel.winRate * 100).toFixed(0).padStart(6)}% `
+      + `${r.magic.seconds.toFixed(0).padStart(6)}s ${(r.magic.bite * 100).toFixed(0).padStart(4)}% `
+      + `${(r.steel.winRate * 100).toFixed(0).padStart(6)}% `
       + `${r.steel.seconds.toFixed(0).padStart(7)}s\x1b[0m`);
   }
 
@@ -1309,20 +1379,33 @@ function bossChecks() {
     flag('major', 'battles', `${unwinnable.length} bosses are lost more often than won at their own level`,
       unwinnable.slice(0, 10).map((r) => `${r.name} lv${r.level} ${(r.magic.winRate * 100).toFixed(0)}%`).join(', '));
   }
-  const pushovers = rows.filter((r) => r.magic.seconds < 30 && r.magic.deaths < 0.2);
-  if (pushovers.length) {
-    flag('major', 'battles', `${pushovers.length} of ${rows.length} bosses fall in under 30 seconds without costing a life`,
-      pushovers.slice(0, 10).map((r) => `${r.name} ${r.magic.seconds.toFixed(0)}s`).join(', ')
-      + '. A boss the party walks through does not read as a boss whatever the music does.');
+  // Length alone is the wrong measure — a well-played boss fight can be short.
+  // What separates a boss from a wall is how much it takes off the party
+  // before it dies.
+  const pushovers = rows.filter((r) => r.magic.bite < 0.2);
+  if (pushovers.length > rows.length * 0.25) {
+    flag('major', 'battles',
+      `${pushovers.length} of ${rows.length} bosses never take a fifth of the party's health`,
+      pushovers.slice(0, 10).map((r) => `${r.name} ${(r.magic.bite * 100).toFixed(0)}%`).join(', ')
+      + '.\nRead this one with its conditions attached: the party here is exactly the boss\'s '
+      + 'level, carrying the best gear its budget allows, holding a weapon of whatever element the '
+      + 'boss is weak to, and healing perfectly. A boss that loses to all of that at once is a '
+      + 'boss whose homework was done. It is still worth knowing which ones cannot threaten even a '
+      + 'sloppy party.');
   }
-  const steelLoses = rows.filter((r) => r.steel.winRate < 0.5 && r.magic.winRate >= 0.9);
+  // A boss written `physical: resist` is meant to be a puzzle, and losing it
+  // with swords is the puzzle working. What is not fine is a boss with no such
+  // note that steel simply cannot beat.
+  const steelLoses = rows.filter((r) => r.steel.winRate < 0.5 && r.magic.winRate >= 0.9
+    && ENEMIES[r.id]?.affinity?.physical !== 'resist'
+    && ENEMIES[r.id]?.affinity?.physical !== 'immune');
   if (steelLoses.length) {
     flag('major', 'battles',
-      `${steelLoses.length} bosses are unwinnable without magic but trivial with it`,
+      `${steelLoses.length} bosses cannot be beaten with weapons, and do not say so`,
       steelLoses.slice(0, 10).map((r) => `${r.name} (${(r.steel.winRate * 100).toFixed(0)}% vs `
         + `${(r.magic.winRate * 100).toFixed(0)}%)`).join(', ')
-      + '. There is no build choice here — there is one correct answer and thirteen characters who '
-      + 'are not it.');
+      + '. A boss that resists physical damage should carry `physical: resist` so Annotate reports '
+      + 'it and the player can act on it; these just quietly cannot be hit hard enough.');
   }
   const slogs = rows.filter((r) => r.magic.seconds > 240 || r.magic.timeouts);
   if (slogs.length) {

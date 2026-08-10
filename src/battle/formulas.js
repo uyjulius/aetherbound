@@ -66,16 +66,53 @@ export const BLOCKING_STATUSES = Object.entries(STATUSES)
 // ---------------------------------------------------------------------------
 
 /**
- * The most defence can ever count for, out of 256. Chosen so that a fully
- * armoured endgame character still takes about a fifth of what an unarmoured
- * one would, rather than the 1 damage the uncapped formula gives.
+ * Where defence stops being worth much, out of 256.
+ *
+ * Defence divides out of 256, so a raw value of 255 would make a combatant
+ * literally invulnerable and a stacked endgame character clears 400 without
+ * trying. The obvious answer — clamp at 200 — was worse than it looked: every
+ * point past the clamp was *discarded*, so fifty-three creatures in the
+ * bestiary carrying 201–232 were all exactly as tough as each other and their
+ * authored numbers meant nothing.
+ *
+ * So it saturates instead. Low defences pass through almost unchanged (28
+ * reads as 26), high ones compress smoothly and never reach the ceiling, and
+ * no point of armour anywhere is ever thrown away.
  */
-export const DEFENCE_CAP = 200;
+export const DEFENCE_SOFT = 200;
+
+/** Kept under the old name because the item and bestiary notes cite it. */
+export const DEFENCE_CAP = DEFENCE_SOFT;
+
+export function effectiveDefence(defence, ignore = 0) {
+  const d = Math.max(0, defence) * (1 - ignore);
+  return DEFENCE_SOFT * (1 - Math.exp(-d / DEFENCE_SOFT));
+}
+
+/** What survives a given defence, as a fraction. */
+function throughDefence(dmg, defence, ignore = 0) {
+  return Math.floor((dmg * (255 - effectiveDefence(defence, ignore))) / 256) + 1;
+}
 
 /**
- * Physical damage.
+ * How much of the magic stat counts.
  *
- * damage = (attack power term) × (level/vigour term), then divided by defence.
+ * Both damage formulas take level *and* a stat that itself grows with level.
+ * Left unbounded that is cubic growth, which is how magic came to outdamage
+ * steel by a hundred to one at level 85. Saturating the stat leaves the level
+ * term as the only compounding one, and puts both schools on the same curve.
+ */
+const MAGIC_SOFT = 128;
+
+/**
+ * Physical damage, for a member of the party.
+ *
+ * attack power = weapon + vigour × 2, and the level term *multiplies* it. That
+ * is the whole point: an earlier version added `(vig + level)² / 256` to the
+ * weapon's power instead, so weapon power was never multiplied by anything and
+ * a sword at level 85 hit for 305 while a spell hit for 34,000. Six of the
+ * fourteen playable characters are built to swing things.
+ *
  * The ±12.5% spread is deliberate: identical hits every turn make combat feel
  * like a spreadsheet.
  */
@@ -85,29 +122,62 @@ export function physicalDamage({
   critical = false, multiplier = 1, ignoreDefence = 0, variance = true,
 }) {
   const vig = Math.max(1, vigour);
-  const base = weaponPower + Math.floor((vig + attackerLevel) * (vig + attackerLevel) / 256);
-  let dmg = Math.floor(base * 2.2);
+  const power = Math.max(1, weaponPower) + vig * 2;
+  const lv = Math.max(1, attackerLevel);
+  // Half the attack power as a floor, the rest from the level term. A full
+  // `power` floor made early combat far faster than late: at level 12 the
+  // level term is only a fifth of the total, so damage barely moved with
+  // level and mobs died in one hit while the game's first boss died before it
+  // could take a turn.
+  let dmg = Math.floor(power * 0.5 + (lv * lv * power) / 768);
 
   if (critical) dmg = Math.floor(dmg * 2);
   dmg = Math.floor(dmg * multiplier);
 
   // Back row halves damage dealt *and* received.
   if (rows.attacker === 'back') dmg = Math.floor(dmg / 2);
+  dmg = throughDefence(dmg, defence, ignoreDefence);
+  if (rows.target === 'back') dmg = Math.floor(dmg / 2);
 
-  // Defence divides out of 256, so a defence of 255 would make a character
-  // literally invulnerable to physical damage — and stacked endgame armour
-  // clears 300 without trying, which is the classic SNES exploit rather than
-  // an intentional reward. Capping the *effective* value at 200 keeps a fifth
-  // of the damage coming through no matter what is worn, so armour always
-  // matters and never finishes the argument.
-  const capped = Math.min(DEFENCE_CAP, Math.max(0, defence));
-  const effectiveDef = Math.floor(capped * (1 - ignoreDefence));
-  dmg = Math.floor((dmg * (255 - effectiveDef)) / 256) + 1;
+  if (variance) dmg = applyVariance(dmg);
+  return Math.max(1, dmg);
+}
 
+/**
+ * Damage dealt *by* a creature, physical or magical.
+ *
+ * Monsters do not share the party's curve, and should not. A party member's
+ * output has to climb from killing rats to killing a thing with eighty
+ * thousand hit points; a monster's job is to take a predictable bite out of a
+ * health bar, which means scaling off the number the bestiary actually
+ * authored — `atk` or `mag` — with level as a gentle multiplier rather than a
+ * squared one.
+ *
+ * Running enemies through the party's formula is what made the bestiary's
+ * stats decorative: the level term dwarfed them, so a creature written as a
+ * heavy hitter hit exactly as hard as one written as a nuisance.
+ */
+export function monsterDamage({
+  level, power, multiplier = 1, defence,
+  rows = { attacker: 'front', target: 'front' },
+  ignoreDefence = 0, variance = true,
+}) {
+  const base = Math.max(1, power) * (1 + Math.max(1, level) / 50);
+  let dmg = Math.floor(base * multiplier);
+  dmg = throughDefence(dmg, defence, ignoreDefence);
   if (rows.target === 'back') dmg = Math.floor(dmg / 2);
   if (variance) dmg = applyVariance(dmg);
   return Math.max(1, dmg);
 }
+
+/**
+ * How hard a spell hits when a *creature* casts it, relative to its swing.
+ *
+ * A power-60 spell is one plain attack's worth; Unlight, at 165, is nearly
+ * three. Keeps the bestiary's spell choices meaningful without giving enemies
+ * the party's damage curve.
+ */
+export const MONSTER_SPELL_REFERENCE = 60;
 
 /**
  * Magic damage. Rows do not apply — magic reaches the back line, which is the
@@ -117,19 +187,22 @@ export function magicDamage({
   casterLevel, magic, spellPower, magicDefence,
   multiplier = 1, variance = true,
 }) {
-  const mag = Math.max(1, magic);
-  const base = spellPower * 4 + Math.floor((casterLevel * mag * spellPower) / 32);
+  const mag = Math.min(MAGIC_SOFT, Math.max(1, magic));
+  const base = spellPower * 1.5 + Math.floor((casterLevel * mag * spellPower) / 208);
   let dmg = Math.floor(base * multiplier);
-  // Same cap as physical, for the same reason: resistance should reduce a
-  // spell, never nullify it.
-  dmg = Math.floor((dmg * (255 - Math.min(DEFENCE_CAP, Math.max(0, magicDefence)))) / 256) + 1;
+  dmg = throughDefence(dmg, magicDefence);
   if (variance) dmg = applyVariance(dmg);
   return Math.max(1, dmg);
 }
 
-/** Healing scales off magic but ignores defence entirely. */
+/**
+ * Healing scales off magic but ignores defence entirely — which is why its
+ * divisor is so much larger than the damage one. Without a defence term to
+ * pass through, the same numbers would restore several health bars a cast.
+ */
 export function healAmount({ casterLevel, magic, spellPower, multiplier = 1 }) {
-  const base = spellPower * 4 + Math.floor((casterLevel * Math.max(1, magic) * spellPower) / 28);
+  const mag = Math.min(MAGIC_SOFT, Math.max(1, magic));
+  const base = spellPower * 4 + Math.floor((casterLevel * mag * spellPower) / 1100);
   return Math.max(1, applyVariance(Math.floor(base * multiplier)));
 }
 
@@ -227,6 +300,27 @@ export const TICK_RATES = {
  */
 export function expShare(totalExp, survivors) {
   return Math.max(1, Math.floor(totalExp / Math.max(1, survivors)));
+}
+
+/**
+ * What a purse of spoils is actually worth.
+ *
+ * The bestiary's gold values are sound *relative to each other* — a brigand
+ * is worth more than a rat, and should be — but taken at face value they paid
+ * out about twenty times what there is to buy. Every piece of equipment in the
+ * game, for all four characters, costs 220,800 gil; ordinary encounters were
+ * handing over four and a half million. Money stopped being a decision around
+ * level 38, with the entire back half still to play, and the surplus is what
+ * let a player carry a hundred X-Potions into every boss fight.
+ *
+ * One rate here rather than two hundred edits in the bestiary, so the relative
+ * worth of every creature is preserved and the economy is a single number
+ * somebody can argue with.
+ */
+export const GOLD_RATE = 0.25;
+
+export function goldShare(totalGold) {
+  return Math.max(1, Math.round(totalGold * GOLD_RATE));
 }
 
 /** Desperation-attack gauge gain: rises sharply as HP falls. */
