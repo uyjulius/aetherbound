@@ -78,6 +78,11 @@ export class BattleUI {
   // --- enemy name tags ----------------------------------------------------
 
   syncEnemyTags(enemies, view, targetedIds = []) {
+    // Placed first, then de-collided: six creatures in a line put six labels
+    // along the same diagonal, and they used to sit on top of one another —
+    // which defeats the point of being able to tell the creatures apart.
+    const placed = [];
+
     for (const e of enemies) {
       let tag = this.tags.get(e.id);
       if (!tag) {
@@ -87,14 +92,33 @@ export class BattleUI {
       }
       if (e.isKO) { tag.style.display = 'none'; continue; }
       tag.style.display = '';
-      const p = view.project(view.anchor(e.id, (e.def.look.scale ?? 1) * 2.1 + 0.5));
-      tag.style.left = `${p.x}px`;
-      tag.style.top = `${p.y}px`;
       const targeted = targetedIds.includes(e.id);
       tag.className = `enemy-name-tag${targeted ? ' targeted' : ''}`;
       tag.textContent = e.scanned
         ? `${e.name}  ${e.hp}/${e.maxHP}`
         : e.name;
+
+      const p = view.project(view.anchor(e.id, (e.def.look.scale ?? 1) * 2.1 + 0.5));
+      placed.push({ tag, x: p.x, y: p.y, w: tag.offsetWidth || 90, targeted });
+    }
+
+    // Lift any label that would sit on one already placed. Left to right, so
+    // the stack grows in reading order; the targeted label wins ties by being
+    // placed last and therefore lowest, nearest its own creature.
+    const LINE = 17;
+    placed.sort((a, b) => (a.targeted === b.targeted ? a.x - b.x : (a.targeted ? 1 : -1)));
+    const taken = [];
+    for (const t of placed) {
+      let y = t.y;
+      for (let guard = 0; guard < placed.length + 1; guard++) {
+        const clash = taken.some((o) => Math.abs(o.y - y) < LINE
+          && Math.abs(o.x - t.x) < (o.w + t.w) / 2);
+        if (!clash) break;
+        y -= LINE;
+      }
+      taken.push({ x: t.x, y, w: t.w });
+      t.tag.style.left = `${t.x}px`;
+      t.tag.style.top = `${y}px`;
     }
   }
 

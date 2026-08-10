@@ -476,6 +476,65 @@ function buildGround(def, grid, group) {
 // Prop placement
 // ---------------------------------------------------------------------------
 
+/**
+ * The footprint a prop presents to somebody walking into it.
+ *
+ * Only geometry standing at body height counts. A tree is a trunk you walk
+ * around and a canopy you walk *under*; measuring the whole object would put
+ * a three-metre wall around every sapling. The band stops below head height
+ * for the same reason — a shop awning is not an obstacle.
+ *
+ * This replaces a table of per-kit radii. A circle around a long thin prop is
+ * the reason towns had invisible walls: a bench is two metres of seat and a
+ * handspan deep, and a circle enclosing it also encloses a metre of open
+ * floor at each end, which the player can see perfectly well and cannot walk
+ * on. Measured boxes match what is drawn.
+ */
+const BODY_HEIGHT = 1.35;
+
+function groundFootprint(obj) {
+  obj.updateMatrixWorld(true);
+  const origin = obj.position.clone();
+  const rot = obj.rotation.y;
+  const cos = Math.cos(-rot), sin = Math.sin(-rot);
+  let minX = Infinity, maxX = -Infinity, minZ = Infinity, maxZ = -Infinity;
+  let found = false;
+
+  obj.traverse((o) => {
+    if (!o.isMesh) return;
+    const geo = o.geometry;
+    if (!geo) return;
+    if (!geo.boundingBox) geo.computeBoundingBox();
+    const bb = geo.boundingBox;
+    // Sample the corners of the mesh's own box in world space, then drop it
+    // if the whole thing floats above walking height.
+    const pts = [];
+    for (const x of [bb.min.x, bb.max.x]) {
+      for (const y of [bb.min.y, bb.max.y]) {
+        for (const z of [bb.min.z, bb.max.z]) {
+          pts.push(new THREE.Vector3(x, y, z).applyMatrix4(o.matrixWorld));
+        }
+      }
+    }
+    if (Math.min(...pts.map((v) => v.y)) > BODY_HEIGHT) return;
+    for (const v of pts) {
+      // Back into the prop's own frame, so a rotated prop gets a rect that
+      // hugs it rather than an axis-aligned box swollen by the rotation.
+      const dx = v.x - origin.x, dz = v.z - origin.z;
+      const lx = dx * cos - dz * sin;
+      const lz = dx * sin + dz * cos;
+      minX = Math.min(minX, lx); maxX = Math.max(maxX, lx);
+      minZ = Math.min(minZ, lz); maxZ = Math.max(maxZ, lz);
+      found = true;
+    }
+  });
+
+  if (!found) return null;
+  const w = maxX - minX, d = maxZ - minZ;
+  if (w < 0.05 || d < 0.05) return null;
+  return { w, d };
+}
+
 function placeProps(def, grid, group, ctx) {
   const results = { interactables: [], lamps: [], spinners: [], chests: [] };
   for (const p of def.props || []) {
@@ -503,14 +562,19 @@ function placeProps(def, grid, group, ctx) {
     if (p.scale) obj.scale.setScalar(p.scale);
     group.add(obj);
 
-    // Collision: buildings get a rect from their footprint, props a circle.
+    // Collision: buildings get a rect from their footprint, props a box
+    // measured from the geometry that actually stands at body height.
     if (p.solid !== false) {
       if (p.kit === 'building') {
         const f = obj.userData.footprint;
         grid.addRect(wx, wz, f.w, f.d, p.rot ?? 0, p.id);
       } else if (p.radius !== 0) {
-        const r = p.radius ?? ({ tree: 0.55, rock: 0.7, well: 1.15, cart: 1.1, stall: 1.3, barrel: 0.36, crate: 0.4, lamppost: 0.2, bench: 0.8, chest: 0.5, signpost: 0.2, fence: 0 }[p.kit] ?? 0.5);
-        if (r > 0) grid.addCircle(wx, wz, r, p.id);
+        if (p.radius) {
+          grid.addCircle(wx, wz, p.radius, p.id);
+        } else {
+          const fit = groundFootprint(obj);
+          if (fit) grid.addRect(wx, wz, fit.w, fit.d, p.rot ?? 0, p.id);
+        }
       }
     }
 

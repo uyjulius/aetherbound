@@ -60,6 +60,7 @@ class InputManager {
     this._pendingReleased = new Set();
     this._rawDown = new Set();   // physical keys currently held
     this._virtualDown = new Set(); // actions held by the on-screen controls
+    this._latched = new Set();     // actions toggled on until toggled off
     this._repeatAt = new Map();  // action → next auto-repeat timestamp (ms)
     this._padDown = new Set();
     this._anyKeyPressed = false;
@@ -93,9 +94,10 @@ class InputManager {
     target.addEventListener('keyup', (e) => {
       this._rawDown.delete(e.code);
       for (const a of this.keyToActions.get(e.code) || []) {
-        // Only release if no other bound key for this action is still held.
+        // Only release if no other bound key for this action is still held,
+        // and it is not latched on by the on-screen toggle.
         const stillHeld = (this.bindings[a] || []).some((k) => this._rawDown.has(k));
-        if (!stillHeld) this._release(a);
+        if (!stillHeld && !this._latched.has(a)) this._release(a);
       }
     });
     target.addEventListener('blur', () => this.clear());
@@ -122,6 +124,10 @@ class InputManager {
     this._rawDown.clear();
     this._virtualDown.clear();
     for (const a of [...this.down]) this._release(a);
+    // Latches survive: they are a stated preference ("I want to run"), not a
+    // key someone happens to be holding, and losing focus should not silently
+    // put the party back to a walk.
+    for (const a of this._latched) this._press(a);
   }
 
   // --- on-screen controls ---------------------------------------------------
@@ -131,6 +137,26 @@ class InputManager {
   // lifting a finger cannot cancel a key the player is also holding, and vice
   // versa — otherwise tapping the on-screen Menu while walking would stop the
   // walk.
+
+  /**
+   * A latched action: held until switched off, rather than while a key is down.
+   *
+   * Used for the run toggle. `isDown` has to report the union of the two, so a
+   * player who latches run on and then also holds Shift does not turn running
+   * *off* by releasing it.
+   */
+  setLatched(action, on) {
+    if (on) {
+      this._latched.add(action);
+      this._press(action);
+    } else {
+      this._latched.delete(action);
+      const heldOnKeyboard = (this.bindings[action] || []).some((k) => this._rawDown.has(k));
+      if (!heldOnKeyboard && !this._virtualDown.has(action)) this._release(action);
+    }
+  }
+
+  isLatched(action) { return this._latched.has(action); }
 
   virtualPress(action) {
     if (this._virtualDown.has(action)) return;
@@ -142,7 +168,7 @@ class InputManager {
   virtualRelease(action) {
     if (!this._virtualDown.delete(action)) return;
     const heldOnKeyboard = (this.bindings[action] || []).some((k) => this._rawDown.has(k));
-    if (!heldOnKeyboard) this._release(action);
+    if (!heldOnKeyboard && !this._latched.has(action)) this._release(action);
   }
 
   /**
@@ -206,9 +232,8 @@ class InputManager {
 
     for (const a of nowDown) if (!this._padDown.has(a)) this._press(a);
     for (const a of this._padDown) {
-      if (!nowDown.has(a) && !(this.bindings[a] || []).some((k) => this._rawDown.has(k))) {
-        this._release(a);
-      }
+      if (nowDown.has(a) || this._latched.has(a)) continue;
+      if (!(this.bindings[a] || []).some((k) => this._rawDown.has(k))) this._release(a);
     }
     this._padDown = nowDown;
   }

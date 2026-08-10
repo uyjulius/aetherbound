@@ -27,6 +27,17 @@ const BUTTONS = [
     label: 'Turn', hint: 'E', glyph: 'rotate-right',
   },
   {
+    id: 'run', action: 'run', latch: true, fieldOnly: true,
+    label: 'Walk', hint: 'Shift', glyph: 'run',
+  },
+  {
+    // Escaping is holding both shoulder buttons for a second — faithful to the
+    // source material and completely undiscoverable. It gets a button, shown
+    // only when there is something to escape from.
+    id: 'flee', action: null, battleOnly: true,
+    label: 'Flee', hint: 'Q+E', glyph: 'flee',
+  },
+  {
     id: 'menu', action: 'menu', label: 'Menu', hint: 'C', glyph: 'menu',
   },
   {
@@ -50,6 +61,10 @@ const GLYPHS = {
   back: '<line x1="6" y1="6" x2="18" y2="18" /><line x1="18" y1="6" x2="6" y2="18" />',
   confirm: '<polyline points="5 12.5 10 17.5 19 6.5" />',
   play: '<polygon points="7 5 19 12 7 19" />',
+  // A walking figure and a running one — the same body, leaning.
+  walk: '<circle cx="12.5" cy="4.6" r="1.9" /><path d="M12 8.2v5m0 0-2.6 5.4M12 13.2l2.4 5.4M12 9.6 9.2 12M12 9.6l3 1.8" />',
+  run: '<circle cx="14" cy="4.6" r="1.9" /><path d="M13.2 8.2 10.6 13l3.2 1.4-1.2 4.6M10.6 13 7 14.2M13.8 10.4l3.4.8M4 8.5h3M3 12h2.6" />',
+  flee: '<path d="M14 5h6v6" /><path d="M20 5 12 13" /><path d="M11 6H5.5A1.5 1.5 0 0 0 4 7.5V19h11v-5" />',
 };
 
 function svg(glyph) {
@@ -98,6 +113,34 @@ export class ControlBar {
       return;
     }
 
+    if (spec.id === 'flee') {
+      // Holding the button *is* holding both shoulders — the battle already
+      // measures a hold, including the decay when you let go, so this feeds
+      // the same mechanism rather than inventing a second way to escape.
+      el.addEventListener('pointerdown', (e) => {
+        e.preventDefault();
+        el.setPointerCapture?.(e.pointerId);
+        input.virtualPress('pageLeft');
+        input.virtualPress('pageRight');
+      });
+      const stop = () => {
+        input.virtualRelease('pageLeft');
+        input.virtualRelease('pageRight');
+      };
+      el.addEventListener('pointerup', stop);
+      el.addEventListener('pointercancel', stop);
+      el.addEventListener('lostpointercapture', stop);
+      return;
+    }
+
+    if (spec.latch) {
+      el.addEventListener('click', () => {
+        input.setLatched(spec.action, !input.isLatched(spec.action));
+        this._paintLatch(el, spec);
+      });
+      return;
+    }
+
     if (spec.hold) {
       // Pointer events cover mouse, touch and pen in one path. Capture keeps
       // the release coming to us even if the finger slides off the button,
@@ -118,6 +161,20 @@ export class ControlBar {
       e.preventDefault();
       input.virtualTap(spec.action);
     });
+  }
+
+  /**
+   * The run toggle shows the state you are *in*, not the one you would switch
+   * to. A button that reads "Run" while you are already running is the single
+   * most common way to make a toggle unreadable.
+   */
+  _paintLatch(el, spec) {
+    const on = input.isLatched(spec.action);
+    el.classList.toggle('is-on', on);
+    el.querySelector('svg').outerHTML = svg(on ? 'run' : 'walk');
+    el.querySelector('.control-label').textContent = on ? 'Run' : 'Walk';
+    el.setAttribute('aria-pressed', String(on));
+    el.setAttribute('aria-label', on ? 'Running — tap to walk' : 'Walking — tap to run');
   }
 
   togglePause() {
@@ -141,14 +198,33 @@ export class ControlBar {
    */
   update() {
     const onField = !!this.game.state?.player;
+    const inBattle = !!this.game.state?.enemies;
     for (const [, { el, spec }] of this.buttons) {
-      if (spec.fieldOnly) el.classList.toggle('is-disabled', !onField);
+      // Buttons that do not apply here are hidden outright rather than
+      // disabled: a permanently greyed Flee on every town street is clutter,
+      // and a Turn button that does nothing in a fight is a lie.
+      if (spec.battleOnly) el.classList.toggle('hidden', !inBattle);
+      else if (spec.fieldOnly) el.classList.toggle('hidden', !onField);
     }
+
+    // Fleeing is not always allowed — boss fights refuse it — so the button
+    // says so rather than silently doing nothing.
+    const flee = this.buttons.get('flee');
+    if (flee && inBattle) flee.el.classList.toggle('is-disabled', this.game.state.canFlee === false);
+
     const confirm = this.buttons.get('confirm');
     if (confirm) {
       const word = onField ? 'Talk' : 'OK';
       const label = confirm.el.querySelector('.control-label');
       if (label.textContent !== word) label.textContent = word;
+    }
+
+    // Shift is still a hold, so the toggle has to follow the keyboard or the
+    // two disagree about whether the party is running.
+    const run = this.buttons.get('run');
+    if (run) {
+      const on = input.isLatched('run');
+      if (run.el.classList.contains('is-on') !== on) this._paintLatch(run.el, run.spec);
     }
   }
 

@@ -161,10 +161,11 @@ class Actor {
 // ---------------------------------------------------------------------------
 
 export class FieldState {
-  constructor(game, { mapDef, spawn = null, party = null }) {
+  constructor(game, { mapDef, spawn = null, party = null, spawnAt = null }) {
     this.game = game;
     this.mapDef = mapDef;
     this.spawnName = spawn;
+    this.spawnAt = spawnAt;         // exact position, overriding the named spawn
     this.partyDefs = party;
     this.map = null;
     this.player = null;
@@ -238,6 +239,13 @@ export class FieldState {
     this.player.place(spawn.x, spawn.z, spawn.facing);
     for (const f of this.followers) f.place(spawn.x, spawn.z, spawn.facing);
     this.camera.snapTo(spawn.x, spawn.z);
+
+    // Coming back out of a door means standing *in* that door, and its trigger
+    // is under the party's feet. Arm it as already-fired so the party is not
+    // pulled straight back inside, which would be an inescapable loop.
+    if (this.spawnAt) {
+      this._lastTrigger = this.map.grid.triggerAt(this.player.x, this.player.z);
+    }
 
     this._buildNPCs();
 
@@ -336,6 +344,12 @@ export class FieldState {
   }
 
   _resolveSpawn() {
+    // An exact position wins over any named spawn, but only if it is somewhere
+    // the party can legally stand — a map whose layout changed between visits
+    // (the ruin) could otherwise strand them inside a wall.
+    if (this.spawnAt && this.map.grid.clear(this.spawnAt.x, this.spawnAt.z, PLAYER_RADIUS)) {
+      return { x: this.spawnAt.x, z: this.spawnAt.z, facing: this.spawnAt.facing ?? Math.PI };
+    }
     const points = this.mapDef.spawns || {};
     const name = this.spawnName;
     const p = (name && points[name]) || points.default || Object.values(points)[0];

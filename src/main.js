@@ -13,13 +13,13 @@ import { ControlBar } from './ui/controls.js';
 import { Party } from './game/party.js';
 import { HARROWMERE } from './data/maps/harrowmere.js';
 import { OVERWORLD } from './data/maps/overworld.js';
-import { ENCOUNTERS } from './data/enemies.js';
+import { ENCOUNTERS, ENEMIES } from './data/enemies.js';
 import { SPELLS } from './data/spells.js';
 import { ITEMS, isEquippable } from './data/items.js';
 import { rng } from './engine/rng.js';
 import { audio } from './audio/audio.js';
 import { TRACKS } from './data/music.js';
-import { saves } from './game/saves.js';
+import { saves, SaveManager } from './game/saves.js';
 import { MenuSystem, applyWindowTheme } from './ui/menu.js';
 import { ShopScreen } from './ui/shop.js';
 import { ESPERS } from './data/espers.js';
@@ -213,6 +213,10 @@ class Game {
     this.saves = saves;
     this.config = saves.loadConfig();
     this.menu = null;
+    // Where the party was standing when it last left each map, so a doorway
+    // returns them to the doorway. Not saved: reloading inside a building and
+    // stepping out falls back to the authored spawn, which is correct enough.
+    this._returnPoints = new Map();
     this.currentMapId = 'harrowmere';
     this.currentMapName = 'Harrowmere';
     this.currentSpawn = 'default';
@@ -324,10 +328,59 @@ class Game {
     field.onExit = (exit) => {
       if (field._travelling) return;
       field._travelling = true;
-      this.gotoMap(exit.to, exit.spawn, { byAir: exit.byAir === true });
+      // Remember the doorway being walked through, so coming back out of it
+      // puts the party there rather than at the map's spawn point. Every
+      // interior in the game exits to `spawn: 'default'`, which is the town
+      // *gate* — so leaving the inn used to teleport you to the edge of town.
+      if (field.player) {
+        this._returnPoints.set(this.currentMapId, {
+          x: field.player.x, z: field.player.z, facing: field.player.facing,
+        });
+      }
+      this.gotoMap(exit.to, exit.spawn, { byAir: exit.byAir === true, viaExit: true });
     };
     field.onEncounter = (encounters) => this.startBattle(encounters);
     return field;
+  }
+
+  /**
+   * Resume from a saved game.
+   *
+   * The save format, the writer and `restoreParty` all existed; nothing ever
+   * called them. The game could be saved and then never loaded — no Continue,
+   * no Load menu, and a party wipe simply stood the dead party back up where
+   * they fell, because there was nowhere to return them to.
+   */
+  async loadFrom(data) {
+    if (!data) return false;
+    this.party = SaveManager.restoreParty(data.party ?? data);
+    this._returnPoints.clear();
+    // Restoring an exact position matters: saving in the middle of a dungeon
+    // and reloading at its entrance loses real progress.
+    const at = data.position
+      ? { x: data.position.x, z: data.position.z, facing: data.position.facing }
+      : null;
+    const base = MAPS[data.mapId] ?? HARROWMERE;
+    const def = resolveMap(base, this.party.worldState);
+    await this.fade(1, 0.35);
+    this.currentMapId = data.mapId ?? 'harrowmere';
+    this.currentMapName = def.name;
+    this.currentSpawn = data.spawn ?? null;
+    const next = this._wireField(new FieldState(this, { mapDef: def, spawn: data.spawn ?? null, spawnAt: at }));
+    this.setState(next);
+    this._applyPendingState();
+    await this.fade(0, 0.55);
+    return true;
+  }
+
+  /** The most recently written slot, or null if the player has never saved. */
+  latestSave() {
+    let best = null;
+    for (let i = 0; i < this.saves.slots; i++) {
+      const data = this.saves.load(i);
+      if (data && (!best || (data.savedAt ?? 0) > (best.savedAt ?? 0))) best = data;
+    }
+    return best;
   }
 
   async gotoMap(mapId, spawn = null, opts = {}) {
@@ -341,7 +394,11 @@ class Game {
     this.currentMapId = mapId;
     this.currentMapName = def.name;
     this.currentSpawn = spawn;
-    const next = this._wireField(new FieldState(this, { mapDef: def, spawn }));
+    // Walking back through a door you came out of returns you to it. Scripted
+    // travel — the cataclysm throwing the party across the world — deliberately
+    // does not, and uses the authored spawn.
+    const returnTo = opts.viaExit ? this._returnPoints.get(mapId) : null;
+    const next = this._wireField(new FieldState(this, { mapDef: def, spawn, spawnAt: returnTo }));
     this.setState(next);
     this._applyPendingState();
     // Crossing an ocean means arriving over one. A party set down on foot at
@@ -534,12 +591,27 @@ class Game {
     await this.fade(1, 0.4);
     const wiped = result === 'defeat' && !opts.allowDefeat;
     if (wiped) {
-      // Game over. The party is restored so a reload is never a dead end, but
-      // the moment gets its own theme first — losing should sound like
+      // Game over. Losing gets its own theme first — it should sound like
       // something, not like the battle music simply stopping.
       this.playMusic('gameover', { fade: 0.6 });
-      this.party.restAll();
       await new Promise((r) => setTimeout(r, 2600));
+
+      // Back to the last save. Standing the dead party up on the spot where
+      // they were killed costs the defeat all its meaning — and drops them in
+      // the middle of whatever killed them.
+      const last = this.latestSave();
+      if (last) {
+        await this.loadFrom(last);
+        this.party.restAll();
+        this.playMusic(this.currentMapName && MAPS[this.currentMapId]?.music, { fade: 1.4 });
+        opts.onComplete?.(result);
+        return;
+      }
+      // Never saved: the run restarts rather than dead-ending.
+      this.party.restAll();
+      await this.gotoMap('harrowmere', 'default');
+      opts.onComplete?.(result);
+      return;
     }
     if (field) {
       // `resume` restores the atmosphere, camera, lights and field music, and
@@ -612,6 +684,11 @@ async function boot() {
   window.__items = ITEMS;
   window.__equippable = isEquippable;
   window.THREE_V3 = THREE.Vector3;   // for tools/ probes
+  window.THREE_BOX3 = THREE.Box3;    // ditto — measuring what is actually on screen
+  window.__enemies = ENEMIES;
+  window.__encounters = ENCOUNTERS;
+  window.__maps = MAPS;
+  window.THREE_GROUP = THREE.Group;
 
   const bootEl = document.getElementById('boot');
   const fill = document.getElementById('boot-fill');

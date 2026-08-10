@@ -121,6 +121,7 @@ export class MenuSystem {
       { label: 'Quests', act: () => this._pushQuests() },
       { label: 'Config', act: () => this._pushConfig() },
       { label: 'Save', act: () => this._pushSave() },
+      { label: 'Load', act: () => this._pushLoad() },
     ];
     const list = new MenuList({
       items,
@@ -712,6 +713,39 @@ export class MenuSystem {
 
   // --- save ---------------------------------------------------------------
 
+  /**
+   * Load a saved game.
+   *
+   * There was no way to do this at all: the game wrote saves that nothing
+   * could ever read back.
+   */
+  _pushLoad() {
+    const slots = this.game.saves.list();
+    const list = new MenuList({
+      items: slots.map((s, i) => ({
+        label: `Slot ${i + 1}`,
+        right: s ? `${s.location} · Lv ${s.level} · ${s.time}` : 'Empty',
+        slot: i, disabled: !s,
+      })),
+      onSelect: (i) => {
+        const data = this.game.saves.load(i.slot);
+        if (!data) return;
+        audio.sfx('confirm');
+        this.hide();
+        this.game.loadFrom(data);
+      },
+      onCancel: () => this._pop(),
+      onMove: () => this._refreshContent(),
+    });
+    this._push({
+      title: 'Load', list,
+      renderContent: (node) => {
+        node.appendChild(el('div', { class: 'dim', style: { fontSize: 'calc(14 * var(--u))' },
+          text: 'Resume from a slot. Anything since that save is lost.' }));
+      },
+    });
+  }
+
   _pushSave() {
     const slots = this.game.saves.list();
     const list = new MenuList({
@@ -721,7 +755,12 @@ export class MenuSystem {
         slot: i,
       })),
       onSelect: (i) => {
-        this.game.saves.save(i, this.game);
+        // `onSelect` hands over the chosen *item*, not its index. Passing it
+        // straight to `save` wrote every slot to the key
+        // "aetherbound.save.[object Object]", so the three slots stayed empty
+        // no matter how often the player saved — and the save screen showed
+        // "Empty" against a game they had just written.
+        this.game.saves.save(i.slot, this.game);
         audio.sfx('chest');
         this._pop();
       },

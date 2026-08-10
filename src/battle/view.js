@@ -20,6 +20,33 @@ import { ParticleSystem } from '../fx/particles.js';
 const PARTY_X = 5.4;
 const ENEMY_X = -5.0;
 
+// Where the camera stands, and what it looks at. Declared here rather than
+// inside `_frameCamera` because the formation is laid out relative to it.
+const CAM_HOME = new THREE.Vector3(7.6, 5.2, 11.4);
+const CAM_LOOK = new THREE.Vector3(-0.6, 1.5, 0.2);
+
+/**
+ * The ground direction the camera reads as *across the screen*, and the one it
+ * reads as into it.
+ *
+ * This is the whole problem with the formation, stated as two vectors. The
+ * enemies used to be laid out along world Z on the assumption that Z was
+ * screen-width; it is not. The camera sits at +X +Z looking back through the
+ * origin, so Z is roughly three-quarters depth and only one-quarter width —
+ * spacing creatures a metre apart along it moved them barely half that across
+ * the screen, and they piled up. Laying them out along `STAGE_U` means a unit
+ * of spacing is a unit of visible separation.
+ */
+const STAGE_FWD = CAM_LOOK.clone().sub(CAM_HOME).setY(0).normalize();
+const STAGE_U = new THREE.Vector3(-STAGE_FWD.z, 0, STAGE_FWD.x);
+
+/** Extent of an axis-aligned box along a ground direction. */
+function extentAlong(box, dir) {
+  const hx = (box.max.x - box.min.x) / 2;
+  const hz = (box.max.z - box.min.z) / 2;
+  return 2 * (hx * Math.abs(dir.x) + hz * Math.abs(dir.z));
+}
+
 export class BattleView {
   constructor(renderer, { terrain = 'grass', scenery = 'field' } = {}) {
     this.renderer = renderer;
@@ -123,22 +150,32 @@ export class BattleView {
     }
   }
 
+  /**
+   * The party line, along the same stage axis as the enemies.
+   *
+   * This had the identical fault: spread along world Z, which the camera reads
+   * mostly as depth, so a full party of four stood almost on the same spot.
+   */
   _placeParty(party) {
+    const GAP = 1.5;
+    const centre = new THREE.Vector3(PARTY_X, 0, 0);
+    const span = party.length <= 1 ? 0 : (party.length - 1) * GAP;
+
     party.forEach((c, i) => {
       const built = buildCharacter({ ...c.def.look, id: c.id });
       const anim = new CharacterAnimator(built);
       anim.play('battleIdle', { blend: 0 });
-      // Staggered column: front row forward, back row behind, slight arc so
-      // nobody is hidden behind anybody.
-      const row = c.row === 'back' ? 2.1 : 0;
-      // Biased toward -Z: the +Z end of the line sits behind the party status
-      // panel in the bottom-right of the frame.
-      const spread = party.length === 1 ? 0 : (i / (party.length - 1) - 0.5) * (party.length * 2.2);
-      const home = new THREE.Vector3(
-        PARTY_X + row + Math.sin(i * 1.1) * 0.45,
-        0,
-        spread - 1.1,
-      );
+
+      // Biased toward -U — away from the party status panel in the bottom
+      // right of the frame, which the far end of the line would sit behind.
+      const offset = (party.length <= 1 ? 0 : i * GAP - span / 2) - 1.4;
+      // A back-row character stands further from the enemy, which reads as
+      // slightly further up the screen.
+      const row = c.row === 'back' ? 1.9 : 0;
+      const home = centre.clone()
+        .addScaledVector(STAGE_U, offset)
+        .addScaledVector(STAGE_FWD, -row + Math.sin(i * 1.1) * 0.35);
+
       built.root.position.copy(home);
       built.root.rotation.y = -Math.PI / 2 - 0.32;
       this.group.add(built.root);
@@ -146,37 +183,158 @@ export class BattleView {
     });
   }
 
+  /**
+   * Lay the enemies out along Z, which the three-quarter camera reads as
+   * screen-width on the left-hand side.
+   *
+   * Spacing is derived from each creature's *measured* footprint rather than
+   * its index. The previous version divided a fixed span between however many
+   * enemies there were, so a group of six shared the same room as a group of
+   * three and the gap fell to nothing — six `hollybound` overlapped by half a
+   * unit, and several other species touched. Size did not enter into it at
+   * all, so the widest creatures in the game were packed exactly as tightly as
+   * the smallest.
+   *
+   * Anything too wide for one rank forms two, because stretching a single rank
+   * far enough for six large monsters walks them out of frame.
+   */
   _placeEnemies(enemies) {
-    const n = enemies.length;
-    enemies.forEach((e, i) => {
+    // Build first, measure second, place third: a creature's real width is a
+    // property of its assembled mesh, not of the `scale` in its data.
+    const units = enemies.map((e) => {
       const built = buildMonster(e.def.look);
-      const anim = new MonsterAnimator(built);
-      const size = e.def.look.scale ?? 1;
-      // Enemies fan out along Z, which is what the three-quarter camera reads
-      // as screen-*width* on the left-hand side. The spread has to be generous
-      // because that camera also compresses Z into depth: a tighter fan puts
-      // three creatures on top of each other. Outer members sit further back,
-      // forming a shallow arc rather than a firing line — and the per-index X
-      // stagger is deliberately gone, since it partially cancelled the fan.
-      const spread = n === 1 ? 0 : (i / (n - 1) - 0.5) * Math.min(10.5, n * 3.4);
-      const home = new THREE.Vector3(
-        ENEMY_X - size * 0.9 - Math.abs(spread) * 0.30,
-        0,
-        spread,
-      );
-      built.root.position.copy(home);
+      // Turn it to face the party *before* measuring. A creature is modelled
+      // facing down its own axis and then rotated a quarter turn onto the
+      // stage, which swaps its width and its depth — measuring first packs a
+      // long creature as though it were a narrow one.
       built.root.rotation.y = Math.PI / 2 + 0.28;
-      this.group.add(built.root);
-      this.actors.set(e.id, { root: built.root, anim, kind: 'enemy', home: home.clone(), combatant: e, built });
+      built.root.updateMatrixWorld(true);
+      const box = new THREE.Box3().setFromObject(built.root);
+      return {
+        e,
+        built,
+        anim: new MonsterAnimator(built),
+        // What matters is how much room the creature takes up *across the
+        // screen*, which is its extent along the stage's horizontal axis.
+        half: Math.max(0.45, extentAlong(box, STAGE_U) / 2),
+        depth: Math.max(0.5, extentAlong(box, STAGE_FWD)),
+      };
     });
+
+    const GAP = 0.7;              // clear ground between neighbours
+    const ARC = 0.16;             // outer members sit a little further back
+
+    // One rank, always.
+    //
+    // A second rank is the obvious way to fit a large group, and it does not
+    // work here: the camera looks down the axis that would separate the ranks,
+    // so a creature standing metres behind another lands on the same pixels.
+    // Measured, the back rank was up to 100% covered — invisible. Enemies
+    // therefore share one line and the camera pulls back to take it all in,
+    // which costs some size in big fights and keeps every creature legible.
+    // The left-hand half of the frame is all the room there is: run the line
+    // any wider and it reaches across into the party's side of the screen.
+    // When a group cannot fit, everything in it shrinks together rather than
+    // some of it being pushed out of sight.
+    const MAX_SPAN = 11;
+    const natural = units.reduce((t, u, i) => t + u.half * 2 + (i ? GAP : 0), 0);
+    const shrink = natural > MAX_SPAN ? Math.max(0.62, MAX_SPAN / natural) : 1;
+    if (shrink < 1) {
+      for (const u of units) {
+        u.built.root.scale.multiplyScalar(shrink);
+        u.half *= shrink;
+        u.depth *= shrink;
+      }
+    }
+
+    const span = units.reduce((t, u, i) => t + u.half * 2 + (i ? GAP : 0), 0);
+
+    // Keep the line clear of the party. A wide group centred on the enemy
+    // anchor reaches across the middle of the screen and ends up standing
+    // among the heroes; sliding the whole line left is better than shrinking
+    // it further, because the camera widens to follow.
+    const RIGHT_LIMIT = -0.6;
+    const anchor = new THREE.Vector3(ENEMY_X, 0, 0);
+    const shift = Math.min(0, RIGHT_LIMIT - (anchor.dot(STAGE_U) + span / 2));
+    const centre = anchor.clone().addScaledVector(STAGE_U, shift);
+
+    let along = -span / 2;
+    for (let i = 0; i < units.length; i++) {
+      const u = units[i];
+      if (i) along += GAP;
+      along += u.half;
+      const offset = along;
+      along += u.half;
+
+      // Along the stage's horizontal axis, then pushed away from the camera
+      // by its own depth and a little more at the ends, for a shallow arc
+      // rather than a firing line.
+      const home = centre.clone()
+        .addScaledVector(STAGE_U, offset)
+        .addScaledVector(STAGE_FWD, -(u.depth * 0.25 + Math.abs(offset) * ARC));
+      u.built.root.position.copy(home);
+      this.group.add(u.built.root);
+      this.actors.set(u.e.id, {
+        root: u.built.root, anim: u.anim, kind: 'enemy',
+        home: home.clone(), combatant: u.e, built: u.built,
+      });
+    }
   }
 
   _frameCamera() {
     const rig = this.renderer.rig;
     // Three-quarter view, low enough that the characters read at full height
     // and close enough that the action fills the frame.
-    rig.position.set(7.6, 5.2, 11.4);
-    rig.target.set(-0.6, 1.5, 0.2);
+    const HOME = CAM_HOME, LOOK = CAM_LOOK;
+    rig.position.copy(HOME);
+    rig.target.copy(LOOK);
+
+    // Six large creatures need more room than one, and a fixed camera simply
+    // cropped them: pull back until everything on the stage is inside the
+    // frame. Most fights need no adjustment at all, so the composition the
+    // arena was designed around is what players see nearly always.
+    const cam = this.renderer.camera;
+    const bounds = new THREE.Box3();
+    for (const a of this.actors.values()) {
+      a.root.updateMatrixWorld(true);
+      bounds.union(new THREE.Box3().setFromObject(a.root));
+    }
+    if (!bounds.isEmpty()) {
+      const corners = [];
+      for (const x of [bounds.min.x, bounds.max.x]) {
+        for (const y of [bounds.min.y, bounds.max.y]) {
+          for (const z of [bounds.min.z, bounds.max.z]) corners.push(new THREE.Vector3(x, y, z));
+        }
+      }
+
+      // Aim at what is actually there before backing off. Pulling straight
+      // back from the designed look-point cannot rescue a formation that has
+      // slid left to stay clear of the party — the far end simply leaves the
+      // frame faster than the extra distance recovers it.
+      const mid = bounds.getCenter(new THREE.Vector3());
+      const target = LOOK.clone().lerp(new THREE.Vector3(mid.x, LOOK.y, mid.z), 0.75);
+      const offset = HOME.clone().sub(LOOK);
+      rig.target.copy(target);
+      rig.position.copy(target).add(offset);
+
+      // 8% of margin, so nothing sits flush against the edge of the screen.
+      const FIT = 0.92;
+      for (let step = 0; step < 24; step++) {
+        cam.position.copy(rig.position);
+        cam.lookAt(rig.target);
+        cam.updateMatrixWorld(true);
+        cam.updateProjectionMatrix();
+        let worst = 0;
+        for (const c of corners) {
+          const v = c.clone().project(cam);
+          worst = Math.max(worst, Math.abs(v.x), Math.abs(v.y));
+        }
+        if (worst <= FIT) break;
+        offset.multiplyScalar(1.07);
+        rig.position.copy(target).add(offset);
+      }
+    }
+
     this.renderer.postfx.setTiltShift(0.26, 0.54, 0.32);
     this.renderer.postfx.setFocus(13.5, 18);
     this.renderer.autofocus = false;

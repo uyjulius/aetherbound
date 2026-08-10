@@ -505,6 +505,17 @@ html, body {
 
 .control-btn.is-disabled { opacity: .34; pointer-events: none; }
 
+/* A latched toggle reads as pressed-in, so its state is legible without
+   having to read the label. */
+.control-btn.is-on {
+  background: rgba(255,215,106,.20);
+  box-shadow: inset 0 0 0 calc(1 * var(--u)) rgba(255,215,106,.55),
+              inset 0 calc(2 * var(--u)) calc(6 * var(--u)) rgba(0,0,0,.35);
+  color: var(--select);
+}
+.control-btn.is-on:hover { background: rgba(255,215,106,.28); }
+.control-btn.is-on .control-hint { color: rgba(255,215,106,.7); }
+
 .control-btn svg {
   width: calc(20 * var(--u));
   height: calc(20 * var(--u));
