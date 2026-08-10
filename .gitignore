@@ -13,5 +13,6 @@ public/game.js.map
 # Working images from art direction, not inputs to anything.
 assets/characters.png
 assets/model-candidates.png
+assets/live.png
 
 .DS_Store
