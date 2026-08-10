@@ -1,0 +1,353 @@
+/**
+ * Espers — crystallised remnants of the Aether Engines.
+ *
+ * The FF6 idea, and the best structural decision in that game's progression:
+ * magic is not learned by levelling, it is learned from the *thing you choose
+ * to carry*. Equipping an esper teaches its spells a little each battle and
+ * grants a stat bonus on level-up, so who carries what is a standing decision
+ * the player keeps revisiting, and two playthroughs produce different parties.
+ *
+ *   teaches: spellId → proficiency gained per battle (100 = learned)
+ *   bonus:   flat stat additions while equipped
+ *   growth:  stat granted per level-up while equipped
+ *   summon:  the once-per-battle attack
+ */
+
+export const ESPERS = {
+  emberwake: {
+    id: 'emberwake', name: 'Emberwake', title: 'The First Forge',
+    element: 'fire', color: '#ff7a2f',
+    mp: 18,
+    teaches: { ember: 10, pyre: 4, conflagrate: 1 },
+    bonus: { mag: 2 },
+    growth: { vig: 1 },
+    summon: { name: 'Kindling', power: 62, element: 'fire', target: 'allEnemies' },
+    found: 'Fen Barrow — the sealed chamber',
+    flavour: 'Warm to the touch, always. It was warm before there was anyone to touch it.',
+  },
+
+  hoarking: {
+    id: 'hoarking', name: 'Hoarking', title: 'Who Stopped the River',
+    element: 'ice', color: '#7fdcf0',
+    mp: 20,
+    teaches: { rime: 10, hoarfrost: 4, glaciate: 1, mire: 8 },
+    bonus: { res: 2 },
+    growth: { mag: 1 },
+    summon: { name: 'Standing Water', power: 66, element: 'ice', target: 'allEnemies' },
+    found: 'The Cinderspine, beneath the pass',
+    flavour: 'The ice around it never melts, and never grows.',
+  },
+
+  stormcaller: {
+    id: 'stormcaller', name: 'Stormcaller', title: 'The Long Argument',
+    element: 'bolt', color: '#ffe45e',
+    mp: 22,
+    teaches: { spark: 10, arcflash: 4, thunderhead: 1 },
+    bonus: { spd: 3 },
+    growth: { spd: 1 },
+    summon: { name: 'Verdict', power: 70, element: 'bolt', target: 'allEnemies' },
+    found: 'Ferran Outpost — the requisitions vault',
+    flavour: 'Ferran engineers kept it in a lead box and still lost two clerks to it.',
+  },
+
+  greenmother: {
+    id: 'greenmother', name: 'Greenmother', title: 'Root and Patience',
+    element: 'wind', color: '#9fe3a8',
+    mp: 26,
+    teaches: { mend: 12, mendra: 5, renewal: 6, cleanse: 8 },
+    bonus: { hp: 60 },
+    growth: { sta: 1 },
+    summon: { name: 'Season', power: 0, heal: 0.45, target: 'allAllies' },
+    found: 'The Marrowfields — the standing oak',
+    flavour: 'Older than the war. It did not take a side, and does not forgive that either.',
+  },
+
+  ninthlantern: {
+    id: 'ninthlantern', name: 'The Ninth Lantern', title: 'Last Light of Ashenhall',
+    element: 'holy', color: '#fff3b8',
+    mp: 34,
+    teaches: { sanctus: 4, mendaga: 2, reprise: 6, wardmind: 6 },
+    bonus: { mag: 2, res: 2 },
+    growth: { mag: 1 },
+    summon: { name: 'Vigil', power: 88, element: 'holy', target: 'allEnemies' },
+    found: 'Ashenhall — the reliquary',
+    flavour: 'Eight went out. This one was carried.',
+  },
+
+  hollowking: {
+    id: 'hollowking', name: 'The Hollow King', title: 'He Who Counts',
+    element: 'shadow', color: '#8a5ce0',
+    mp: 40,
+    teaches: { gravewell: 3, knell: 6, severance: 1, addle: 6 },
+    bonus: { mag: 3 },
+    growth: { mag: 2 },
+    summon: { name: 'The Tally', power: 96, element: 'shadow', target: 'allEnemies' },
+    found: 'The Fen Barrow — past the third door',
+    flavour: 'It knows how many breaths you have left. It finds this very funny.',
+  },
+
+  quarryhound: {
+    id: 'quarryhound', name: 'Quarryhound', title: 'The Debt Collector',
+    element: 'earth', color: '#c08a4a',
+    mp: 24,
+    teaches: { upheaval: 5, wardflesh: 7, buoy: 6 },
+    bonus: { sta: 3 },
+    growth: { sta: 1 },
+    summon: { name: 'Foreclosure', power: 74, element: 'earth', target: 'allEnemies' },
+    found: 'Solmere — the collapsed gallery',
+    flavour: 'Bound a thousand years ago against a debt no one alive remembers taking on.',
+  },
+
+  saltwidow: {
+    id: 'saltwidow', name: 'Saltwidow', title: 'Of the Drowned Coast',
+    element: 'water', color: '#3ea8d6',
+    mp: 28,
+    teaches: { brine: 6, leech: 5, beguile: 5, hush: 8 },
+    bonus: { spd: 2, lck: 3 },
+    growth: { lck: 1 },
+    summon: { name: 'Undertow', power: 78, element: 'water', target: 'allEnemies' },
+    found: 'The southern shore — low tide only',
+    flavour: 'She was a lighthouse keeper. The Engine offered, and she said yes.',
+  },
+
+  brasswright: {
+    id: 'brasswright', name: 'Brasswright', title: 'The Obliging Machine',
+    element: 'aether', color: '#3fc6d6',
+    mp: 30,
+    teaches: { siphon: 12, dispel: 5, quicken: 4, scan: 14 },
+    bonus: { mp: 24 },
+    growth: { mag: 1, spd: 1 },
+    summon: { name: 'Recalibrate', power: 0, effect: 'buffParty', target: 'allAllies' },
+    found: 'Solmere — gift of Aurelian Marchetti',
+    flavour: 'It wants to help. That is the frightening part.',
+  },
+
+  lastwinter: {
+    id: 'lastwinter', name: 'Last Winter', title: 'The Quiet That Came After',
+    element: 'ice', color: '#9ccdd4',
+    mp: 52,
+    teaches: { glaciate: 3, arrest: 3, wardmind: 5, mirrorward: 3 },
+    bonus: { res: 4, mag: 2 },
+    growth: { res: 2 },
+    summon: { name: 'Stillness', power: 118, element: 'ice', target: 'allEnemies' },
+    found: 'The Cinderspine summit',
+    flavour: 'The year the war ended, nothing grew. This is why.',
+  },
+
+  vagrantstar: {
+    id: 'vagrantstar', name: 'Vagrant Star', title: 'The Long Odds',
+    element: null, color: '#ffd76a',
+    mp: 44,
+    teaches: { hollow: 3, quicksilver: 1, reversal: 4 },
+    bonus: { lck: 8 },
+    growth: { lck: 2 },
+    summon: { name: 'Wager Everything', power: 130, target: 'oneEnemy' },
+    found: 'Won at cards. Somewhere.',
+    flavour: 'Osric will not say how he got it and gets shifty when asked twice.',
+  },
+
+  enginechild: {
+    id: 'enginechild', name: 'Engine-Child', title: 'The Thing In The Ninth Well',
+    element: 'aether', color: '#d63fb3',
+    mp: 68,
+    teaches: { sunder: 2, unlight: 1, lastword: 1 },
+    bonus: { mag: 5, res: 3 },
+    growth: { mag: 2, res: 1 },
+    summon: { name: 'Unmaking', power: 178, element: 'aether', target: 'allEnemies' },
+    found: 'The deepest chamber. You will know it.',
+    flavour: 'It is very young. It has been very young for a thousand years.',
+  },
+
+  // ==========================================================================
+  // The second circle.
+  //
+  // Twelve espers covered the main line; these fill in what the main line
+  // never had room for. Two rules held while writing them.
+  //
+  // First, every spell in the game must be teachable by *something*. Seventeen
+  // were not — Galecut, Blight, Halve, Toll, Ossify, Dimming, Lull, Wither,
+  // Solace, Full Mend, Reprise+, Unbind, Quicken All, Bulwark, Benediction,
+  // Sap and Warp Out could be cast by enemies and never learned by anyone. A
+  // spell nobody can learn is the same bug as a chest nobody can open.
+  //
+  // Second, an esper is a *build*, not a stat stick. Each of these pushes a
+  // character somewhere the first twelve did not: the pure status-inflicter,
+  // the one that trades defence for speed, the one whose whole value is that
+  // it teaches white magic to somebody who otherwise cannot cast it.
+  // ==========================================================================
+
+  windfoundling: {
+    id: 'windfoundling', name: 'Wind-Foundling', title: 'Nobody Claimed It',
+    element: 'wind', color: '#b7e3c0',
+    mp: 24,
+    teaches: { galecut: 8, quicken: 5, buoy: 6 },
+    bonus: { spd: 4 },
+    growth: { spd: 1 },
+    summon: { name: 'Open Country', power: 72, element: 'wind', target: 'allEnemies' },
+    found: 'Emberlyn — blew in with the caravans and stayed',
+    flavour: 'Three parishes have written to disown it. It keeps coming back to Emberlyn.',
+  },
+
+  thegleaner: {
+    id: 'thegleaner', name: 'The Gleaner', title: 'Takes the Last of It',
+    element: 'poison', color: '#8fa845',
+    mp: 26,
+    teaches: { blight: 9, sap: 4, wither: 5, dimming: 10 },
+    bonus: { vig: 2, lck: 2 },
+    growth: { vig: 1 },
+    summon: { name: 'Stubble Burn', power: 80, element: 'poison', target: 'allEnemies' },
+    found: 'Lowfen — in the drowned field, after the water goes down',
+    flavour: 'Follows the harvest. Has never once been seen arriving.',
+  },
+
+  theassessor: {
+    id: 'theassessor', name: 'The Assessor', title: 'Halves What It Counts',
+    element: null, color: '#c9b27a',
+    mp: 40,
+    teaches: { halve: 3, toll: 6, scan: 12 },
+    bonus: { mag: 3 },
+    growth: { mag: 1, lck: 1 },
+    summon: { name: 'Reassessment', power: 0, effect: 'fractionHP', fraction: 0.5, target: 'allEnemies' },
+    found: 'Marrowgate — sealed in the older town beneath',
+    flavour: 'It does not kill things. It writes down half of what they were and the rest stops applying.',
+  },
+
+  thecoldsleep: {
+    id: 'thecoldsleep', name: 'The Cold Sleep', title: 'Nothing Woke For A Year',
+    element: 'ice', color: '#a9c6d8',
+    mp: 28,
+    teaches: { lull: 9, ossify: 4, unbind: 7, hoarfrost: 5 },
+    bonus: { res: 3, sta: 2 },
+    growth: { sta: 1 },
+    summon: { name: 'Long Winter', power: 88, element: 'ice', target: 'allEnemies' },
+    found: 'Highfell — the shelf nobody cuts on',
+    flavour: 'The quarrymen work around it. They will not say why and they will not stop.',
+  },
+
+  thealmoner: {
+    id: 'thealmoner', name: 'The Almoner', title: 'Gives It All Away',
+    element: 'holy', color: '#ffe9b8',
+    mp: 46,
+    teaches: { solace: 5, bulwark: 5, cleanse: 8, renewal: 6 },
+    bonus: { res: 3, mp: 20 },
+    growth: { res: 1, mag: 1 },
+    summon: { name: 'The Long Table', power: 0, effect: 'healParty', target: 'allAllies' },
+    found: 'Verrenholt — still on its shelf in the burned hall',
+    flavour: 'Ninety-one people left in the town and it has fed all of them at least once.',
+  },
+
+  thelateharvest: {
+    id: 'thelateharvest', name: 'The Late Harvest', title: 'Comes Back For Them',
+    element: 'holy', color: '#f2d9a0',
+    mp: 60,
+    teaches: { reprisex: 2, fullmend: 3, wardflesh: 6 },
+    bonus: { hp: 300, res: 2 },
+    growth: { sta: 2 },
+    summon: { name: 'Second Cutting', power: 0, effect: 'reviveParty', target: 'allAllies' },
+    found: 'Saltmarch — brought up in a net and never claimed',
+    flavour: 'The netsman who found it lived another forty years and would not discuss it.',
+  },
+
+  theeleventhhour: {
+    id: 'theeleventhhour', name: 'The Eleventh Hour', title: 'Everything At Once',
+    element: null, color: '#ffd0e0',
+    mp: 58,
+    teaches: { quickenall: 3, quicken: 8, warpout: 6 },
+    bonus: { spd: 6 },
+    growth: { spd: 2 },
+    summon: { name: 'All At Once', power: 0, effect: 'hasteParty', target: 'allAllies' },
+    found: 'Stormspire — the crown, and you have to climb for it',
+    flavour: 'Runs eleven minutes fast. Has run eleven minutes fast for a thousand years.',
+  },
+
+  thelastlantern: {
+    id: 'thelastlantern', name: 'The Last Lantern', title: 'Still Lit',
+    element: 'holy', color: '#fff4c2',
+    mp: 74,
+    teaches: { benediction: 1, sanctus: 3, mirrorward: 4 },
+    bonus: { mag: 4, res: 4 },
+    growth: { mag: 1, res: 1 },
+    summon: { name: 'Vigil', power: 156, element: 'holy', target: 'allEnemies' },
+    found: 'The Last Lantern — the small room at the end',
+    flavour: 'Eight went out. This is the ninth, and nobody has ever admitted to lighting it.',
+  },
+
+  thepitwarden: {
+    id: 'thepitwarden', name: 'The Pit Warden', title: 'Counts Them Out And In',
+    element: 'earth', color: '#9a7f5f',
+    mp: 34,
+    teaches: { upheaval: 6, bulwark: 4, wardflesh: 7 },
+    bonus: { sta: 7 },
+    growth: { sta: 2 },
+    summon: { name: 'Roof Fall', power: 96, element: 'earth', target: 'allEnemies' },
+    found: 'The Iron Quarry — the bottom terrace',
+    flavour: 'Every shift that went down came back up. That is the whole of its reputation.',
+  },
+
+  thesaltmother: {
+    id: 'thesaltmother', name: 'The Salt Mother', title: 'Dries Everything Out',
+    element: 'water', color: '#cfe6ea',
+    mp: 36,
+    teaches: { brine: 6, mire: 7, hush: 8, leech: 5 },
+    bonus: { res: 3, spd: 2 },
+    growth: { res: 1, lck: 1 },
+    summon: { name: 'The Pans', power: 102, element: 'water', target: 'allEnemies' },
+    found: 'The Saltworks — the pan that never fills',
+    flavour: 'The salt off her pan will not season anything. It keeps, though. It keeps forever.',
+  },
+
+  thebriarking: {
+    id: 'thebriarking', name: 'The Briar King', title: 'Closes The Way Behind',
+    element: 'earth', color: '#5f7a4a',
+    mp: 42,
+    teaches: { wither: 6, ossify: 4, blight: 7, upheaval: 5 },
+    bonus: { vig: 4, sta: 3 },
+    growth: { vig: 2 },
+    summon: { name: 'The Way Back', power: 110, element: 'earth', target: 'allEnemies' },
+    found: 'Bramblewold — the far end, which is the only end',
+    flavour: 'It is not keeping anyone out. It has never been keeping anyone out.',
+  },
+
+  theundercroft: {
+    id: 'theundercroft', name: 'The Undercroft', title: 'The Floor Below The Floor',
+    element: 'shadow', color: '#4a4258',
+    mp: 48,
+    teaches: { gravewell: 4, hollow: 4, knell: 6, sap: 5 },
+    bonus: { mag: 4, hp: 200 },
+    growth: { mag: 1, sta: 1 },
+    summon: { name: 'Down One More', power: 124, element: 'shadow', target: 'allEnemies' },
+    found: 'The Drowned Halls — the lower floor, at low water',
+    flavour: 'Every building in the world has one of these. Most of them are empty.',
+  },
+
+  thekingspyre: {
+    id: 'thekingspyre', name: 'The King\'s Pyre', title: 'Burned For Eleven Days',
+    element: 'fire', color: '#ff9a4a',
+    mp: 56,
+    teaches: { conflagrate: 3, pyre: 6, toll: 5 },
+    bonus: { vig: 5, mag: 3 },
+    growth: { vig: 1, mag: 1 },
+    summon: { name: 'Eleven Days', power: 138, element: 'fire', target: 'allEnemies' },
+    found: 'Kingspyre — the middle of the room, which is the problem',
+    flavour: 'They could not put it out and in the end they stopped trying and built a roof over it.',
+  },
+
+  thequietone: {
+    id: 'thequietone', name: 'The Quiet One', title: 'Says Nothing At All',
+    element: null, color: '#8d8f96',
+    mp: 50,
+    teaches: { hush: 10, arrest: 5, dimming: 9, lull: 8, addle: 7 },
+    bonus: { lck: 5, spd: 3 },
+    growth: { lck: 2 },
+    summon: { name: 'Nothing To Add', power: 0, effect: 'silenceAll', target: 'allEnemies' },
+    found: 'Greyharrow — in the guardhouse, in a drawer, unlabelled',
+    flavour: 'Four garrisons have inventoried it as "misc". It has outlasted all four.',
+  },
+};
+
+
+export const ESPER_LIST = Object.values(ESPERS);
+
+export function esperById(id) {
+  return ESPERS[id] || null;
+}

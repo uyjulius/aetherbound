@@ -1,0 +1,158 @@
+/**
+ * Aetherbound master palette.
+ *
+ * Every texture in the game — including the AI-generated material plates — is
+ * quantised into this palette before it ships. That is the single most
+ * important rule in the art pipeline: a shared, hand-tuned ramp set is what
+ * makes assets from different sources read as one artist's hand instead of a
+ * pile of unrelated images.
+ *
+ * Design notes:
+ *  - Ramps are 5 steps, darkest → lightest, and are *hue-shifted*: shadows
+ *    lean cool/violet, highlights lean warm/yellow. Flat value-only ramps are
+ *    the tell-tale of machine art; hue shifting is what painters actually do.
+ *  - Saturation is deliberately restrained. The world sits at 20–45% sat; only
+ *    AETHER and GOLD are allowed to scream, so magic reads as special.
+ *  - No pure black, no pure white anywhere. Darkest value is #14121b.
+ */
+
+/** Ramps: [shadow, midshadow, base, midlight, light] */
+export const RAMPS = {
+  // --- architecture -------------------------------------------------------
+  stone:      ['#2f3038', '#454a55', '#5f6572', '#818897', '#a5abb6'],
+  granite:    ['#26262e', '#383a45', '#4e515e', '#6a6d79', '#8d8f99'],
+  brick:      ['#3a2226', '#5a3230', '#7c4939', '#9c6248', '#bb8462'],
+  plaster:    ['#4b4038', '#6f5f4f', '#95836b', '#bda98b', '#ddccab'],
+  roofslate:  ['#1f2a30', '#2e3f47', '#3f565e', '#557077', '#748f93'],
+  rooftile:   ['#3b1f22', '#5c2f2c', '#7d4436', '#9e5f44', '#bd8058'],
+  marble:     ['#4a4750', '#6c6a74', '#918f98', '#b8b6bd', '#dedce0'],
+
+  // --- nature -------------------------------------------------------------
+  grass:      ['#22301f', '#33482a', '#496035', '#658043', '#8aa25a'],
+  grassdry:   ['#332c1c', '#4d422a', '#6b5d37', '#8d7c4a', '#b19f66'],
+  foliage:    ['#16241d', '#213629', '#2f4a36', '#436348', '#5f815c'],
+  foliagefall:['#331c14', '#54301b', '#7a4a22', '#a06a2e', '#c39145'],
+  bark:       ['#241a17', '#372722', '#4b382d', '#63503f', '#7f6a55'],
+  dirt:       ['#2a1f19', '#413026', '#5a4433', '#755c45', '#93785d'],
+  sand:       ['#463a26', '#6a5936', '#907a4b', '#b6a068', '#dbc891'],
+  rock:       ['#282b30', '#3c4148', '#535a62', '#70777e', '#939aa0'],
+  snow:       ['#5a6272', '#7d8696', '#a2acbb', '#c6cedb', '#e8edf5'],
+  ice:        ['#25404e', '#37606f', '#4d8493', '#6fa9b4', '#9ccdd4'],
+
+  // --- liquids ------------------------------------------------------------
+  water:      ['#12262f', '#1a3c48', '#245566', '#357c8c', '#57a6b1'],
+  waterdeep:  ['#0d1824', '#132434', '#1b3548', '#264b62', '#37687f'],
+  lava:       ['#3a0f0c', '#75200f', '#b53d10', '#e0761c', '#f6bf4e'],
+  swamp:      ['#1d2418', '#2d3722', '#3f4c2c', '#57653a', '#75834e'],
+
+  // --- manufacture --------------------------------------------------------
+  wood:       ['#2b1d16', '#432d20', '#5e412c', '#7c5a3d', '#9c7854'],
+  woodpale:   ['#463726', '#66523a', '#8a7150', '#ad9269', '#cfb689'],
+  iron:       ['#22242a', '#34383f', '#4a4f57', '#666c74', '#8b9199'],
+  steel:      ['#2b3038', '#414954', '#5b6674', '#7d8896', '#a6b0bc'],
+  brass:      ['#3b2c12', '#5f4819', '#8a6a23', '#b8933a', '#e0c065'],
+  gold:       ['#4a3308', '#7a570f', '#ab8018', '#d8ac31', '#f7d968'],
+  copper:     ['#3a2016', '#5d3620', '#864f2a', '#b06f3c', '#d59a5f'],
+
+  // --- cloth & character --------------------------------------------------
+  clothred:   ['#3a1018', '#5f1b23', '#8b2a2c', '#b34a41', '#d5766a'],
+  clothblue:  ['#161f3c', '#233158', '#33477c', '#4b64a3', '#7089c4'],
+  clothgreen: ['#152a22', '#1f4033', '#2c5a45', '#40795c', '#5e9a79'],
+  clothpurple:['#241636', '#38224f', '#4e326c', '#68488c', '#8a68ab'],
+  clothwhite: ['#4e4a52', '#726d76', '#97929a', '#bcb8bf', '#dedbe0'],
+  clothblack: ['#141219', '#1e1c25', '#2b2933', '#3b3943', '#4e4c57'],
+  skin1:      ['#4a2a22', '#6e4030', '#9a6147', '#c08865', '#dcae8a'], // deep
+  skin2:      ['#5a3527', '#825034', '#ac744c', '#cf9c72', '#e7c39c'], // medium
+  skin3:      ['#6b4130', '#96603f', '#bd8b5f', '#dbb28c', '#f0d5b8'], // light
+  hairdark:   ['#171319', '#241d26', '#342a37', '#473b4b', '#5e5163'],
+  hairwarm:   ['#2e1a12', '#4a2a17', '#6d4020', '#95602d', '#bd8746'],
+
+  // --- magic & the uncanny ------------------------------------------------
+  aether:     ['#0d2f3d', '#12566b', '#1a8fa5', '#3fc6d6', '#96f0f5'],
+  aetherhot:  ['#3d0d33', '#6b1256', '#a51a83', '#d63fb3', '#f596e2'],
+  void:       ['#0f0a1c', '#1c1131', '#2c1b4d', '#41296f', '#5c3f95'],
+  ember:      ['#3d1206', '#6e2409', '#a8410e', '#d9741f', '#f4b04c'],
+  poison:     ['#1b2d12', '#2e4a1c', '#487028', '#6a9738', '#94bf55'],
+  holy:       ['#4a4324', '#7a6f37', '#ab9f52', '#dcd189', '#f7f2c8'],
+};
+
+/** Neutral extremes used for outlines, UI strokes and ambient occlusion. */
+export const INK = '#14121b';
+export const PAPER = '#efe8db';
+
+/** Signature accents for UI chrome. */
+export const UI = {
+  panelTop: '#1b2a5e',
+  panelBottom: '#0b1230',
+  panelEdgeLight: '#8fa6e8',
+  panelEdgeDark: '#050818',
+  text: '#f4f1e6',
+  textDim: '#9aa2b8',
+  textDisabled: '#5a6076',
+  select: '#ffd76a',
+  danger: '#e0574f',
+  good: '#6fd08c',
+  mp: '#6fb2ff',
+  hp: '#8ce07a',
+  atb: '#ffcf5c',
+  limit: '#ff8a4c',
+};
+
+/** Element → signature colour, used by spell VFX and resistance icons. */
+export const ELEMENT_COLOR = {
+  fire: '#ff7a2f',
+  ice: '#7fdcf0',
+  bolt: '#ffe45e',
+  water: '#3ea8d6',
+  wind: '#9fe3a8',
+  earth: '#c08a4a',
+  poison: '#94bf55',
+  holy: '#fff3b8',
+  shadow: '#8a5ce0',
+  aether: '#3fc6d6',
+  physical: '#d8d3c6',
+};
+
+// ---------------------------------------------------------------------------
+// Colour utilities
+// ---------------------------------------------------------------------------
+
+export function hexToRgb(hex) {
+  const h = hex.replace('#', '');
+  return [
+    parseInt(h.slice(0, 2), 16),
+    parseInt(h.slice(2, 4), 16),
+    parseInt(h.slice(4, 6), 16),
+  ];
+}
+
+export function rgbToHex(r, g, b) {
+  const c = (v) => Math.max(0, Math.min(255, Math.round(v))).toString(16).padStart(2, '0');
+  return `#${c(r)}${c(g)}${c(b)}`;
+}
+
+/** Sample a ramp with a continuous 0..1 parameter, blending between steps. */
+export function rampAt(name, t) {
+  const ramp = RAMPS[name];
+  if (!ramp) throw new Error(`Unknown ramp: ${name}`);
+  const x = Math.max(0, Math.min(1, t)) * (ramp.length - 1);
+  const i = Math.floor(x);
+  const f = x - i;
+  if (i >= ramp.length - 1) return ramp[ramp.length - 1];
+  const a = hexToRgb(ramp[i]);
+  const b = hexToRgb(ramp[i + 1]);
+  return rgbToHex(a[0] + (b[0] - a[0]) * f, a[1] + (b[1] - a[1]) * f, a[2] + (b[2] - a[2]) * f);
+}
+
+/** The full flat list of every colour in the palette — the quantisation target. */
+export function flatPalette() {
+  const out = [];
+  for (const ramp of Object.values(RAMPS)) for (const c of ramp) out.push(c);
+  out.push(INK, PAPER);
+  return out;
+}
+
+/** Convert a hex string to a THREE-friendly 0xRRGGBB integer. */
+export function hexInt(hex) {
+  return parseInt(hex.replace('#', ''), 16);
+}

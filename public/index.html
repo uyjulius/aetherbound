@@ -1,0 +1,47 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+<title>Aetherbound</title>
+<link rel="stylesheet" href="./style.css" />
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><rect width='32' height='32' fill='%230b1230'/><path d='M16 4l3.6 8.4 8.4 3.6-8.4 3.6L16 28l-3.6-8.4L4 16l8.4-3.6z' fill='%233fc6d6'/></svg>" />
+</head>
+<body>
+  <div id="app">
+    <div id="stage">
+      <canvas id="view"></canvas>
+      <div id="ui"></div>
+      <div id="letterbox-top" class="letterbox"></div>
+      <div id="letterbox-bottom" class="letterbox"></div>
+      <div id="fade"></div>
+    </div>
+  </div>
+
+  <div id="boot">
+    <div class="boot-inner">
+      <div class="boot-mark">
+        <svg viewBox="0 0 120 120" width="96" height="96" aria-hidden="true">
+          <defs>
+            <linearGradient id="bg" x1="0" y1="0" x2="0" y2="1">
+              <stop offset="0" stop-color="#96f0f5"/>
+              <stop offset="1" stop-color="#1a8fa5"/>
+            </linearGradient>
+          </defs>
+          <path d="M60 8 L70 46 L108 60 L70 74 L60 112 L50 74 L12 60 L50 46 Z" fill="url(#bg)"/>
+          <circle cx="60" cy="60" r="7" fill="#0b1230"/>
+        </svg>
+      </div>
+      <div class="boot-title">AETHERBOUND</div>
+      <div class="boot-bar"><div class="boot-bar-fill" id="boot-fill"></div></div>
+      <div class="boot-status" id="boot-status">Kindling the aether…</div>
+    </div>
+  </div>
+
+  <noscript>
+    <div style="padding:2rem;color:#f4f1e6;font:16px system-ui">Aetherbound needs JavaScript.</div>
+  </noscript>
+
+  <script type="module" src="./game.js"></script>
+</body>
+</html>

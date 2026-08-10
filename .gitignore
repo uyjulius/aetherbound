@@ -1,0 +1,17 @@
+node_modules/
+
+# Source images for the texture pipeline. Two hundred-odd generated candidates,
+# ~210MB, and entirely reproducible: `npm run textures:raw -- --candidates 10`
+# fetches them again and `npm run textures` quilts the shipped plates from them.
+# The plates themselves are committed, so a clone builds and runs without this.
+assets/raw/
+
+# Build artefacts. `public/game.js` IS committed — it is what the site serves —
+# but the sourcemap is 6.7MB of no use to anyone but a local debugger.
+public/game.js.map
+
+# Working images from art direction, not inputs to anything.
+assets/characters.png
+assets/model-candidates.png
+
+.DS_Store
