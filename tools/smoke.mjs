@@ -196,10 +196,34 @@ for (let i = 0; i < 4; i++) await tap('Enter', 260);
 await tap('KeyC', 400);
 const menuOpen = await page.evaluate(() => window.__game.menu.open);
 check('field menu opens', menuOpen === true);
-await tap('ArrowDown', 200); await tap('ArrowDown', 200);
-await tap('Enter', 300); await tap('Enter', 300);
+/**
+ * Move a menu cursor onto a named entry and choose it.
+ *
+ * Counting keypresses is not reliable here. This used to be two ArrowDowns
+ * and two Enters, which assumed every synthetic key event lands exactly once
+ * — under load one occasionally registers twice, and the run ends up on
+ * Status instead of Equip. Reading the cursor between presses is immune to
+ * that, and to anyone reordering the menu later.
+ */
+const menuChoose = async (label, maxSteps = 14) => {
+  for (let step = 0; step < maxSteps; step++) {
+    const at = await page.evaluate(() => {
+      const list = window.__game.menu.stack.at(-1)?.list;
+      if (!list) return null;
+      return { label: list.items[list.index]?.label ?? null };
+    });
+    if (!at) return false;
+    if (at.label === label) { await tap('Enter', 320); return true; }
+    await tap('ArrowDown', 170);
+  }
+  return false;
+};
+
+const reachedEquip = await menuChoose('Equip');
+await tap('Enter', 320);          // the first party member
 const equipScreen = await page.evaluate(() => window.__game.menu.stack.map((s) => s.title));
-check('equip screen reachable', equipScreen.some((t) => t?.includes('Equip')), equipScreen.join(' > '));
+check('equip screen reachable',
+  reachedEquip && equipScreen.some((t) => t?.includes('Equip')), equipScreen.join(' > '));
 for (let i = 0; i < 5; i++) await tap('Escape', 200);
 const menuClosed = await page.evaluate(() => window.__game.menu.open);
 check('menu closes cleanly', menuClosed === false);
@@ -350,7 +374,16 @@ const summon = await page.evaluate(async () => {
   s.phase = 'active';
   await new Promise((r) => setTimeout(r, 300));
   s._chooseCommand(caster, 'summon');
-  await new Promise((r) => setTimeout(r, 6000));
+  // Wait for the summon to actually resolve rather than for a fixed six
+  // seconds. The banner, the camera move and the per-target damage take as
+  // long as they take, and on a loaded machine that is longer than any
+  // sleep worth hardcoding.
+  const deadline = Date.now() + 25000;
+  while (Date.now() < deadline) {
+    if (s.enemies.some((e, i) => e.hp < hpBefore[i])) break;
+    await new Promise((r) => setTimeout(r, 150));
+  }
+  await new Promise((r) => setTimeout(r, 400));
   return {
     ok: true,
     used: caster._summoned === true,
@@ -385,7 +418,15 @@ const shop = await page.evaluate(async () => {
   await tapNow('Enter');       // buy the first stocked item
   const after = g.party.countItem('potion');
   await tapNow('Escape');      // back to the shop's main menu
-  await tapNow('ArrowDown'); await tapNow('ArrowDown');
+
+  // Walk the cursor onto Leave rather than assuming two ArrowDowns land
+  // exactly once each. Under load a synthetic key event occasionally
+  // registers twice, and the run then selects the wrong row.
+  for (let step = 0; step < 8; step++) {
+    const cur = g.shop?.current?.items?.[g.shop.current.index]?.label;
+    if (cur === 'Leave') break;
+    await tapNow('ArrowDown');
+  }
   await tapNow('Enter');       // Leave
   await new Promise((r) => setTimeout(r, 400));
   return { layerPresent, before, after, gold: g.party.gold, closed: !document.getElementById('shop-layer') };
