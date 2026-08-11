@@ -1350,6 +1350,52 @@ check('every world-map exit is named', signs.named === signs.total, `${signs.nam
 check('approaching a village names it', signs.shown === 'Harrowmere', signs.shown || 'nothing shown');
 check('the name fades once you leave', signs.far === null, signs.far || 'hidden');
 
+// A door with something lethal behind it has to say so. Nothing in this game
+// is gated on a story flag — it is an open world and locking the road would be
+// the opposite of one — so the only thing standing between a starting party and
+// the Pilgrim's Rest, whose entrance is written for level 68, is being told.
+//
+// Tested in both directions on purpose. The first version only checked that a
+// warning appeared, and failed here because by this point in the suite the
+// party is level 93 — at which point saying nothing about a level-68 road is
+// the feature working, not failing. The contract is that the sign reads the
+// gap between the party and the place, so both ends of that have to hold.
+const warned = await page.evaluate(async () => {
+  const g = window.__game;
+  await g.gotoMap('overworld', 'default');
+  await new Promise((r) => setTimeout(r, 900));
+  const st = g.state;
+  const el = document.querySelector('.place-sign');
+
+  const read = async (prompt) => {
+    const gate = st.map.grid.triggers.find((t) => t.kind === 'exit' && t.data?.prompt === prompt);
+    if (!gate) return { prompt, missing: true };
+    st.player.place(gate.x + gate.w / 2, gate.z + gate.d / 2 - 2.4, 0);
+    st.camera.snapTo(st.player.x, st.player.z);
+    await new Promise((r) => setTimeout(r, 350));
+    const warn = el?.querySelector('.sign-warn');
+    return { prompt, shown: !el?.classList.contains('hidden'), warn: warn?.textContent ?? null };
+  };
+
+  // Borrow a starting party's levels, then hand them back — later checks read
+  // the real ones.
+  const levels = new Map([...g.party.roster].map(([id, m]) => [id, m.level]));
+  for (const m of g.party.roster.values()) m.level = 6;
+  const low = { deadly: await read("Pilgrim's Rest"), home: await read('Harrowmere') };
+  for (const m of g.party.roster.values()) m.level = 93;
+  const high = { deadly: await read("Pilgrim's Rest") };
+  for (const [id, lv] of levels) g.party.roster.get(id).level = lv;
+
+  return { low, high };
+});
+check('a lethal doorway warns a starting party', !!warned.low.deadly.warn,
+  warned.low.deadly.missing ? 'gate not found'
+    : `lv 6 at Pilgrim's Rest — ${warned.low.deadly.warn ?? 'no warning'}`);
+check('a safe doorway does not', warned.low.home.shown && !warned.low.home.warn,
+  warned.low.home.warn ?? 'clean');
+check('the warning goes away once you outgrow it', !warned.high.deadly.warn,
+  warned.high.deadly.warn ? `lv 93 still warned — ${warned.high.deadly.warn}` : 'silent at lv 93');
+
 // --- the airship -------------------------------------------------------------
 const airship = await page.evaluate(async () => {
   const g = window.__game;

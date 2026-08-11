@@ -440,6 +440,23 @@ html, body {
   z-index: 30;
 }
 
+/* What is waiting on the other side of a door, when it is worse than what is
+   on this side. Set below the place name and deliberately smaller: it is a
+   warning, not a label, and it should read as somebody muttering it. */
+.sign-warn {
+  display: block;
+  margin-top: calc(2 * var(--u));
+  font-family: var(--font-body, inherit);
+  font-size: calc(10 * var(--u));
+  letter-spacing: .06em;
+  text-indent: 0;
+  text-transform: none;
+  opacity: .92;
+}
+.sign-warn-warn  { color: #ffd76a; }
+.sign-warn-bad   { color: #ff9d63; }
+.sign-warn-grave { color: #e0574f; }
+
 /* ==========================================================================
    On-screen controls
    --------------------------------------------------------------------------
@@ -560,3 +577,30 @@ html, body {
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { animation-duration: .001s !important; transition-duration: .001s !important; }
 }
+
+
+/* ==========================================================================
+   Journal and bestiary
+   ========================================================================== */
+
+/* A section rule inside a list — "Main", "Companions", "Errands". */
+.menu-row.menu-header {
+  opacity: 1;
+  color: var(--gold, #d8ac31);
+  font-size: calc(11 * var(--u));
+  letter-spacing: .22em;
+  text-transform: uppercase;
+  margin-top: calc(6 * var(--u));
+  border-bottom: calc(1 * var(--u)) solid rgba(216,172,49,.28);
+  padding-bottom: calc(2 * var(--u));
+}
+.menu-row.menu-header:first-child { margin-top: 0; }
+
+.quest-what  { margin-bottom: calc(6 * var(--u)); line-height: 1.5; }
+.quest-where { font-style: italic; }
+.quest-done  { margin-top: calc(8 * var(--u)); color: #8ce07a; }
+
+.beast-line   { margin-bottom: calc(4 * var(--u)); }
+.beast-weak   { color: #ff9d63; }
+.beast-resist { color: #9aa2b8; }
+.beast-absorb { color: #8ce07a; }

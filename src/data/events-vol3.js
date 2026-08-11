@@ -1,5 +1,6 @@
 import { wait, over } from '../engine/scheduler.js';
 import { ESPERS } from './espers.js';
+import { analytics, EV } from '../engine/analytics.js';
 
 /**
  * Scripted events, volume three — sidequests and optional scenes.
@@ -1327,6 +1328,18 @@ export const VOL3_EVENTS = {
       'Obtained The Ninth Ward.',
     ], ctx.field);
     p.completeQuest('firstengine');
+    analytics.track(EV.GAME_COMPLETED, {
+      party_level: Math.round(p.averageLevel()),
+      play_seconds: Math.round(p.playTime),
+      roster_size: p.roster.size,
+      quests_done: [...p.quests.values()].filter((q) => q.done).length,
+      bestiary_seen: p.bestiary.size,
+      gold: p.gold,
+    });
+    // And with it the objective the cataclysm opened. `after` was started when
+    // the sky changed and nothing anywhere closed it, so the main quest of the
+    // entire second half sat open in the journal forever.
+    p.completeQuest('after');
     yield* cinematic(game, false);
   },
 };

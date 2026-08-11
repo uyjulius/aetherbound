@@ -1,4 +1,6 @@
 import { CHARACTERS, statAt, expForLevel, levelForExp } from '../data/characters.js';
+import { analytics, EV } from '../engine/analytics.js';
+import { QUESTS } from '../data/quests.js';
 
 /**
  * Party and roster state.
@@ -84,6 +86,10 @@ export class Member {
     this.level = levelForExp(this.exp);
     const gained = this.level - before;
     if (gained > 0) {
+      analytics.track(EV.LEVEL_GAINED, {
+        character: this.id, character_name: this.name,
+        level: this.level, levels_gained: gained, from_level: before,
+      });
       // Level-ups top up the *gained* HP/MP rather than fully healing, which
       // would make levelling a free rest.
       const hpGain = statAt(this.id, 'hp', this.level) - statAt(this.id, 'hp', before);
@@ -101,8 +107,13 @@ export class Member {
   knowsSpell(id) { return (this.spells[id] ?? 0) >= 100; }
 
   learnSpell(id, amount = 100) {
-    this.spells[id] = Math.min(100, (this.spells[id] ?? 0) + amount);
-    return this.spells[id] >= 100;
+    const before = this.spells[id] ?? 0;
+    this.spells[id] = Math.min(100, before + amount);
+    const learned = this.spells[id] >= 100;
+    if (learned && before < 100) {
+      analytics.track(EV.SPELL_LEARNED, { spell: id, character: this.id, level: this.level });
+    }
+    return learned;
   }
 
   serialize() {
@@ -141,6 +152,10 @@ export class Party {
     const avg = this.averageLevel();
     const m = new Member(charId, level ?? Math.max(1, Math.round(avg)));
     this.roster.set(charId, m);
+    analytics.track(EV.CHARACTER_RECRUITED, {
+      character: charId, character_name: m.name, level: m.level,
+      roster_size: this.roster.size, play_seconds: Math.round(this.playTime),
+    });
     this.row.set(charId, 'front');
     if (this.active.length < 4) this.active.push(charId);
     else this.reserve.push(charId);
@@ -201,18 +216,44 @@ export class Party {
 
   // --- flags & quests -----------------------------------------------------
 
-  setFlag(name, on = true) { on ? this.flags.add(name) : this.flags.delete(name); }
+  setFlag(name, on = true) {
+    // `seen_*` is bookkeeping for which maps have been visited; it would
+    // double every map event for nothing.
+    if (on && !this.flags.has(name) && !name.startsWith('seen_')) {
+      analytics.track(EV.STORY_FLAG_SET, { flag: name, play_seconds: Math.round(this.playTime) });
+    }
+    on ? this.flags.add(name) : this.flags.delete(name);
+  }
   hasFlag(name) { return this.flags.has(name); }
 
-  startQuest(id, stage = 0) { this.quests.set(id, { stage, done: false }); }
+  startQuest(id, stage = 0) {
+    if (!this.quests.has(id)) analytics.track(EV.QUEST_STARTED, this._questProps(id));
+    this.quests.set(id, { stage, done: false });
+  }
+
   advanceQuest(id, stage) {
     const q = this.quests.get(id);
-    if (q) q.stage = stage;
+    if (!q || q.stage === stage) return;
+    q.stage = stage;
+    analytics.track(EV.QUEST_ADVANCED, { ...this._questProps(id), stage });
   }
+
   completeQuest(id) {
     const q = this.quests.get(id) || { stage: 0 };
+    if (!q.done) analytics.track(EV.QUEST_COMPLETED, { ...this._questProps(id), stage: q.stage });
     q.done = true;
     this.quests.set(id, q);
+  }
+
+  /** Shared shape so a quest funnel can be built on one set of properties. */
+  _questProps(id) {
+    return {
+      quest: id,
+      quest_name: QUESTS[id]?.name ?? id,
+      quest_kind: QUESTS[id]?.kind ?? 'side',
+      party_level: Math.round(this.averageLevel()),
+      play_seconds: Math.round(this.playTime),
+    };
   }
   questStage(id) { return this.quests.get(id)?.stage ?? -1; }
 

@@ -1,6 +1,7 @@
 import { wait, until, tween, over, EASE } from '../engine/scheduler.js';
 import { TILE } from '../world/map.js';
 import { ESPERS } from './espers.js';
+import { analytics, EV } from '../engine/analytics.js';
 
 /**
  * Scripted events.
@@ -558,6 +559,13 @@ export const EVENTS = {
     game.renderer.postfx.flashStrength = 0;
 
     p.worldState = 'ruin';
+    analytics.track(EV.WORLD_STATE_CHANGED, {
+      from: 'whole', to: 'ruin',
+      party_level: Math.round(p.averageLevel()),
+      play_seconds: Math.round(p.playTime),
+      roster_size: p.roster.size,
+      quests_done: [...p.quests.values()].filter((q) => q.done).length,
+    });
     p.setFlag('cataclysm');
     p.startQuest('after', 0);
     yield* say(game, 'Vesna', [

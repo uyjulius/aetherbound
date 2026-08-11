@@ -1,3 +1,13 @@
+import { analytics, EV } from '../engine/analytics.js';
+
+/**
+ * The on-screen bar exists for people without a keyboard, and nothing else
+ * says whether it is being used or ignored. Tracked once per button per
+ * session: the raw stream would be thousands of camera nudges.
+ */
+function track(spec) {
+  analytics.once(`control:${spec.id}`, EV.CONTROL_USED, { control: spec.id, action: spec.action ?? null });
+}
 import { input } from '../engine/input.js';
 
 /**
@@ -108,6 +118,10 @@ export class ControlBar {
   }
 
   _wire(el, spec) {
+    // Every button reports itself once; the branches below only add the
+    // behaviour, so a new control can never be added without instrumentation.
+    el.addEventListener('pointerdown', () => track(spec));
+
     if (spec.id === 'pause') {
       el.addEventListener('click', () => this.togglePause());
       return;
@@ -178,6 +192,11 @@ export class ControlBar {
   }
 
   togglePause() {
+    analytics.track(EV.GAME_PAUSED, {
+      paused: !this.game.paused,
+      map: this.game.currentMapId,
+      state: this.game.state?.constructor?.name ?? null,
+    });
     const g = this.game;
     g.paused = !g.paused;
     // A paused game still renders, so the world does not vanish — it simply

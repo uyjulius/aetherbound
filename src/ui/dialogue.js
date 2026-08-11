@@ -1,3 +1,4 @@
+import { analytics, EV } from '../engine/analytics.js';
 import { el, win, MenuList } from './ui.js';
 import { input } from '../engine/input.js';
 import { audio } from '../audio/audio.js';
@@ -91,7 +92,13 @@ export class DialogueBox {
     while (shown < chars.length) {
       if (skipped) { shown = chars.length; break; }
       const dt = yield { kind: 'tick' };
-      if (input.justPressed('confirm') || input.justPressed('cancel')) { skipped = true; continue; }
+      if (input.justPressed('confirm') || input.justPressed('cancel')) {
+        skipped = true;
+        // Once per session. Whether people read the writing or hammer through
+        // it is worth knowing; a line-by-line stream is not.
+        analytics.once('dialogue-skip', EV.DIALOGUE_SKIPPED, { text_speed: opts.textSpeed ?? null });
+        continue;
+      }
       if (holdFrames > 0) { holdFrames--; continue; }
       const step = Math.max(1, Math.round(this.speed * (input.isDown('confirm') ? 3 : 1)));
       for (let i = 0; i < step && shown < chars.length; i++) {

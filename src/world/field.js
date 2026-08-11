@@ -5,6 +5,8 @@ import { buildMap, applyAtmosphere, TILE } from './map.js';
 import { buildCharacter, CharacterAnimator } from './character.js';
 import { initKitMaterials } from './kit.js';
 import { buildAirship } from './airship.js';
+import { dangerOf, dangerNote } from './danger.js';
+import { analytics, EV } from '../engine/analytics.js';
 import { el, showAreaTitle } from '../ui/ui.js';
 import { DialogueBox } from '../ui/dialogue.js';
 
@@ -519,6 +521,10 @@ export class FieldState {
 
   /** Step off onto the tile below, leaving the ship where it stands. */
   disembark(game) {
+    analytics.track(EV.AIRSHIP_LANDED, {
+      map: this.mapDef?.id ?? null,
+      party_level: Math.round(game.party.averageLevel()),
+    });
     if (!this.vehicle) return;
     const { rig, x, z, facing } = this.vehicle;
     this.vehicle = null;
@@ -623,6 +629,10 @@ export class FieldState {
       this.promptEl.classList.remove('hidden');
       if (input.justPressed('confirm')) {
         this.busy = true;
+        analytics.track(EV.CROSSING_USED, {
+          from: this.mapDef?.id ?? null, to: cross.to, edge: cross.edge ?? null,
+          party_level: Math.round(this.game.party.averageLevel()),
+        });
         this.onExit?.({ to: cross.to, spawn: cross.spawn, byAir: true });
       }
       return;
@@ -801,6 +811,23 @@ export class FieldState {
 
     this.signEl.classList.remove('hidden');
     this.signEl.textContent = near.t.data.prompt;
+
+    // What is waiting on the other side, if it is worse than what is here.
+    const dest = this.game.mapDefinition?.(near.t.data.to);
+    const note = dangerNote(
+      dangerOf(dest, near.t.data.spawn),
+      this.game.party.averageLevel(),
+    );
+    if (note) {
+      analytics.once(`warn:${near.t.data.to}`, EV.DOOR_WARNING_SHOWN, {
+        to: near.t.data.to, prompt: near.t.data.prompt, tone: note.tone,
+        party_level: Math.round(this.game.party.averageLevel()),
+      });
+      const warn = document.createElement('span');
+      warn.className = `sign-warn sign-warn-${note.tone}`;
+      warn.textContent = note.text;
+      this.signEl.appendChild(warn);
+    }
     // Fade in over the approach rather than popping into view.
     this.signEl.style.opacity = String(Math.min(1, 1.35 - bestDist / SIGNPOST_RANGE));
     this.signEl.style.left = `${pos.x}px`;
@@ -831,6 +858,10 @@ export class FieldState {
     scheduler.run(function* () {
       try {
         if (target.kind === 'npc') {
+          analytics.track(EV.NPC_TALKED, {
+            npc: target.npc?.def?.id ?? null, npc_name: target.npc?.def?.name ?? null,
+            map: self.mapDef?.id ?? null,
+          });
           const n = target.actor;
           n.faceTowards(self.player.x, self.player.z);
           yield* self.runNPC(n);
@@ -860,6 +891,11 @@ export class FieldState {
       return;
     }
     if (def.inn && this.game.openInn) {
+      analytics.track(EV.INN_RESTED, {
+        map: this.mapDef?.id ?? null, price: def.inn?.price ?? def.inn ?? null,
+        gold: this.game.party.gold,
+        party_hp: this.game.party.activeMembers.reduce((n, m) => n + m.hp, 0),
+      });
       yield* this.game.openInn(def.inn, this, def);
       return;
     }
@@ -872,6 +908,12 @@ export class FieldState {
     if (lid) yield* tween(0, -2.1, 0.35, (v) => { lid.rotation.x = v; }, EASE.backOut);
     chest.def.opened = true;
     const contents = chest.def.contains;
+    analytics.track(EV.CHEST_OPENED, {
+      chest: chest.def.id ?? null, map: this.mapDef?.id ?? null,
+      kind: contents?.kind ?? 'empty', contents: contents?.id ?? null,
+      count: contents?.count ?? 1,
+      party_level: Math.round(this.game.party.averageLevel()),
+    });
     if (this.game.grantChest) yield* this.game.grantChest(contents, this);
     else yield* this.dialogue.speak(null, [`Found ${contents?.label || 'nothing'}.`]);
   }
@@ -883,10 +925,14 @@ export class FieldState {
       return;
     }
     if (data.save && this.game.openSaveMenu) {
+      analytics.track(EV.SAVE_POINT_USED, { map: this.mapDef?.id ?? null });
       yield* this.game.openSaveMenu(this);
       return;
     }
     if (data.shop && this.game.openShop) {
+      analytics.track(EV.SHOP_OPENED, {
+        shop: data.shop, map: this.mapDef?.id ?? null, gold: this.game.party.gold,
+      });
       if (data.text) yield* this.dialogue.speak(data.name ?? null, [].concat(data.text), { keepOpen: true });
       this.dialogue.close();
       yield* this.game.openShop(data.shop, this);
@@ -900,9 +946,16 @@ export class FieldState {
       const go = yield* this.dialogue.ask('Board the Gallowglass?', ['Board', 'Not yet'],
         { speaker: null, cancelable: true });
       this.dialogue.close();
-      if (go === 0) this.board(this.game);
+      if (go === 0) {
+        analytics.track(EV.AIRSHIP_BOARDED, { map: this.mapDef?.id ?? null });
+        this.board(this.game);
+      }
       return;
     }
+    analytics.track(EV.PROP_INSPECTED, {
+      prop: data.name ?? null, map: this.mapDef?.id ?? null,
+      lines: [].concat(data.text ?? []).length,
+    });
     yield* this.dialogue.speak(data.name || null, [].concat(data.text || ['Nothing of note.']));
   }
 

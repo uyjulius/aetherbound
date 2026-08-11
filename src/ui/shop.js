@@ -1,3 +1,4 @@
+import { analytics, EV } from '../engine/analytics.js';
 import { el, win, MenuList } from './ui.js';
 import { input } from '../engine/input.js';
 import { audio } from '../audio/audio.js';
@@ -115,6 +116,11 @@ export class ShopScreen {
       pageSize: 12,
       onSelect: (i) => {
         if (party.spendGold(i.item.price)) {
+          analytics.track(EV.ITEM_BOUGHT, {
+            item: i.item.id, item_name: i.item.name, kind: i.item.kind,
+            price: i.item.price, gold_after: party.gold,
+            party_level: Math.round(party.averageLevel()),
+          });
           party.addItem(i.item.id, 1);
           audio.sfx('chest');
           // Refresh affordability as gil drops.
@@ -146,6 +152,9 @@ export class ShopScreen {
       onSelect: (i) => {
         if (!i.item) return;
         party.removeItem(i.item.id, 1);
+        analytics.track(EV.ITEM_SOLD, {
+          item: i.item.id, item_name: i.item.name, price: i.item.sell, gold_after: party.gold + i.item.sell,
+        });
         party.addGold(i.item.sell);
         audio.sfx('confirm');
         const next = build();

@@ -24,6 +24,11 @@ import { saves, SaveManager } from './game/saves.js';
 import { MenuSystem, applyWindowTheme } from './ui/menu.js';
 import { ShopScreen } from './ui/shop.js';
 import { ESPERS } from './data/espers.js';
+import { analytics, EV } from './engine/analytics.js';
+import { dangerOf } from './world/danger.js';
+
+/** Stamped into every event so releases can be told apart. */
+const BUILD = 'aetherbound-2026-08';
 import { EVENTS } from './data/events.js';
 import { FEN_BARROW } from './data/maps/fenbarrow.js';
 import { SOLMERE } from './data/maps/solmere.js';
@@ -278,8 +283,46 @@ class Game {
   /** Does a map id resolve? Used by exit validation and by tooling. */
   mapExists(id) { return Object.prototype.hasOwnProperty.call(MAPS, id); }
 
+  /** The raw definition behind a map id, for anything that needs to look
+   *  through a door without walking through it. */
+  mapDefinition(id) { return MAPS[id] ?? null; }
+
   /** Every registered map id. */
   mapIds() { return Object.keys(MAPS); }
+
+  /**
+   * A periodic pulse, once a minute of played time.
+   *
+   * Everything else in the instrumentation fires on a decision. This is the
+   * denominator: how long people play, where they are while they play it, and
+   * whether the frame rate is holding up on their machine. Without it there is
+   * no way to tell a session that ended because somebody finished from one
+   * that ended because the game was chugging.
+   */
+  _sampleHeartbeat() {
+    const minute = Math.floor(this.party.playTime / 60);
+    if (minute === this._lastHeartbeat) return;
+    this._lastHeartbeat = minute;
+    if (!minute) return;
+
+    const info = this.renderer?.renderer?.info;
+    analytics.track(EV.PERFORMANCE_SAMPLED, {
+      play_minutes: minute,
+      fps: this.fps ? Math.round(this.fps) : null,
+      draw_calls: info?.render?.calls ?? null,
+      triangles: info?.render?.triangles ?? null,
+      geometries: info?.memory?.geometries ?? null,
+      textures: info?.memory?.textures ?? null,
+      map: this.currentMapId,
+      state: this.state?.constructor?.name ?? null,
+      party_level: Math.round(this.party.averageLevel()),
+      steps: this.party.steps,
+    });
+    // Walking distance is the pacing signal the battle count cannot give.
+    if (minute % 5 === 0) {
+      analytics.track(EV.STEPS_WALKED, { steps: this.party.steps, play_minutes: minute });
+    }
+  }
 
   /** Look up an encounter table by name, for per-region overworld zones. */
   encounterTable(name) {
@@ -353,6 +396,12 @@ class Game {
    * they fell, because there was nowhere to return them to.
    */
   async loadFrom(data) {
+    analytics.track(EV.GAME_LOADED, {
+      map: data?.mapId ?? null,
+      play_seconds: Math.round(data?.party?.playTime ?? 0),
+      world_state: data?.party?.worldState ?? null,
+      roster_size: data?.party?.roster?.length ?? 0,
+    });
     if (!data) return false;
     this.party = SaveManager.restoreParty(data.party ?? data);
     this._returnPoints.clear();
@@ -400,6 +449,26 @@ class Game {
     // does not, and uses the authored spawn.
     const returnTo = opts.viaExit ? this._returnPoints.get(mapId) : null;
     const next = this._wireField(new FieldState(this, { mapDef: def, spawn, spawnAt: returnTo }));
+
+    // Where the party is is the single most useful property on every other
+    // event, so it is registered rather than repeated at each call site.
+    analytics.register({ map: mapId, map_name: def.name, world_state: this.party.worldState });
+    const arrival = {
+      map: mapId, map_name: def.name, spawn: spawn ?? 'default',
+      via: opts.byAir ? 'air' : opts.viaExit ? 'door' : 'script',
+      party_level: Math.round(this.party.averageLevel()),
+      play_seconds: Math.round(this.party.playTime),
+      danger: Math.round(dangerOf(def, spawn)),
+    };
+    analytics.track(EV.MAP_ENTERED, arrival);
+    if (!this.party.hasFlag(`seen_${mapId}`)) {
+      this.party.setFlag(`seen_${mapId}`);
+      analytics.track(EV.MAP_FIRST_SEEN, arrival);
+      // Walking into somewhere the signpost warned about is the clearest
+      // signal the difficulty gradient is not reading.
+      const gap = arrival.danger - arrival.party_level;
+      if (gap >= 12) analytics.track(EV.DOOR_WARNING_IGNORED, { ...arrival, level_gap: gap });
+    }
     this.setState(next);
     this._applyPendingState();
     // Crossing an ocean means arriving over one. A party set down on foot at
@@ -472,6 +541,11 @@ class Game {
       case 'esper': {
         const esper = ESPERS[contents.id];
         this.party.espers.add(contents.id);
+        analytics.track(EV.ESPER_ACQUIRED, {
+          esper: contents.id, map: this.currentMapId,
+          owned: this.party.espers.size,
+          party_level: Math.round(this.party.averageLevel()),
+        });
         // Magicite gets its own cue. Finding one is the game's main progression
         // beat, and it should not sound like finding a hat.
         this.playMusic('esper', { fade: 0.6 });
@@ -583,6 +657,20 @@ class Game {
       onEnd: (result) => this._endBattle(result, field, opts),
     });
     this._suspendedField = field;
+    this._battleStarted = Date.now();
+    analytics.track(EV.BATTLE_STARTED, {
+      enemies: group.enemies,
+      enemy_count: group.enemies.length,
+      formation: group.enemies.join('+'),
+      boss: opts.boss ?? false,
+      can_flee: opts.canFlee ?? true,
+      terrain: encounters?.terrain || opts.terrain || 'grass',
+      party_level: Math.round(this.party.averageLevel()),
+      party: this.party.active,
+      enemy_level: Math.round(group.enemies.reduce((n, id) =>
+        n + (ENEMIES[id]?.level ?? 0), 0) / Math.max(1, group.enemies.length)),
+      play_seconds: Math.round(this.party.playTime),
+    });
     this.setState(battle, { suspend: true });
     this._applyPendingState();
     await this.fade(0, 0.45);
@@ -591,6 +679,21 @@ class Game {
   async _endBattle(result, field, opts) {
     await this.fade(1, 0.4);
     const wiped = result === 'defeat' && !opts.allowDefeat;
+    analytics.track(EV.BATTLE_ENDED, {
+      result,
+      boss: opts.boss ?? false,
+      seconds: this._battleStarted ? (Date.now() - this._battleStarted) / 1000 : null,
+      party_level: Math.round(this.party.averageLevel()),
+      survivors: this.party.activeMembers.filter((m) => !m.isKO).length,
+      gold: this.party.gold,
+    });
+    if (result === 'flee') analytics.track(EV.BATTLE_FLED, { boss: opts.boss ?? false });
+    if (wiped) {
+      analytics.track(EV.PARTY_WIPED, {
+        party_level: Math.round(this.party.averageLevel()),
+        play_seconds: Math.round(this.party.playTime),
+      });
+    }
     if (wiped) {
       // Game over. Losing gets its own theme first — it should sound like
       // something, not like the battle music simply stopping.
@@ -655,6 +758,7 @@ class Game {
         this.accumulator -= FIXED_DT;
         steps++;
         this.party.playTime += FIXED_DT;
+        this._sampleHeartbeat();
       }
       if (steps === 5) this.accumulator = 0;   // recover from a long stall
     }
@@ -676,9 +780,27 @@ class Game {
 // ---------------------------------------------------------------------------
 
 async function boot() {
+  const bootStarted = performance.now();
   const canvas = document.getElementById('view');
   const game = new Game(canvas);
   window.__game = game;   // handy for debugging and automated smoke tests
+
+  analytics.init({ version: BUILD }).register({ quality: game.config?.quality ?? null });
+  window.__analytics = analytics;
+  analytics.track(EV.APP_LOADED, { load_seconds: performance.now() / 1000 });
+
+  // A crash the player hits and never reports is the most expensive kind.
+  window.addEventListener('error', (e) => analytics.track(EV.ERROR_THROWN, {
+    message: String(e.message).slice(0, 300),
+    source: `${e.filename ?? ''}:${e.lineno ?? 0}`,
+    stack: String(e.error?.stack ?? '').slice(0, 600),
+    map: game.currentMapId, state: game.state?.constructor?.name ?? null,
+  }));
+  window.addEventListener('unhandledrejection', (e) => analytics.track(EV.ERROR_THROWN, {
+    message: String(e.reason?.message ?? e.reason).slice(0, 300),
+    stack: String(e.reason?.stack ?? '').slice(0, 600),
+    kind: 'promise', map: game.currentMapId,
+  }));
   window.__audio = audio;
   window.__tracks = TRACKS;
   window.__spells = SPELLS;
@@ -752,6 +874,22 @@ async function boot() {
 
   status.textContent = 'Waking the world…';
   fill.style.width = '100%';
+
+  analytics.track(EV.ASSETS_LOADED, {
+    boot_seconds: (performance.now() - bootStarted) / 1000,
+    quality: game.config?.quality ?? null,
+  });
+  analytics.track(EV.GAME_STARTED, { start_level: 6, party: game.party.active });
+
+  // The opening map is set directly rather than through `gotoMap`, so it needs
+  // its own event — without it every session's first map is missing and the
+  // funnel starts at whatever door the player walked through second.
+  analytics.register({ map: 'harrowmere', map_name: HARROWMERE.name, world_state: 'whole' });
+  analytics.track(EV.MAP_ENTERED, {
+    map: 'harrowmere', map_name: HARROWMERE.name, spawn: 'default', via: 'boot',
+    party_level: Math.round(game.party.averageLevel()), play_seconds: 0, danger: 0,
+  });
+  analytics.track(EV.MAP_FIRST_SEEN, { map: 'harrowmere', map_name: HARROWMERE.name, via: 'boot' });
 
   game.setState(game._wireField(new FieldState(game, { mapDef: HARROWMERE, spawn: 'default' })));
 

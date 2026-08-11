@@ -32,6 +32,7 @@ import {
 } from '../src/battle/formulas.js';
 import { RNG } from '../src/engine/rng.js';
 import * as legendModule from '../src/world/map.js';
+import { dangerNote } from '../src/world/danger.js';
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -1048,15 +1049,28 @@ function reachChecks() {
         + `${(t.entry ? `lv ${t.entry.toFixed(0)}` : '—').padStart(11)}   ${`lv ${t.deepest.toFixed(0)}`.padStart(14)}`);
     }
 
+    // These doors are close and lethal, and that is fine in an open world —
+    // what was not fine was the silence. Every one of them must now be covered
+    // by a signpost warning, so the check is that the warning fires, not that
+    // the door is safe.
     const nearDeadly = townRows.filter((t) => t.steps <= 25 && t.entry >= 25);
-    if (nearDeadly.length) {
+    const unwarned = nearDeadly.filter((t) =>
+      !dangerNote(t.entry, START_LEVEL));
+    say();
+    say(`${nearDeadly.length} doors within 25 steps lead somewhere written for level 25+; `
+      + `${nearDeadly.length - unwarned.length} of them warn a starting party`);
+    for (const t of nearDeadly) {
+      const note = dangerNote(t.entry, START_LEVEL);
+      say(`  ${t.to.padEnd(16)} ${String(t.steps).padStart(3)} steps  lv ${t.entry.toFixed(0).padStart(2)}  `
+        + `${note ? `"${note.text}"` : '\x1b[31mNO WARNING\x1b[0m'}`);
+    }
+    if (unwarned.length) {
       flag('major', 'scaling',
-        `${nearDeadly.length} doors within 25 steps of the opening village put level-25+ enemies `
-        + 'at the entrance',
-        nearDeadly.slice(0, 8).map((t) => `${t.to} (${t.steps} steps, lv${t.entry.toFixed(0)} at the door)`).join(', ')
-        + '. No exit in the game is gated on a story flag, and the overworld the player crosses to '
-        + 'get there does not stop them either, so a level-1 party can walk in and be killed with '
-        + 'no warning that they were going the wrong way.');
+        `${unwarned.length} doors near the start are lethal and say nothing`,
+        unwarned.map((t) => `${t.to} (${t.steps} steps, lv${t.entry.toFixed(0)})`).join(', ')
+        + '. No exit in the game is gated on a story flag — that is deliberate, it is an open '
+        + 'world — so the signpost is the only thing standing between a starting party and a '
+        + 'region written forty levels above them.');
     }
     const deepJump = townRows.filter((t) => t.deepest - t.entry >= 35);
     if (deepJump.length) {
@@ -1459,12 +1473,36 @@ async function questChecks() {
   say(`${all.size} quest ids: ${started.size} are ever started, ${advanced.size} advance, `
     + `${completed.size} complete, ${staged.size} are read back`);
 
-  const neverStarted = [...all].filter((q) => !started.has(q));
-  if (neverStarted.length) {
-    flag('major', 'quests', `${neverStarted.length} of ${all.size} quests are never started`,
-      'They are completed — sometimes advanced — without ever being opened, so the journal shows '
-      + 'nothing until the moment the player finishes something they were never told they had. '
-      + `${neverStarted.slice(0, 12).join(', ')}${neverStarted.length > 12 ? '…' : ''}`);
+  // A quest that begins and ends inside one scene has no in-progress phase to
+  // show, and reporting all sixty-nine of those as "never started" was noise:
+  // most of this list is a single conversation with a single outcome. What
+  // actually strands a player is a quest whose start and finish are in
+  // different events with nothing in the journal in between.
+  const eventsFor = new Map();
+  for (const [file, text] of eventFiles.map((f) => [f, (() => {
+    const fp = path.join(root, 'src/data', f);
+    return fs.existsSync(fp) ? fs.readFileSync(fp, 'utf8') : '';
+  })()])) {
+    const lines = text.split('\n');
+    let current = null;
+    for (const line of lines) {
+      const def = line.match(/^\s{0,4}\*?\s*([A-Za-z0-9_]+)\s*\(game/)
+        || line.match(/^\s{0,4}([A-Za-z0-9_]+):\s*function\*/);
+      if (def) current = `${file}:${def[1]}`;
+      for (const m of line.matchAll(/(?:start|advance|complete)Quest\(\s*['"`]([\w-]+)['"`]/g)) {
+        if (current) (eventsFor.get(m[1]) ?? eventsFor.set(m[1], new Set()).get(m[1])).add(current);
+      }
+    }
+  }
+  const multiScene = [...all].filter((q) => (eventsFor.get(q)?.size ?? 1) > 1);
+  const strandedMulti = multiScene.filter((q) => !started.has(q));
+  say(`${multiScene.length} quests span more than one scene; `
+    + `${multiScene.length - strandedMulti.length} of those open the journal entry`);
+  if (strandedMulti.length) {
+    flag('major', 'quests',
+      `${strandedMulti.length} multi-scene quests never open a journal entry`,
+      'The player is sent away to do something and the journal stays empty until they finish: '
+      + `${strandedMulti.join(', ')}`);
   }
 
   const neverEnds = [...all].filter((q) => started.has(q) && !completed.has(q));

@@ -1,3 +1,4 @@
+import { analytics, EV } from '../engine/analytics.js';
 import { Member, Party } from './party.js';
 import { ITEMS } from '../data/items.js';
 import { ESPERS } from '../data/espers.js';
@@ -69,6 +70,14 @@ export class SaveManager {
   }
 
   save(slot, game) {
+    analytics.track(EV.GAME_SAVED, {
+      slot, map: game.currentMapId, map_name: game.currentMapName,
+      party_level: Math.round(game.party.averageLevel()),
+      play_seconds: Math.round(game.party.playTime),
+      gold: game.party.gold, roster_size: game.party.roster.size,
+      world_state: game.party.worldState,
+      quests_done: [...game.party.quests.values()].filter((q) => q.done).length,
+    });
     const lead = game.party.activeMembers[0];
     const data = {
       version: VERSION,

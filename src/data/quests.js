@@ -1,0 +1,137 @@
+/**
+ * The quest journal.
+ *
+ * Eighty-one quest ids existed in the events and none of them had a name. The
+ * Quests screen read them straight out of the save — "postbag — Stage 0",
+ * "withies — Complete" — so a player who put the game down for a week had no
+ * way to find out what they had been doing. In a forty-hour game that is the
+ * screen they need most, and it was a list of variable names.
+ *
+ * Each entry is a title, one line of *what*, and one line of *where*. No stage
+ * text: the events advance stages freely and a stale objective line is worse
+ * than none, so the journal says what the job is and trusts the world to say
+ * how far along it is.
+ *
+ * `kind` sorts the screen. A recruitment is not a chore and the main line is
+ * not a favour, and a player scanning the list should be able to see that at a
+ * glance.
+ */
+
+export const QUESTS = {
+  // --- the main line ------------------------------------------------------
+  engine: {
+    name: 'The Thing Under Solmere', kind: 'main',
+    what: 'Find out what the Guild has been keeping awake beneath the city.',
+    where: 'Solmere, and the Ninth Well below it',
+  },
+  after: {
+    name: 'Everything Is Still Here', kind: 'main',
+    what: 'The sky broke and the world did not end. Find out what is left, and who is still standing in it.',
+    where: 'Caelum Vast, after',
+  },
+  firstengine: {
+    name: 'The First Engine', kind: 'main',
+    what: 'Answer the oldest question in the world, asked by the oldest thing in it.',
+    where: 'the deepest floor of the Ninth Well',
+  },
+
+  // --- the cast ----------------------------------------------------------
+  idris: { name: 'The Last Blade of Ashenhall', kind: 'recruit', what: 'Idris will travel with you if the hall is settled.', where: 'Ashenhall' },
+  osric: { name: 'Owner of the Vagrant Star', kind: 'recruit', what: 'Osric will come along once the table is square.', where: 'the Vagrant Star' },
+  maret: { name: 'The Broken Standard', kind: 'recruit', what: 'Maret has a countersign and no army left to give it to.', where: 'Duncastle' },
+  tam: { name: 'Child of the Bramblewaste', kind: 'recruit', what: 'Something in the bramble has been following the party. It is a child.', where: 'Bramblewold' },
+  ilsabet: { name: 'The Long Look', kind: 'recruit', what: 'The apprentice painter wants to come, and her master will not say no twice.', where: 'Harrowmere' },
+  kestrel: { name: 'The Vellum Archivist', kind: 'recruit', what: 'Kestrel has read about everywhere and been nowhere.', where: 'the Loom' },
+  oda: { name: 'The Still Water', kind: 'recruit', what: 'The grandmaster will teach you if you can stand in front of him.', where: 'the Ninth Lantern' },
+  rusk: { name: 'Salvaged', kind: 'recruit', what: 'Eleven years against a wall. Somebody should ask it to move.', where: 'the Ironquarry' },
+  mask: { name: 'Whoever It Needs To Be', kind: 'recruit', what: 'It has been in the party for a while. Nobody remembers when.', where: 'after the sky changes' },
+
+  // --- character stories --------------------------------------------------
+  tincup: { name: 'The Tin Cup', kind: 'story', what: 'Vesna goes back to the roadside well, which is the only cold thing left.', where: 'the road above Harrowmere' },
+  quiet: { name: 'The Quiet Lesson', kind: 'story', what: 'Tam stops the party under the ridge to say something out loud.', where: 'the flattened grass, after' },
+  gallery: { name: 'The Heavy End', kind: 'story', what: 'Bastian returns to the place he stopped lifting things for money.', where: 'Marrowgate' },
+  vance: { name: 'The Second Sword', kind: 'story', what: 'Idris has been carrying a blade that is not his.', where: 'Ashenhall' },
+  vagrant: { name: 'The Ledger Game', kind: 'story', what: 'Osric plays one more hand against the book he has been losing to.', where: 'the Vagrant Star' },
+  countersign: { name: 'The Countersign', kind: 'story', what: 'Maret gives the word that stopped meaning anything.', where: 'Duncastle' },
+  portrait: { name: 'The Long Look', kind: 'story', what: 'Ilsabet paints one thing she has been putting off.', where: 'Harrowmere' },
+  names: { name: 'Sixty-One Names', kind: 'story', what: 'Kestrel finishes a list nobody asked for.', where: 'the Loom' },
+  stillwater: { name: 'The Ninth Form', kind: 'story', what: 'Oda shows the form he does not teach.', where: 'the Ninth Lantern' },
+  relief: { name: 'Stand Down', kind: 'story', what: 'Somebody finally relieves Rusk of a post nobody assigned.', where: 'the Ironquarry' },
+  eighth: { name: 'The Eighth Name', kind: 'story', what: 'Wick has been leaving one name off the litany.', where: 'the Ninth Lantern' },
+  mask_habit: { name: 'The Reflection', kind: 'story', what: 'The Mask looks at something for longer than it usually does.', where: 'anywhere with a still surface' },
+  pump: { name: 'The Pump', kind: 'story', what: 'Aurelian repairs the first machine he ever built badly.', where: 'Solmere' },
+  ashby: { name: "Corvin's Debt", kind: 'story', what: 'A name from before the Guild wants settling.', where: 'the Silt Road' },
+  debt: { name: 'The Fen Barrow Debt', kind: 'story', what: 'Somebody in the barrow is owed, and has waited.', where: 'Fen Barrow' },
+
+  // --- the world ---------------------------------------------------------
+  lantern: { name: 'The Ninth Lantern', kind: 'side', what: 'A lantern that has never gone out is going out.', where: 'the Ninth Lantern' },
+  tally: { name: 'Forty-One Marks', kind: 'side', what: 'Someone cut a tally into the well rim and then stopped.', where: 'Harrowmere' },
+  barrow: { name: 'The Fen Barrow', kind: 'side', what: 'The barrow has been opened from the inside.', where: 'Fen Barrow' },
+  oak: { name: 'The Standing Oak', kind: 'side', what: 'The oak has not moved in nine hundred years and is moving.', where: 'the Thornmarch' },
+  baron: { name: 'The Toll Baron', kind: 'side', what: 'Someone has started charging for a road that was never his.', where: 'the Silt Road' },
+  pass: { name: 'The Pass', kind: 'side', what: 'The high pass is shut and the reason is not snow.', where: 'Cinderspine' },
+  thaw: { name: 'The Thaw', kind: 'side', what: 'Cinderspine is thawing eight weeks early.', where: 'Cinderspine' },
+  shelf: { name: 'The Shelf', kind: 'side', what: 'A ledge at Highfell is carrying more than it should.', where: 'Highfell' },
+  wood: { name: 'The Weeping Answer', kind: 'side', what: 'The wood answers, which it has not done before.', where: 'the Weeping Wood' },
+  moot: { name: 'The Moot', kind: 'side', what: 'Verrenholt cannot agree on a thing it has agreed on for two centuries.', where: 'Verrenholt' },
+  millwheel: { name: 'The Millwheel', kind: 'side', what: 'The wheel turns and the mill does not.', where: 'Emberlyn' },
+  surveyor: { name: "The Surveyor's Rota", kind: 'side', what: 'A survey was filed for ground that is not there.', where: 'Emberlyn' },
+  postbag: { name: 'The Last Postbag', kind: 'side', what: 'One bag of letters never reached anyone. Deliver it.', where: 'across the Reach' },
+  withies: { name: 'The Withies', kind: 'side', what: 'The withies go in every spring or the channel walks.', where: 'Saltmarch' },
+  cabinet: { name: 'The Cabinet of Species', kind: 'side', what: 'A collection with one drawer that will not close.', where: 'the Loom' },
+  count: { name: 'The Sealer of Weights', kind: 'side', what: "Oxmere's weights do not agree with each other any more.", where: 'Oxmere' },
+  hurdles: { name: 'The Last Hurdler', kind: 'side', what: 'One man still makes hurdles the old way and cannot say why.', where: 'Oxmere' },
+  droveroad: { name: 'The Drove Road', kind: 'side', what: 'The drove road has a warning on it in a hand nobody recognises.', where: 'Oxmere' },
+  lodge: { name: 'The Lodge Notice', kind: 'side', what: 'A notice at Caldwick has been up for four hours and eleven years.', where: 'Caldwick' },
+  apron: { name: 'The Cold Apron', kind: 'side', what: 'The forge apron at Caldwick is cold in the middle of a working day.', where: 'Caldwick' },
+  rent: { name: 'The Undercroft Rent', kind: 'side', what: 'Somebody is paying rent on a room under Marrowgate.', where: 'Marrowgate' },
+  pitch: { name: 'Eight Yards of Pitch', kind: 'side', what: 'Eight yards of pitch, ordered and never collected.', where: 'Marrowgate' },
+  relic: { name: 'The Hand', kind: 'side', what: 'A relic in Marrowgate has been handled recently.', where: 'Marrowgate' },
+  ford: { name: 'The Ford', kind: 'side', what: 'The Greyharrow ford is passable and should not be.', where: 'Greyharrow' },
+  indenture: { name: 'The Indenture', kind: 'side', what: 'A contract at Greyharrow outlived everyone who signed it.', where: 'Greyharrow' },
+  inventory: { name: 'The Miscellaneous Drawer', kind: 'side', what: 'Everything that did not fit a category ended up here.', where: 'Greyharrow' },
+  bailey: { name: 'The Bailey', kind: 'side', what: 'Duncastle keeps a bailey it will not open.', where: 'Duncastle' },
+  sixlines: { name: 'Six Lines', kind: 'side', what: 'The Duncastle roll is six lines longer than the muster.', where: 'Duncastle' },
+  account: { name: 'The Account', kind: 'side', what: 'The Ninth Well keeps an account of something uncountable.', where: 'the Ninth Well' },
+  record: { name: 'The Well Reads Back', kind: 'side', what: 'Speak into the well and it answers with your own record.', where: 'the Ninth Well' },
+  alcove: { name: 'The Cleaned Alcove', kind: 'side', what: 'Somebody has been cleaning an alcove at Ashenhall.', where: 'Ashenhall' },
+  choir: { name: 'The Choir Under Ashenhall', kind: 'side', what: 'There is singing below the hall and nobody down there.', where: 'Ashenhall' },
+  caravan: { name: 'The Caravan', kind: 'side', what: 'A caravan left Emberlyn and did not arrive anywhere.', where: 'Emberlyn' },
+  eastroad: { name: 'The East Road', kind: 'side', what: 'The east road out of Emberlyn is being maintained by no one.', where: 'Emberlyn' },
+  barge: { name: 'The Lime Barge', kind: 'side', what: 'A lime barge is tied up at Lowfen with a full hold.', where: 'Lowfen' },
+  carriage: { name: 'The Last Carry', kind: 'side', what: 'One more fare out of Lowfen, and the driver knows it.', where: 'Lowfen' },
+  carter: { name: "The Carter's Pass", kind: 'side', what: 'A carter needs a pass that no office still issues.', where: 'the Reach' },
+  circuit: { name: 'The Circuit', kind: 'side', what: 'The Thornmarch circuit has been walked out of order.', where: 'the Thornmarch' },
+  covenant: { name: 'The Covenant', kind: 'side', what: 'Thistlebeck keeps a covenant nobody will read aloud.', where: 'Thistlebeck' },
+  lighthouse: { name: 'The Light Relit', kind: 'side', what: 'The coast light has been dark for a season.', where: 'the Drowned Coast' },
+  lowerstorey: { name: 'The Lower Storey', kind: 'side', what: 'The Drowned Halls have a floor below the floor.', where: 'the Drowned Halls' },
+  hours: { name: 'The Hours', kind: 'side', what: 'The Sunken Vault keeps hours that do not match the sun.', where: 'the Sunken Vault' },
+  office: { name: 'The Office', kind: 'side', what: 'Somebody at the Last Lantern is still keeping office hours.', where: 'the Last Lantern' },
+  coldforge: { name: 'The Cold Forge', kind: 'side', what: 'A forge at the Last Lantern that has never been lit.', where: 'the Last Lantern' },
+  pyre: { name: 'Kingspyre Relit', kind: 'side', what: 'The pyre at the top of the world wants relighting.', where: 'Kingspyre' },
+  shift: { name: 'The Last Shift', kind: 'side', what: 'One shift never clocked off.', where: 'the Ironquarry' },
+  yard: { name: 'The Yardmaster', kind: 'side', what: 'Bramblewold has a yardmaster and no yard.', where: 'Bramblewold' },
+  brood: { name: 'The Brood of Glass', kind: 'side', what: 'Something is laying in the Glasswaste.', where: 'the Glasswaste' },
+  pane: { name: 'The Standing Pane', kind: 'side', what: 'A single sheet of glass is standing upright in open ground.', where: 'the Glasswaste' },
+  sump: { name: 'The Sump That Drank', kind: 'side', what: 'The great sump took a season of rain and asked for more.', where: 'the Saltworks' },
+  tenth: { name: 'The Tenth Well', kind: 'side', what: 'There were nine wells. There is a tenth.', where: 'past the Quench Pits' },
+  measure: { name: 'The Last Measure', kind: 'side', what: 'The last honest measure in the Reach, and who is holding it.', where: 'the Long Silence' },
+  gainsay: { name: 'The Gainsayer', kind: 'side', what: 'Something on the downs contradicts whatever is said near it.', where: 'the Gainsay Downs' },
+  eleven: { name: 'The Eleventh Hour', kind: 'side', what: 'A clock in the Reach strikes eleven and stops.', where: 'the Meridian Reach' },
+};
+
+/** Order the journal shows them in: the main line first, then people, then work. */
+export const QUEST_KIND_ORDER = ['main', 'recruit', 'story', 'side'];
+
+export const QUEST_KIND_LABEL = {
+  main: 'Main', recruit: 'Companions', story: 'Personal', side: 'Errands',
+};
+
+export function questById(id) {
+  return QUESTS[id] ?? null;
+}
+
+/** A readable title for a quest id, even one nobody has written up yet. */
+export function questName(id) {
+  return QUESTS[id]?.name ?? id;
+}

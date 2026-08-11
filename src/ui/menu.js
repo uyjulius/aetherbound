@@ -6,6 +6,9 @@ import { SPELLS, spellCost, SCHOOL_COLOR } from '../data/spells.js';
 import { STATUSES } from '../battle/formulas.js';
 import { CHARACTERS } from '../data/characters.js';
 import { ESPERS } from '../data/espers.js';
+import { ENEMIES } from '../data/enemies.js';
+import { QUESTS, QUEST_KIND_ORDER, QUEST_KIND_LABEL } from '../data/quests.js';
+import { analytics, EV } from '../engine/analytics.js';
 
 /**
  * The field menu.
@@ -55,6 +58,12 @@ export class MenuSystem {
 
   show() {
     if (this.open) return;
+    analytics.track(EV.MENU_OPENED, {
+      map: this.game.currentMapId,
+      party_level: Math.round(this.game.party.averageLevel()),
+      play_seconds: Math.round(this.game.party.playTime),
+      gold: this.game.party.gold,
+    });
     this.open = true;
     this.root.classList.remove('hidden');
     this.stack = [];
@@ -80,6 +89,9 @@ export class MenuSystem {
   }
 
   _push(screen) {
+    if (screen.title) {
+      analytics.track(EV.MENU_SCREEN_VIEWED, { screen: screen.title, depth: this.stack.length });
+    }
     this.stack.push(screen);
     this._render();
   }
@@ -363,6 +375,10 @@ export class MenuSystem {
       items: owned.length ? rebuild() : [{ label: '(no espers found)', disabled: true }],
       pageSize: 12,
       onSelect: (i) => {
+        analytics.track(EV.ESPER_EQUIPPED, {
+          esper: i.esper?.id ?? null, character: member.id,
+          previous: member.esper?.id ?? null,
+        });
         member.esper = i.esper;
         member.hp = Math.min(member.hp, member.maxHP);
         member.mp = Math.min(member.mp, member.maxMP);
@@ -447,6 +463,10 @@ export class MenuSystem {
         if (prev) party.addItem(prev.id, 1);
         if (i.item) {
           party.removeItem(i.item.id, 1);
+          analytics.track(EV.EQUIPMENT_CHANGED, {
+            character: member.id, slot, item: i.item?.id ?? null,
+            item_name: i.item?.name ?? null, previous: member.equipment[slot]?.id ?? null,
+          });
           member.equipment[slot] = i.item;
         } else {
           member.equipment[slot] = null;
@@ -598,7 +618,9 @@ export class MenuSystem {
     list.update = () => {
       if (input.justPressed('special') && list.current) {
         const id = list.current.id;
-        party.row.set(id, party.row.get(id) === 'back' ? 'front' : 'back');
+        const nextRow = party.row.get(id) === 'back' ? 'front' : 'back';
+        analytics.track(EV.ROW_CHANGED, { character: id, row: nextRow, where: 'menu' });
+        party.row.set(id, nextRow);
         audio.sfx('confirm');
         list.setItems(rebuild(), true);
         return true;
@@ -609,31 +631,117 @@ export class MenuSystem {
 
   // --- bestiary & quests --------------------------------------------------
 
+  /**
+   * The bestiary.
+   *
+   * Every creature in the game has a written name, a level, an elemental
+   * table and a steal list, and this screen used to show the key it is stored
+   * under and a kill count — "mireslug ×7". The one screen that rewards a
+   * player for fighting everything was a list of variable names.
+   */
   _pushBestiary() {
-    const entries = [...this.game.party.bestiary.entries()];
+    const entries = [...this.game.party.bestiary.entries()]
+      .map(([id, count]) => ({ id, count, def: ENEMIES[id] }))
+      .filter((e) => e.def)
+      .sort((a, b) => a.def.level - b.def.level || a.def.name.localeCompare(b.def.name));
+
     const list = new MenuList({
       items: entries.length
-        ? entries.map(([id, count]) => ({ label: id, right: `×${count}` }))
+        ? entries.map((e) => ({
+          label: e.def.name, right: `×${e.count}`, entry: e,
+        }))
         : [{ label: '(nothing recorded)', disabled: true }],
       pageSize: 14,
       onSelect: () => {},
       onCancel: () => this._pop(),
       onMove: () => this._refreshContent(),
     });
+
     this._push({ title: 'Bestiary', list, renderContent: (node) => {
-      node.appendChild(el('div', { class: 'dim', text: `${entries.length} species recorded.` }));
+      const e = list.current?.entry;
+      if (!e) {
+        node.appendChild(el('div', { class: 'dim',
+          text: `${entries.length} of ${Object.keys(ENEMIES).length} species recorded.` }));
+        return;
+      }
+      const d = e.def;
+      node.appendChild(el('div', { class: 'beast-line',
+        text: `Level ${d.level}${d.boss ? '  ·  Boss' : ''}   HP ${d.stats.hp}   MP ${d.stats.mp}` }));
+      node.appendChild(el('div', { class: 'dim beast-line',
+        text: `Attack ${d.stats.atk}   Defence ${d.stats.def}   Magic ${d.stats.mag}   `
+          + `Resist ${d.stats.mdef}   Speed ${d.stats.spd}` }));
+
+      const band = (kind) => Object.entries(d.affinity ?? {})
+        .filter(([, v]) => v === kind).map(([k]) => k);
+      for (const [kind, label, cls] of [
+        ['weak', 'Weak to', 'beast-weak'], ['resist', 'Resists', 'beast-resist'],
+        ['immune', 'Immune to', 'beast-resist'], ['absorb', 'Absorbs', 'beast-absorb'],
+      ]) {
+        const list2 = band(kind);
+        if (list2.length) {
+          node.appendChild(el('div', { class: cls, text: `${label}: ${list2.join(', ')}` }));
+        }
+      }
+      const steal = (d.steal ?? []).map((s) => ITEMS[s.id]?.name).filter(Boolean);
+      if (steal.length) node.appendChild(el('div', { class: 'dim', text: `Carries: ${steal.join(', ')}` }));
+      const drops = (d.drops ?? []).map((s) => ITEMS[s.id]?.name).filter(Boolean);
+      if (drops.length) node.appendChild(el('div', { class: 'dim', text: `Drops: ${drops.join(', ')}` }));
+      node.appendChild(el('div', { class: 'dim beast-line',
+        text: `${d.exp} EXP   ${d.gold} gil   defeated ${e.count}×` }));
     } });
   }
 
+  /**
+   * The journal.
+   *
+   * It used to list the save's raw keys — "postbag — Stage 0" — with no title
+   * and nothing to read, which in a forty-hour game is the screen a returning
+   * player needs most. Now each entry carries its written name, what the job
+   * is and where, grouped so the main line is not buried under errands.
+   */
   _pushQuests() {
-    const q = [...this.game.party.quests.entries()];
+    const entries = [...this.game.party.quests.entries()];
+    const items = [];
+    for (const kind of QUEST_KIND_ORDER) {
+      const inKind = entries.filter(([id]) => (QUESTS[id]?.kind ?? 'side') === kind);
+      if (!inKind.length) continue;
+      items.push({ label: QUEST_KIND_LABEL[kind], header: true, disabled: true });
+      // Open work above finished work: what is still owed is what is wanted.
+      inKind.sort((a, b) => Number(a[1].done) - Number(b[1].done));
+      for (const [id, st] of inKind) {
+        items.push({
+          label: QUESTS[id]?.name ?? id,
+          right: st.done ? 'Done' : 'Open',
+          quest: id, done: st.done,
+        });
+      }
+    }
+    const open = entries.filter(([, st]) => !st.done).length;
+
     const list = new MenuList({
-      items: q.length ? q.map(([id, st]) => ({ label: id, right: st.done ? 'Complete' : `Stage ${st.stage}` }))
-        : [{ label: '(no quests)', disabled: true }],
+      items: items.length ? items : [{ label: '(nothing yet)', disabled: true }],
+      pageSize: 12,
       onSelect: () => {},
       onCancel: () => this._pop(),
+      onMove: () => this._refreshContent(),
     });
-    this._push({ title: 'Quests', list, renderContent: () => {} });
+    // The first row is a section heading; open on the first real entry.
+    if (list.items[0]?.header) list.move(1);
+    this._push({
+      title: 'Journal',
+      list,
+      renderContent: (node) => {
+        const q = QUESTS[list.current?.quest];
+        if (!q) {
+          node.appendChild(el('div', { class: 'dim', text:
+            `${entries.length} recorded, ${open} still open.` }));
+          return;
+        }
+        node.appendChild(el('div', { class: 'quest-what', text: q.what }));
+        node.appendChild(el('div', { class: 'dim quest-where', text: q.where }));
+        if (list.current.done) node.appendChild(el('div', { class: 'quest-done', text: 'Settled.' }));
+      },
+    });
   }
 
   // --- config -------------------------------------------------------------
@@ -680,6 +788,8 @@ export class MenuSystem {
 
   _adjustConfig(key, dir) {
     const cfg = this.game.config;
+    // Settings people change are settings whose defaults are wrong.
+    setTimeout(() => analytics.track(EV.CONFIG_CHANGED, { setting: key, value: cfg[key] }), 0);
     const clamp = (v, lo, hi) => Math.max(lo, Math.min(hi, v));
     switch (key) {
       case 'atbMode': cfg.atbMode = cfg.atbMode === 'active' ? 'wait' : 'active'; break;

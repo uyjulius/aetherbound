@@ -2,6 +2,7 @@ import * as THREE from 'three';
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
 import { clone as skeletonClone } from 'three/examples/jsm/utils/SkeletonUtils.js';
 import { toonMaterial } from '../fx/materials.js';
+import { analytics, EV } from '../engine/analytics.js';
 
 /**
  * Monster models, loaded from glTF.
@@ -133,7 +134,15 @@ export async function loadMonsterModels(base = 'assets/monsters/', onProgress = 
         resolved: resolveClips(clips),
       });
     } catch (err) {
+      // A monster that fails to load does not throw — the battle stages an
+      // empty group and the fight looks broken. Production once shipped with
+      // the whole bestiary missing and a green deploy; this is how that gets
+      // noticed from a player's machine rather than from a screenshot.
       console.warn(`[monsters] ${spec.id} (${spec.title}) failed — ${err.message}`);
+      analytics.track(EV.ASSET_FAILED, {
+        kind: 'monster', id: spec.id, title: spec.title, plan: spec.plan,
+        message: String(err.message).slice(0, 200),
+      });
     }
     onProgress?.(++done / all.length, spec.title);
   }));

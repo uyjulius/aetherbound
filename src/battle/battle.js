@@ -9,6 +9,7 @@ import { ITEMS } from '../data/items.js';
 import { enemyById } from '../data/enemies.js';
 import { ELEMENT_COLOR } from '../engine/palette.js';
 import { audio } from '../audio/audio.js';
+import { analytics, EV } from '../engine/analytics.js';
 import { playSpellFX } from '../fx/spellfx.js';
 import {
   physicalDamage, monsterDamage, magicDamage, healAmount, rollHit, rollCritical,
@@ -389,6 +390,12 @@ export class BattleState {
   }
 
   _chooseCommand(actor, cmd) {
+    analytics.track(EV.COMMAND_USED, {
+      command: cmd, character: actor.id, character_name: actor.name,
+      level: actor.level, boss: this.isBoss,
+      unique: cmd === actor.def.command,
+      hp_fraction: actor.hp / Math.max(1, actor.maxHP),
+    });
     switch (cmd) {
       case 'attack':
         this._beginTargeting(actor, 'oneEnemy', (targets) =>
@@ -402,6 +409,7 @@ export class BattleState {
       case 'row':
         actor.row = actor.row === 'front' ? 'back' : 'front';
         this.game.party.row.set(actor.id, actor.row);
+        analytics.track(EV.ROW_CHANGED, { character: actor.id, row: actor.row, where: 'battle' });
         this.ui.popMenu();
         this._openCommandMenu(actor);
         break;
@@ -986,6 +994,7 @@ export class BattleState {
 
     const mult = elementalMultiplier(element, target.affinity);
     dmg = Math.round(dmg * Math.abs(mult));
+    this._trackAffinity(actor, target, element, mult);
 
     if (mult < 0) {
       target.hp = Math.min(target.maxHP, target.hp + dmg);
@@ -1071,6 +1080,24 @@ export class BattleState {
     target.addStatus('ko');
     target.atb = 0;
     if (target.kind === 'enemy') {
+      analytics.track(EV.ENEMY_KILLED, {
+        enemy: target.def.id, enemy_name: target.def.name, enemy_level: target.level,
+        boss: target.def.boss ?? false,
+      });
+      if (target.def.boss) {
+        analytics.track(EV.BOSS_DEFEATED, {
+          boss_id: target.def.id, boss_name: target.def.name, boss_level: target.level,
+          party_level: Math.round(this.game.party.averageLevel()),
+          party_down: this.party.filter((p) => p.isKO).length,
+          play_seconds: Math.round(this.game.party.playTime),
+        });
+      }
+    } else {
+      analytics.track(EV.CHARACTER_KO, {
+        character: target.id, character_name: target.name, boss: this.isBoss,
+      });
+    }
+    if (target.kind === 'enemy') {
       yield* this.view.dissolve(target.id, 0.6);
       this.game.party.recordKill(target.def.id);
     } else {
@@ -1095,6 +1122,13 @@ export class BattleState {
       actor.mp -= cost;
     }
     this.ui.showAction(spell.name);
+    if (actor.kind === 'party') {
+      analytics.track(EV.SPELL_CAST, {
+        spell: spell.id, spell_name: spell.name, school: spell.school,
+        element: spell.element ?? null, tier: spell.tier ?? null, mp_cost: cost,
+        character: actor.id, targets: targets.length, boss: this.isBoss,
+      });
+    }
     audio.sfx('magic');
     this.view.play(actor.id, 'cast');
 
@@ -1177,6 +1211,7 @@ export class BattleState {
         });
       const mult = elementalMultiplier(spell.element, target.affinity);
       dmg = Math.round(dmg * Math.abs(mult));
+      this._trackAffinity(actor, target, spell.element, mult, spell.id);
       if (mult < 0) {
         target.hp = Math.min(target.maxHP, target.hp + dmg);
         this.ui.popup(pos, `+${dmg}`, 'heal');
@@ -1291,6 +1326,10 @@ export class BattleState {
 
   *doItem(actor, targets, item) {
     if (!this.game.party.removeItem(item.id, 1)) return;
+    analytics.track(EV.ITEM_USED, {
+      item: item.id, item_name: item.name, where: 'battle',
+      character: actor.id, boss: this.isBoss, targets: targets.length,
+    });
     this.ui.showAction(item.name);
     this.view.play(actor.id, 'cast');
     if (actor.kind === 'party') yield* this.view.driveAction(actor.id, 0.4);
@@ -1346,6 +1385,10 @@ export class BattleState {
     for (const entry of table) {
       if (rng.loot.next() < entry.chance * bonus) { got = entry.id; break; }
     }
+    analytics.track(EV.STEAL_ATTEMPTED, {
+      enemy: target.def.id, enemy_name: target.def.name,
+      got: got ?? null, success: !!got, boosted: bonus > 1,
+    });
     if (got && ITEMS[got]) {
       this.game.party.addItem(got, 1);
       this.ui.popup(pos, ITEMS[got].name, 'heal');
@@ -1359,6 +1402,10 @@ export class BattleState {
     this.ui.showAction('Annotate');
     this.view.play(actor.id, 'cast');
     yield* this.view.driveAction(actor.id, 0.4);
+    analytics.track(EV.ENEMY_SCANNED, {
+      enemy: target.def.id, enemy_name: target.def.name, enemy_level: target.level,
+      boss: this.isBoss,
+    });
     target.scanned = true;
     const weak = Object.entries(target.affinity).filter(([, v]) => v === 'weak').map(([k]) => k);
     yield* this.game.dialogue.speak(target.name, [
@@ -1437,6 +1484,10 @@ export class BattleState {
   *doSummon(actor, targets, esper) {
     actor.mp -= esper.mp;
     actor._summoned = true;
+    analytics.track(EV.SUMMON_USED, {
+      esper: esper.id, esper_name: esper.name, character: actor.id,
+      boss: this.isBoss, mp_cost: esper.mp,
+    });
 
     this.ui.showBanner(esper.name, 2.0, esper.color);
     this.view.play(actor.id, 'cast');
@@ -1556,6 +1607,10 @@ export class BattleState {
   }
 
   *doLimit(actor, targets) {
+    analytics.track(EV.LIMIT_USED, {
+      character: actor.id, character_name: actor.name, boss: this.isBoss,
+      hp_fraction: actor.hp / Math.max(1, actor.maxHP),
+    });
     actor.limit = 0;
     this.ui.showBanner(`${actor.name}: Desperation`, 1.6, '#ff8a4c');
     this.game.renderer.rig.shake(0.55, 3);
@@ -1569,6 +1624,24 @@ export class BattleState {
       yield* this.resolvePhysical(actor, t, { power: 3.2, ignoreDefence: 0.5 });
     }
     yield wait(0.3);
+  }
+
+  /**
+   * Whether the party found the answer to a creature, or the opposite.
+   *
+   * The affinity table is the puzzle the whole bestiary is built around, and
+   * nothing else in the instrumentation shows whether anybody is solving it.
+   * Only the party's own attacks are recorded: an enemy hitting a resistance
+   * is the script, not a decision.
+   */
+  _trackAffinity(actor, target, element, mult, spell = null) {
+    if (actor?.kind !== 'party' || !element || mult === 1) return;
+    const props = {
+      element, spell, enemy: target.def?.id ?? target.id,
+      enemy_name: target.name, boss: this.isBoss, scanned: target.scanned === true,
+    };
+    if (mult > 1) analytics.track(EV.WEAKNESS_HIT, props);
+    else if (mult <= 0) analytics.track(EV.ATTACK_ABSORBED, { ...props, absorbed: mult < 0 });
   }
 
   // --- turn end -----------------------------------------------------------

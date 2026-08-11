@@ -97,8 +97,11 @@ export class MenuList {
     visible.forEach((item, i) => {
       const realIndex = i + offset;
       const disabled = item.disabled === true;
+      // A `header` entry is a section rule, not a choice — it is always
+      // disabled, so cursor movement steps straight over it.
       const row = el('div', {
-        class: `menu-row${realIndex === this.index ? ' selected' : ''}${disabled ? ' disabled' : ''}`,
+        class: `menu-row${realIndex === this.index ? ' selected' : ''}`
+          + `${disabled ? ' disabled' : ''}${item.header ? ' menu-header' : ''}`,
         'data-clickable': true,
         onclick: () => { if (!disabled) { this.index = realIndex; this.render(); this.onSelect?.(item, realIndex); } },
         onmouseenter: () => { if (this.index !== realIndex) { this.index = realIndex; this.render(); this.onMove?.(item, realIndex); } },

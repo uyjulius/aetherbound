@@ -1352,7 +1352,9 @@ export const VOL3_ENEMIES = {
     look: { plan: 'humanoid', scale: 1.7, color: '#9a6147', accent: '#332c1c', metal: '#8a6a23', weapon: 'axe', armored: true, eyeColor: '#ffd76a' },
     stats: { hp: 38000, mp: 900, atk: 336, def: 222, mag: 220, mdef: 214, spd: 56, eva: 20, lck: 22 },
     affinity: { earth: 'resist', fire: 'resist', wind: 'weak', shadow: 'resist' },
-    immune: ['ko', 'stone', 'sleep', 'stop', 'doom', 'confuse', 'charm', 'silence'],
+    // Not immune to silence: `Hands Then` below is what it does about being
+    // shut up, which makes silencing it a real trade rather than a no-op.
+    immune: ['ko', 'stone', 'sleep', 'stop', 'doom', 'confuse', 'charm'],
     exp: 15000, gold: 18500, drops: [{ id: 'quietedge', chance: 1.0 }],
     steal: [{ id: 'hoardersglove', chance: 0.3 }, { id: 'megalixir', chance: 0.3 }],
     intro: 'Eleven years of shifts. Nobody up top ever wrote the last one down.',
@@ -1430,7 +1432,8 @@ export const VOL3_ENEMIES = {
     look: { plan: 'undead', scale: 1.85, color: '#dedbe0', accent: '#2b2933', weapon: 'sword', armored: true, helmet: true, eyeColor: '#b8b6bd' },
     stats: { hp: 50000, mp: 1000, atk: 366, def: 224, mag: 224, mdef: 216, spd: 50, eva: 16, lck: 16 },
     affinity: { holy: 'weak', shadow: 'absorb', ice: 'resist', poison: 'immune' },
-    immune: ['ko', 'stone', 'sleep', 'stop', 'doom', 'confuse', 'charm', 'silence', 'poison', 'blind'],
+    // Blinding it is possible on purpose — see `Swing Wide` below.
+    immune: ['ko', 'stone', 'sleep', 'stop', 'doom', 'confuse', 'charm', 'silence', 'poison'],
     exp: 19500, gold: 23500, drops: [{ id: 'wardenmail', chance: 1.0 }],
     steal: [{ id: 'lastlight', chance: 0.2 }, { id: 'megalixir', chance: 0.4 }],
     intro: 'It is wearing somebody. It is not wearing them well.',
@@ -1470,7 +1473,8 @@ export const VOL3_ENEMIES = {
     look: { plan: 'humanoid', scale: 1.95, color: '#b8b6bd', accent: '#2c1b4d', metal: '#d63fb3', weapon: 'staff', horns: true, eyeColor: '#8a5ce0', eyeCount: 3 },
     stats: { hp: 58000, mp: 1200, atk: 392, def: 228, mag: 240, mdef: 222, spd: 64, eva: 24, lck: 30 },
     affinity: { shadow: 'absorb', aether: 'absorb', holy: 'weak', physical: 'resist' },
-    immune: ['ko', 'stone', 'sleep', 'stop', 'slow', 'doom', 'confuse', 'charm', 'silence', 'poison', 'blind'],
+    // Silence is left off deliberately: `By Hand Then` is what it does about it.
+    immune: ['ko', 'stone', 'sleep', 'stop', 'slow', 'doom', 'confuse', 'charm', 'poison', 'blind'],
     exp: 24500, gold: 30000, drops: [{ id: 'megalixir', chance: 1.0 }],
     steal: [{ id: 'quietedge', chance: 0.2 }, { id: 'aetherglass', chance: 0.08 }],
     intro: 'This is not a fight. This is the last of the thread going through the eye.',
@@ -1496,11 +1500,16 @@ export const VOL3_ENEMIES = {
     steal: [{ id: 'lastlight', chance: 0.3 }, { id: 'megalixir', chance: 0.6 }],
     intro: 'QUERY: WHO BUILT ME. NO RECORD. QUERY REPEATED FOR NINE HUNDRED YEARS.',
     ai: [
-      { if: 'hpBelow', v: 0.08, phase: 5, do: { kind: 'spell', spell: 'lastword' } },
-      { if: 'hpBelow', v: 0.25, phase: 4, do: { kind: 'attack', name: 'First Principle', power: 3.4, element: 'aether', target: 'all' } },
-      { if: 'hpBelow', v: 0.45, phase: 3, do: { kind: 'spell', spell: 'unlight' } },
+      { if: 'hpBelow', v: 0.08, phase: 6, do: { kind: 'spell', spell: 'lastword' } },
+      { if: 'hpBelow', v: 0.25, phase: 5, do: { kind: 'attack', name: 'First Principle', power: 3.4, element: 'aether', target: 'all' } },
+      { if: 'hpBelow', v: 0.45, phase: 4, do: { kind: 'spell', spell: 'unlight' } },
+      // Was `hasStatus: berserk`, which nothing in the game can put on an
+      // enemy, so the Engine's own escalation could never fire. It takes its
+      // governor off once, on the way down. The phase numbers below it moved
+      // up rather than this one taking a fraction: a phase rule is skipped if
+      // a higher-numbered one has already fired, so the ladder has to descend.
+      { if: 'hpBelow', v: 0.55, phase: 3, do: { kind: 'attack', name: 'Governor Off', power: 3.0 } },
       { if: 'hpBelow', v: 0.7, phase: 2, do: { kind: 'spell', spell: 'arrest', target: 'all' } },
-      { if: 'hasStatus', status: 'berserk', do: { kind: 'attack', name: 'Governor Off', power: 3.0 } },
       { if: 'turnEvery', n: 5, do: { kind: 'spell', spell: 'severance' } },
       { if: 'turnEvery', n: 4, do: { kind: 'spell', spell: 'thunderhead' } },
       { if: 'turnEvery', n: 3, do: { kind: 'attack', name: 'Lance Array', power: 2.0, element: 'bolt', target: 'all' } },
