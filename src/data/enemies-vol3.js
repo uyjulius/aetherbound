@@ -1085,7 +1085,7 @@ export const VOL3_ENEMIES = {
   weighmaster: {
     id: 'weighmaster', name: 'The Weighmaster', level: 32, boss: true,
     look: { plan: 'humanoid', scale: 1.55, color: '#96603f', accent: '#1a3c48', metal: '#a2acbb', weapon: 'axe', armored: true, helmet: true, eyeColor: '#96f0f5' },
-    stats: { hp: 7000, mp: 400, atk: 186, def: 196, mag: 120, mdef: 168, spd: 36, eva: 10, lck: 20 },
+    stats: { hp: 7000, mp: 400, atk: 272, def: 196, mag: 144, mdef: 168, spd: 36, eva: 10, lck: 20 },
     affinity: { bolt: 'weak', water: 'absorb', poison: 'resist' },
     immune: ['ko', 'stone', 'sleep', 'stop', 'doom', 'confuse'],
     exp: 3000, gold: 4000, drops: [{ id: 'crownofsalt', chance: 1.0 }],
@@ -1104,7 +1104,7 @@ export const VOL3_ENEMIES = {
   thegreatsump: {
     id: 'thegreatsump', name: 'The Great Sump', level: 35, boss: true,
     look: { plan: 'blob', scale: 2.0, color: '#37606f', accent: '#16241d', eyeColor: '#94bf55', eyeCount: 3 },
-    stats: { hp: 9200, mp: 320, atk: 204, def: 182, mag: 138, mdef: 162, spd: 24, eva: 4, lck: 10 },
+    stats: { hp: 9200, mp: 320, atk: 298, def: 182, mag: 166, mdef: 162, spd: 24, eva: 4, lck: 10 },
     affinity: { fire: 'weak', water: 'absorb', physical: 'resist', poison: 'immune' },
     immune: ['ko', 'stone', 'sleep', 'poison', 'venom', 'stop', 'doom'],
     exp: 3900, gold: 4800, drops: [{ id: 'hoardersglove', chance: 1.0 }],
@@ -1122,7 +1122,7 @@ export const VOL3_ENEMIES = {
   motherbrine: {
     id: 'motherbrine', name: 'The Mother Brine', level: 37, boss: true,
     look: { plan: 'floater', scale: 1.8, color: '#1a3c48', eyeColor: '#96f0f5', eyeCount: 3, tendrils: true },
-    stats: { hp: 10500, mp: 640, atk: 190, def: 188, mag: 176, mdef: 196, spd: 48, eva: 26, lck: 28 },
+    stats: { hp: 10500, mp: 640, atk: 277, def: 188, mag: 212, mdef: 196, spd: 48, eva: 26, lck: 28 },
     affinity: { water: 'absorb', ice: 'resist', bolt: 'weak', physical: 'resist' },
     immune: ['ko', 'stone', 'sleep', 'stop', 'doom', 'confuse', 'silence'],
     exp: 4600, gold: 6000, drops: [{ id: 'wardingcord', chance: 1.0 }],
@@ -1141,7 +1141,7 @@ export const VOL3_ENEMIES = {
   theannealer: {
     id: 'theannealer', name: 'The Annealer', level: 38, boss: true,
     look: { plan: 'construct', scale: 1.7, color: '#7d4436', accent: '#3a2226', eyeColor: '#ff7a2f', cannons: true },
-    stats: { hp: 12000, mp: 500, atk: 232, def: 218, mag: 168, mdef: 190, spd: 32, eva: 4, lck: 8 },
+    stats: { hp: 12000, mp: 500, atk: 339, def: 218, mag: 202, mdef: 190, spd: 32, eva: 4, lck: 8 },
     affinity: { fire: 'absorb', ice: 'weak', water: 'weak', poison: 'immune' },
     immune: ['ko', 'stone', 'sleep', 'stop', 'doom', 'confuse', 'silence', 'poison', 'blind'],
     exp: 5000, gold: 6400, drops: [{ id: 'emberbrand', chance: 1.0 }],
@@ -1159,7 +1159,7 @@ export const VOL3_ENEMIES = {
   standingpane: {
     id: 'standingpane', name: 'The Standing Pane', level: 40, boss: true,
     look: { plan: 'construct', scale: 1.85, color: '#e8edf5', accent: '#5f6572', eyeColor: '#96f0f5' },
-    stats: { hp: 13500, mp: 600, atk: 224, def: 220, mag: 190, mdef: 206, spd: 34, eva: 6, lck: 10 },
+    stats: { hp: 13500, mp: 600, atk: 327, def: 220, mag: 228, mdef: 206, spd: 34, eva: 6, lck: 10 },
     affinity: { bolt: 'absorb', holy: 'absorb', shadow: 'absorb', water: 'weak', poison: 'immune' },
     immune: ['ko', 'stone', 'sleep', 'stop', 'doom', 'confuse', 'silence', 'poison'],
     exp: 5600, gold: 7200, drops: [{ id: 'mirrorshield', chance: 1.0 }],
@@ -1178,7 +1178,7 @@ export const VOL3_ENEMIES = {
   motherofglass: {
     id: 'motherofglass', name: 'The Mother of Glass', level: 42, boss: true,
     look: { plan: 'insect', scale: 1.9, legs: 8, color: '#9ccdd4', accent: '#e8edf5', eyeColor: '#d63fb3', stinger: true, eyeCount: 6 },
-    stats: { hp: 15000, mp: 520, atk: 248, def: 216, mag: 176, mdef: 194, spd: 50, eva: 22, lck: 20 },
+    stats: { hp: 15000, mp: 520, atk: 382, def: 216, mag: 240, mdef: 194, spd: 50, eva: 22, lck: 20 },
     affinity: { earth: 'absorb', wind: 'weak', fire: 'resist', ice: 'resist' },
     immune: ['ko', 'stone', 'sleep', 'stop', 'doom', 'poison', 'venom', 'blind'],
     exp: 6300, gold: 8000, drops: [{ id: 'aetherweave', chance: 0.25 }, { id: 'xpotion', chance: 1.0 }],
@@ -1197,7 +1197,7 @@ export const VOL3_ENEMIES = {
   theeleventhhour: {
     id: 'theeleventhhour', name: 'The Eleventh Hour', level: 46, boss: true,
     look: { plan: 'construct', scale: 1.9, color: '#ab8018', accent: '#4a4324', eyeColor: '#fff3b8', cannons: true },
-    stats: { hp: 18000, mp: 700, atk: 268, def: 222, mag: 196, mdef: 206, spd: 38, eva: 6, lck: 10 },
+    stats: { hp: 18000, mp: 700, atk: 413, def: 222, mag: 267, mdef: 206, spd: 38, eva: 6, lck: 10 },
     affinity: { bolt: 'weak', aether: 'absorb', shadow: 'resist', poison: 'immune' },
     immune: ['ko', 'stone', 'sleep', 'stop', 'slow', 'doom', 'confuse', 'silence', 'poison'],
     exp: 7000, gold: 8800, drops: [{ id: 'lastlight', chance: 1.0 }],
@@ -1216,7 +1216,7 @@ export const VOL3_ENEMIES = {
   thelonghand: {
     id: 'thelonghand', name: 'The Long Hand', level: 48, boss: true,
     look: { plan: 'humanoid', scale: 1.6, color: '#918f98', accent: '#4a4324', metal: '#d8ac31', weapon: 'spear', horns: true, eyeColor: '#f7d968' },
-    stats: { hp: 20000, mp: 800, atk: 262, def: 218, mag: 210, mdef: 212, spd: 52, eva: 18, lck: 26 },
+    stats: { hp: 20000, mp: 800, atk: 403, def: 218, mag: 286, mdef: 212, spd: 52, eva: 18, lck: 26 },
     affinity: { holy: 'weak', shadow: 'absorb', aether: 'resist' },
     immune: ['ko', 'stone', 'sleep', 'stop', 'doom', 'confuse', 'charm', 'silence'],
     exp: 7800, gold: 9600, drops: [{ id: 'quietstep', chance: 1.0 }],
@@ -1235,7 +1235,7 @@ export const VOL3_ENEMIES = {
   thelatebell: {
     id: 'thelatebell', name: 'The Late Bell', level: 50, boss: true,
     look: { plan: 'construct', scale: 2.0, color: '#8a6a23', accent: '#3b2c12', eyeColor: '#ffd76a', cannons: true, treads: true },
-    stats: { hp: 22500, mp: 760, atk: 280, def: 226, mag: 204, mdef: 214, spd: 40, eva: 6, lck: 10 },
+    stats: { hp: 22500, mp: 760, atk: 431, def: 226, mag: 278, mdef: 214, spd: 40, eva: 6, lck: 10 },
     affinity: { bolt: 'weak', water: 'weak', aether: 'absorb', poison: 'immune' },
     immune: ['ko', 'stone', 'sleep', 'stop', 'doom', 'confuse', 'silence', 'poison', 'blind'],
     exp: 8600, gold: 10800, drops: [{ id: 'aetherweave', chance: 1.0 }],
@@ -1254,7 +1254,7 @@ export const VOL3_ENEMIES = {
   thefirstrank: {
     id: 'thefirstrank', name: 'The First Rank', level: 52, boss: true,
     look: { plan: 'humanoid', scale: 1.65, color: '#ac744c', accent: '#1a3c48', metal: '#666c74', weapon: 'spear', armored: true, helmet: true, eyeColor: '#e0574f' },
-    stats: { hp: 24000, mp: 700, atk: 292, def: 224, mag: 190, mdef: 202, spd: 50, eva: 16, lck: 22 },
+    stats: { hp: 24000, mp: 700, atk: 449, def: 224, mag: 259, mdef: 202, spd: 50, eva: 16, lck: 22 },
     affinity: { bolt: 'weak', water: 'resist', earth: 'resist' },
     immune: ['ko', 'stone', 'sleep', 'stop', 'doom', 'confuse', 'charm'],
     exp: 9200, gold: 11500, drops: [{ id: 'longspear', chance: 1.0 }],
@@ -1273,7 +1273,7 @@ export const VOL3_ENEMIES = {
   bannerofthenine: {
     id: 'bannerofthenine', name: 'The Banner of the Nine', level: 54, boss: true,
     look: { plan: 'undead', scale: 1.7, color: '#c6cedb', accent: '#12566b', metal: '#d8ac31', weapon: 'staff', eyeColor: '#96f0f5' },
-    stats: { hp: 26500, mp: 900, atk: 288, def: 220, mag: 216, mdef: 214, spd: 46, eva: 14, lck: 18 },
+    stats: { hp: 26500, mp: 900, atk: 444, def: 220, mag: 294, mdef: 214, spd: 46, eva: 14, lck: 18 },
     affinity: { holy: 'weak', water: 'absorb', shadow: 'resist', poison: 'immune' },
     immune: ['ko', 'stone', 'sleep', 'stop', 'doom', 'confuse', 'silence', 'poison'],
     exp: 10200, gold: 12500, drops: [{ id: 'lanternstaff', chance: 1.0 }],
@@ -1292,7 +1292,7 @@ export const VOL3_ENEMIES = {
   vergemarshal: {
     id: 'vergemarshal', name: 'The Verge Marshal', level: 56, boss: true,
     look: { plan: 'humanoid', scale: 1.75, color: '#96603f', accent: '#25404e', metal: '#a6b0bc', weapon: 'sword', armored: true, helmet: true, eyeColor: '#3fc6d6' },
-    stats: { hp: 29000, mp: 900, atk: 306, def: 228, mag: 206, mdef: 210, spd: 54, eva: 18, lck: 24 },
+    stats: { hp: 29000, mp: 900, atk: 494, def: 228, mag: 294, mdef: 210, spd: 54, eva: 18, lck: 24 },
     affinity: { bolt: 'weak', water: 'absorb', shadow: 'resist' },
     immune: ['ko', 'stone', 'sleep', 'stop', 'doom', 'confuse', 'charm', 'silence'],
     exp: 11400, gold: 14000, drops: [{ id: 'wardenmail', chance: 1.0 }],
@@ -1312,7 +1312,7 @@ export const VOL3_ENEMIES = {
   thelongdrift: {
     id: 'thelongdrift', name: 'The Long Drift', level: 58, boss: true,
     look: { plan: 'blob', scale: 1.95, color: '#332c1c', accent: '#16241d', eyeColor: '#ffe45e', eyeCount: 3 },
-    stats: { hp: 31000, mp: 600, atk: 312, def: 196, mag: 210, mdef: 200, spd: 40, eva: 26, lck: 14 },
+    stats: { hp: 31000, mp: 600, atk: 505, def: 196, mag: 300, mdef: 200, spd: 40, eva: 26, lck: 14 },
     affinity: { earth: 'absorb', wind: 'weak', physical: 'resist', poison: 'immune' },
     immune: ['ko', 'stone', 'sleep', 'stop', 'doom', 'poison', 'venom'],
     exp: 12200, gold: 15000, drops: [{ id: 'twinfang', chance: 1.0 }],
@@ -1331,7 +1331,7 @@ export const VOL3_ENEMIES = {
   themotherlode: {
     id: 'themotherlode', name: 'The Motherlode', level: 60, boss: true,
     look: { plan: 'construct', scale: 2.05, color: '#666c74', accent: '#22242a', eyeColor: '#ff7a2f', cannons: true, treads: true },
-    stats: { hp: 34000, mp: 800, atk: 320, def: 228, mag: 214, mdef: 230, spd: 24, eva: 2, lck: 6 },
+    stats: { hp: 34000, mp: 800, atk: 517, def: 228, mag: 306, mdef: 230, spd: 24, eva: 2, lck: 6 },
     affinity: { bolt: 'weak', water: 'weak', earth: 'absorb', poison: 'immune' },
     immune: ['ko', 'stone', 'sleep', 'stop', 'slow', 'doom', 'confuse', 'silence', 'poison', 'blind'],
     exp: 13400, gold: 16500, drops: [{ id: 'stormfists', chance: 1.0 }],
@@ -1350,7 +1350,7 @@ export const VOL3_ENEMIES = {
   theunderforeman: {
     id: 'theunderforeman', name: 'The Under-Foreman', level: 63, boss: true,
     look: { plan: 'humanoid', scale: 1.7, color: '#9a6147', accent: '#332c1c', metal: '#8a6a23', weapon: 'axe', armored: true, eyeColor: '#ffd76a' },
-    stats: { hp: 38000, mp: 900, atk: 336, def: 222, mag: 220, mdef: 214, spd: 56, eva: 20, lck: 22 },
+    stats: { hp: 38000, mp: 900, atk: 543, def: 222, mag: 314, mdef: 214, spd: 56, eva: 20, lck: 22 },
     affinity: { earth: 'resist', fire: 'resist', wind: 'weak', shadow: 'resist' },
     // Not immune to silence: `Hands Then` below is what it does about being
     // shut up, which makes silencing it a real trade rather than a no-op.
@@ -1372,7 +1372,7 @@ export const VOL3_ENEMIES = {
   thegreatthirst: {
     id: 'thegreatthirst', name: 'The Great Thirst', level: 66, boss: true,
     look: { plan: 'floater', scale: 1.95, color: '#12566b', eyeColor: '#3fc6d6', eyeCount: 3, tendrils: true },
-    stats: { hp: 40000, mp: 1200, atk: 300, def: 206, mag: 232, mdef: 222, spd: 62, eva: 34, lck: 34 },
+    stats: { hp: 40000, mp: 1200, atk: 485, def: 206, mag: 332, mdef: 222, spd: 62, eva: 34, lck: 34 },
     affinity: { aether: 'absorb', bolt: 'resist', holy: 'weak', physical: 'resist' },
     immune: ['ko', 'stone', 'sleep', 'stop', 'doom', 'confuse', 'silence', 'poison'],
     exp: 16000, gold: 19500, drops: [{ id: 'earnestcharm', chance: 1.0 }],
@@ -1391,7 +1391,7 @@ export const VOL3_ENEMIES = {
   thetithe: {
     id: 'thetithe', name: 'The Tithe', level: 68, boss: true,
     look: { plan: 'construct', scale: 2.0, color: '#d8ac31', accent: '#4a3308', eyeColor: '#fff3b8', cannons: true },
-    stats: { hp: 43000, mp: 1000, atk: 324, def: 226, mag: 222, mdef: 220, spd: 38, eva: 6, lck: 10 },
+    stats: { hp: 43000, mp: 1000, atk: 524, def: 226, mag: 317, mdef: 220, spd: 38, eva: 6, lck: 10 },
     affinity: { bolt: 'weak', water: 'weak', aether: 'absorb', holy: 'resist', poison: 'immune' },
     immune: ['ko', 'stone', 'sleep', 'stop', 'doom', 'confuse', 'silence', 'poison', 'blind'],
     exp: 17000, gold: 21000, drops: [{ id: 'crownofsalt', chance: 1.0 }],
@@ -1410,7 +1410,7 @@ export const VOL3_ENEMIES = {
   theopenhand: {
     id: 'theopenhand', name: 'The Open Hand', level: 70, boss: true,
     look: { plan: 'humanoid', scale: 1.8, color: '#bda98b', accent: '#4e326c', metal: '#8a5ce0', weapon: 'staff', horns: true, eyeColor: '#d63fb3' },
-    stats: { hp: 46000, mp: 1300, atk: 318, def: 220, mag: 236, mdef: 222, spd: 60, eva: 24, lck: 32 },
+    stats: { hp: 46000, mp: 1300, atk: 514, def: 220, mag: 337, mdef: 222, spd: 60, eva: 24, lck: 32 },
     affinity: { aether: 'absorb', shadow: 'absorb', holy: 'weak' },
     immune: ['ko', 'stone', 'sleep', 'stop', 'doom', 'confuse', 'charm', 'silence', 'poison'],
     exp: 18000, gold: 22500, drops: [{ id: 'aetherweave', chance: 1.0 }],
@@ -1430,7 +1430,7 @@ export const VOL3_ENEMIES = {
   whatremains: {
     id: 'whatremains', name: 'What Remains', level: 74, boss: true,
     look: { plan: 'undead', scale: 1.85, color: '#dedbe0', accent: '#2b2933', weapon: 'sword', armored: true, helmet: true, eyeColor: '#b8b6bd' },
-    stats: { hp: 50000, mp: 1000, atk: 366, def: 224, mag: 224, mdef: 216, spd: 50, eva: 16, lck: 16 },
+    stats: { hp: 50000, mp: 1000, atk: 588, def: 224, mag: 347, mdef: 216, spd: 50, eva: 16, lck: 16 },
     affinity: { holy: 'weak', shadow: 'absorb', ice: 'resist', poison: 'immune' },
     // Blinding it is possible on purpose — see `Swing Wide` below.
     immune: ['ko', 'stone', 'sleep', 'stop', 'doom', 'confuse', 'charm', 'silence', 'poison'],
@@ -1451,7 +1451,7 @@ export const VOL3_ENEMIES = {
   thetenthwell: {
     id: 'thetenthwell', name: 'The Tenth Well', level: 77, boss: true,
     look: { plan: 'floater', scale: 2.2, color: '#241636', eyeColor: '#8a5ce0', eyeCount: 3, tendrils: true },
-    stats: { hp: 54000, mp: 1400, atk: 350, def: 216, mag: 244, mdef: 226, spd: 58, eva: 30, lck: 30 },
+    stats: { hp: 54000, mp: 1400, atk: 561, def: 216, mag: 378, mdef: 226, spd: 58, eva: 30, lck: 30 },
     affinity: { aether: 'absorb', shadow: 'absorb', holy: 'weak', physical: 'resist' },
     immune: ['ko', 'stone', 'sleep', 'stop', 'doom', 'confuse', 'charm', 'silence', 'poison', 'blind'],
     exp: 21500, gold: 26000, drops: [{ id: 'aetherglass', chance: 1.0 }],
@@ -1471,7 +1471,7 @@ export const VOL3_ENEMIES = {
   theunwinding: {
     id: 'theunwinding', name: 'The Unwinding', level: 80, boss: true,
     look: { plan: 'humanoid', scale: 1.95, color: '#b8b6bd', accent: '#2c1b4d', metal: '#d63fb3', weapon: 'staff', horns: true, eyeColor: '#8a5ce0', eyeCount: 3 },
-    stats: { hp: 58000, mp: 1200, atk: 392, def: 228, mag: 240, mdef: 222, spd: 64, eva: 24, lck: 30 },
+    stats: { hp: 58000, mp: 1200, atk: 629, def: 228, mag: 372, mdef: 222, spd: 64, eva: 24, lck: 30 },
     affinity: { shadow: 'absorb', aether: 'absorb', holy: 'weak', physical: 'resist' },
     // Silence is left off deliberately: `By Hand Then` is what it does about it.
     immune: ['ko', 'stone', 'sleep', 'stop', 'slow', 'doom', 'confuse', 'charm', 'poison', 'blind'],
@@ -1493,7 +1493,7 @@ export const VOL3_ENEMIES = {
   thefirstengine: {
     id: 'thefirstengine', name: 'The First Engine', level: 80, boss: true,
     look: { plan: 'construct', scale: 2.4, color: '#5b6674', accent: '#12566b', eyeColor: '#96f0f5', cannons: true, treads: true, eyeCount: 3 },
-    stats: { hp: 74000, mp: 1600, atk: 404, def: 232, mag: 248, mdef: 228, spd: 46, eva: 8, lck: 12 },
+    stats: { hp: 74000, mp: 1600, atk: 649, def: 232, mag: 385, mdef: 228, spd: 46, eva: 8, lck: 12 },
     affinity: { bolt: 'weak', water: 'weak', aether: 'absorb', holy: 'resist', shadow: 'resist', poison: 'immune' },
     immune: ['ko', 'stone', 'sleep', 'stop', 'slow', 'doom', 'confuse', 'charm', 'silence', 'poison', 'blind', 'berserk'],
     exp: 32000, gold: 42000, drops: [{ id: 'aetherglass', chance: 1.0 }, { id: 'megalixir', chance: 1.0 }],

@@ -329,7 +329,7 @@ export const EXTRA_ENEMIES = {
   tollbaron: {
     id: 'tollbaron', name: 'The Toll Baron', level: 14, boss: true,
     look: { plan: 'humanoid', scale: 1.5, color: '#96603f', accent: '#5a3230', metal: '#8a6a23', weapon: 'axe', armored: true, helmet: true, eyeColor: '#e0574f' },
-    stats: { hp: 2100, mp: 120, atk: 92, def: 118, mag: 36, mdef: 62, spd: 32, eva: 10, lck: 16 },
+    stats: { hp: 2100, mp: 120, atk: 91, def: 118, mag: 36, mdef: 62, spd: 32, eva: 10, lck: 16 },
     affinity: { bolt: 'weak' },
     immune: ['ko', 'stone', 'sleep', 'doom', 'stop'],
     exp: 900, gold: 1600, drops: [{ id: 'longspear', chance: 1.0 }],
@@ -346,7 +346,7 @@ export const EXTRA_ENEMIES = {
   greenmother_guardian: {
     id: 'greenmother_guardian', name: 'The Standing Oak', level: 19, boss: true,
     look: { plan: 'plant', scale: 1.9, color: '#4b382d', accent: '#2f4a36', eyeColor: '#ffe45e' },
-    stats: { hp: 3200, mp: 260, atk: 104, def: 142, mag: 88, mdef: 96, spd: 20, eva: 4, lck: 10 },
+    stats: { hp: 3200, mp: 260, atk: 102, def: 142, mag: 88, mdef: 96, spd: 20, eva: 4, lck: 10 },
     affinity: { fire: 'weak', water: 'absorb', earth: 'immune', poison: 'immune' },
     immune: ['ko', 'stone', 'sleep', 'poison', 'doom', 'confuse'],
     exp: 1700, gold: 2400, drops: [{ id: 'aetherweave', chance: 0.2 }],
@@ -364,7 +364,7 @@ export const EXTRA_ENEMIES = {
   cinderwyrm: {
     id: 'cinderwyrm', name: 'The Cinder Wyrm', level: 27, boss: true,
     look: { plan: 'avian', scale: 2.1, color: '#7d4436', accent: '#3a2226', eyeColor: '#ff7a2f' },
-    stats: { hp: 4800, mp: 320, atk: 152, def: 168, mag: 120, mdef: 128, spd: 44, eva: 16, lck: 18 },
+    stats: { hp: 4800, mp: 320, atk: 222, def: 168, mag: 144, mdef: 128, spd: 44, eva: 16, lck: 18 },
     affinity: { ice: 'weak', fire: 'absorb', wind: 'resist' },
     immune: ['ko', 'stone', 'sleep', 'stop', 'doom', 'freeze'],
     exp: 3200, gold: 4800, drops: [{ id: 'emberbrand', chance: 1.0 }],
@@ -382,7 +382,7 @@ export const EXTRA_ENEMIES = {
   eighthlantern: {
     id: 'eighthlantern', name: 'The Eighth Lantern', level: 30, boss: true,
     look: { plan: 'floater', scale: 1.7, color: '#ddccab', eyeColor: '#fff3b8', eyeCount: 2, tendrils: true },
-    stats: { hp: 5600, mp: 400, atk: 128, def: 154, mag: 138, mdef: 172, spd: 46, eva: 22, lck: 24 },
+    stats: { hp: 5600, mp: 400, atk: 187, def: 154, mag: 166, mdef: 172, spd: 46, eva: 22, lck: 24 },
     affinity: { shadow: 'weak', holy: 'absorb', fire: 'resist', physical: 'resist' },
     immune: ['ko', 'stone', 'sleep', 'stop', 'doom', 'confuse', 'silence', 'blind'],
     exp: 4600, gold: 6200, drops: [{ id: 'lastlight', chance: 1.0 }],
@@ -401,7 +401,7 @@ export const EXTRA_ENEMIES = {
   enginewarden: {
     id: 'enginewarden', name: 'Warden of the Ninth Well', level: 32, boss: true,
     look: { plan: 'construct', scale: 2.0, color: '#5b6674', accent: '#12566b', eyeColor: '#d63fb3', cannons: true },
-    stats: { hp: 7200, mp: 480, atk: 178, def: 206, mag: 150, mdef: 176, spd: 40, eva: 8, lck: 12 },
+    stats: { hp: 7200, mp: 480, atk: 260, def: 206, mag: 180, mdef: 176, spd: 40, eva: 8, lck: 12 },
     affinity: { bolt: 'weak', water: 'weak', aether: 'absorb', poison: 'immune' },
     immune: ['ko', 'stone', 'sleep', 'stop', 'doom', 'confuse', 'silence', 'poison', 'blind'],
     exp: 6400, gold: 9000, drops: [{ id: 'aetherglass', chance: 1.0 }],

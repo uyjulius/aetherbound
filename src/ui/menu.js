@@ -739,6 +739,15 @@ export class MenuSystem {
         }
         node.appendChild(el('div', { class: 'quest-what', text: q.what }));
         node.appendChild(el('div', { class: 'dim quest-where', text: q.where }));
+        // Where a quest has real stages, say which one. The events were
+        // advancing these numbers and nothing anywhere read them back, so the
+        // intermediate steps of the three longest sidequests had no effect on
+        // anything the player could see.
+        const state = this.game.party.quests.get(list.current.quest);
+        const line = q.stages?.[Math.min(state?.stage ?? 0, q.stages.length - 1)];
+        if (line && !list.current.done) {
+          node.appendChild(el('div', { class: 'quest-stage', text: line }));
+        }
         if (list.current.done) node.appendChild(el('div', { class: 'quest-done', text: 'Settled.' }));
       },
     });

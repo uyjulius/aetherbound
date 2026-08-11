@@ -178,7 +178,7 @@ export const ENEMIES = {
   bogfather: {
     id: 'bogfather', name: 'The Bogfather', level: 12, boss: true,
     look: { plan: 'blob', scale: 1.9, color: '#3f4c2c', accent: '#1d2418', eyeColor: '#ffe45e', eyeCount: 3 },
-    stats: { hp: 1450, mp: 180, atk: 62, def: 78, mag: 40, mdef: 62, spd: 22, eva: 4, lck: 10 },
+    stats: { hp: 1450, mp: 180, atk: 61, def: 78, mag: 40, mdef: 62, spd: 22, eva: 4, lck: 10 },
     affinity: { fire: 'weak', ice: 'resist', water: 'absorb', poison: 'immune' },
     immune: ['ko', 'stone', 'sleep', 'stop', 'doom', 'confuse'],
     exp: 620, gold: 900, drops: [{ id: 'scalecoat', chance: 1.0 }],
@@ -196,7 +196,7 @@ export const ENEMIES = {
   ferranwarden: {
     id: 'ferranwarden', name: 'Ferran Warden', level: 16, boss: true,
     look: { plan: 'construct', scale: 1.5, color: '#414954', accent: '#1a1a22', eyeColor: '#d63fb3', cannons: true, treads: true },
-    stats: { hp: 2600, mp: 240, atk: 88, def: 118, mag: 52, mdef: 88, spd: 26, eva: 4, lck: 6 },
+    stats: { hp: 2600, mp: 240, atk: 87, def: 118, mag: 52, mdef: 88, spd: 26, eva: 4, lck: 6 },
     affinity: { bolt: 'weak', water: 'weak', poison: 'immune', shadow: 'resist' },
     immune: ['poison', 'sleep', 'confuse', 'silence', 'blind', 'ko', 'stone', 'doom'],
     exp: 1400, gold: 2200, drops: [{ id: 'guardplate', chance: 1.0 }],
@@ -213,7 +213,7 @@ export const ENEMIES = {
   vhaineshadow: {
     id: 'vhaineshadow', name: 'Vhaine, Unwound', level: 24, boss: true,
     look: { plan: 'humanoid', scale: 1.25, color: '#b8b6bd', accent: '#2c1b4d', metal: '#d8ac31', weapon: 'staff', horns: true, eyeColor: '#d63fb3', eyeCount: 2 },
-    stats: { hp: 5200, mp: 600, atk: 104, def: 128, mag: 96, mdef: 120, spd: 42, eva: 14, lck: 30 },
+    stats: { hp: 5200, mp: 600, atk: 152, def: 128, mag: 115, mdef: 120, spd: 42, eva: 14, lck: 30 },
     affinity: { holy: 'weak', shadow: 'absorb', aether: 'resist' },
     immune: ['ko', 'stone', 'sleep', 'stop', 'doom', 'confuse', 'charm', 'silence'],
     exp: 4200, gold: 6000, drops: [{ id: 'aetherweave', chance: 1.0 }],

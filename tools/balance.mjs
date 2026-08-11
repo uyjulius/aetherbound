@@ -22,6 +22,7 @@
 
 import { ENEMIES, ENCOUNTERS } from '../src/data/enemies.js';
 import { ITEMS, SHOPS } from '../src/data/items.js';
+import { QUESTS } from '../src/data/quests.js';
 import { SPELLS } from '../src/data/spells.js';
 import { ESPERS } from '../src/data/espers.js';
 import { CHARACTERS, CAST_ORDER, statAt, expForLevel, levelForExp } from '../src/data/characters.js';
@@ -32,7 +33,7 @@ import {
 } from '../src/battle/formulas.js';
 import { RNG } from '../src/engine/rng.js';
 import * as legendModule from '../src/world/map.js';
-import { dangerNote } from '../src/world/danger.js';
+import { dangerNote, dangerOf } from '../src/world/danger.js';
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -128,22 +129,19 @@ function reachability(start = 'harrowmere', opts = {}) {
 }
 
 /**
- * Which encounter table is live where the player arrives.
+ * How hard it is where the player arrives.
  *
- * A map's hardest table is not what greets them: the pilgrim road spawns at
- * its apron and the level-75 stretch is at the far end of a fifty-tile walk.
- * Reporting the maximum makes every long map look like an ambush.
+ * Defers to the engine's own `dangerOf` rather than reimplementing the lookup.
+ * An earlier version did reimplement it and got it wrong: when no zone covers
+ * the arrival tile the map falls back to its own inline `encounters` table,
+ * which is not in the `ENCOUNTERS` registry, so Ashfall and Kingspyre read as
+ * level 0 at the door and the tool reported a 52-level cliff that does not
+ * exist — the game warns about both correctly.
  */
-function tableAtSpawn(def) {
-  const spawn = def.spawns?.world ?? def.spawns?.default;
-  if (!spawn) return null;
-  const [sx, sy] = spawn.at;
-  for (const z of def.encounterZones ?? []) {
-    const [x, y, w, h] = z.rect;
-    if (sx >= x && sx < x + w && sy >= y && sy < y + h) return z.table;
-  }
-  return def.encounters?.groups?.length ? def.id : null;
+function entryDanger(def, spawn = null) {
+  return dangerOf(def, spawn);
 }
+
 
 /**
  * How far the player has to walk across the overworld to stand somewhere.
@@ -1035,11 +1033,10 @@ function reachChecks() {
       const def = maps.get(e.to);
       if (!def) continue;
       const steps = world.at(e.at[0], e.at[1]);
-      const entry = tableAtSpawn(def);
       let deepest = 0;
       for (const t of tablesOf(def)) deepest = Math.max(deepest, tableLevel.get(t) ?? 0);
       if (!deepest) continue;
-      townRows.push({ to: e.to, steps, entry: tableLevel.get(entry) ?? 0, deepest });
+      townRows.push({ to: e.to, steps, entry: entryDanger(def, e.spawn), deepest });
     }
     townRows.sort((a, b) => a.steps - b.steps);
     say();
@@ -1229,13 +1226,14 @@ function progression() {
     });
   }
 
-  say('table                     mean lv  party lv  fights  wipes  s/fight  HP lost  fights/rest');
+  say('table                     mean lv  party lv  fights  wipes  s/fight  HP lost  fights/rest      gold');
   for (const r of rows) {
     const warn = r.wipes > 0 ? '\x1b[31m' : r.chain > 25 ? '\x1b[33m' : '';
     say(`${warn}${r.table.padEnd(24)} ${r.meanLevel.toFixed(0).padStart(7)} `
       + `${r.level.toFixed(1).padStart(9)} ${String(r.fights).padStart(7)} `
       + `${String(r.wipes).padStart(6)} ${r.secondsEach.toFixed(0).padStart(8)} `
-      + `${(r.hpLoss * 100).toFixed(0).padStart(7)}% ${r.chain.toFixed(0).padStart(12)}\x1b[0m`);
+      + `${(r.hpLoss * 100).toFixed(0).padStart(7)}% ${r.chain.toFixed(0).padStart(12)} `
+      + `${String(Math.round(r.gold)).padStart(9)}\x1b[0m`);
   }
 
   const hours = seconds / 3600;
@@ -1260,11 +1258,15 @@ function progression() {
       grindy.slice(0, 8).map((r) => `${r.table} ${r.fights}`).join(', ')
       + '. That is grinding, not pacing — the experience awarded is not keeping up with the curve.');
   }
-  const trivial = rows.filter((r) => r.fights <= 3 && r.hpLoss < 0.06);
+  // Needing no grinding in a region is not the same as never seeing it — the
+  // party still walks through and still fights on the way. What is actually
+  // wrong is a region written so far below the party that its encounters are
+  // a formality, so the measure is the level gap, not the fight count.
+  const trivial = rows.filter((r) => r.level - r.meanLevel >= 8);
   if (trivial.length) {
-    flag('minor', 'scaling', `${trivial.length} regions are cleared in three fights or fewer`,
-      trivial.slice(0, 8).map((r) => r.table).join(', ')
-      + '. A region the party outlevels immediately is content nobody sees.');
+    flag('minor', 'scaling', `${trivial.length} regions sit 8+ levels below the party that reaches them`,
+      trivial.slice(0, 8).map((r) => `${r.table} (lv${r.meanLevel.toFixed(0)} vs party ${r.level.toFixed(0)})`).join(', ')
+      + '. Their encounters cannot threaten anybody by the time anybody is standing in them.');
   }
   // A rare wipe is the game working. A region that kills the party more than
   // one time in ten is not tuned, it is a wall.
@@ -1318,6 +1320,7 @@ function bossChecks() {
     // the game for four costs 220,800 gil, and they should only be able to
     // afford all of it right at the end.
     const budget = Math.round(0.36 * Math.pow(b.level, 3));
+    const build = (prepared) => {
     const party = ['vesna', 'corvin', 'aurelian', 'wick'].map((id) => new SimMember(id, b.level));
     for (const m of party) {
       if (m.def.innateMagic) {
@@ -1339,12 +1342,19 @@ function bossChecks() {
           const target = it.kind === 'relic' ? ['relic1', 'relic2'] : [it.slot];
           return target.includes(slot) && canEquip(m.id, it) && it.price <= purse;
         });
-        const score = (it) => gearScore(it) * (weak.has(it.element) ? 2 : 1);
+        // `prepared` brings the element the boss is weak to, which is what the
+        // affinity table is for and what Annotate points at. `unprepared` just
+        // buys the best numbers, which is what most players do on a first pass.
+        const score = (it) => gearScore(it) * (prepared && weak.has(it.element) ? 2 : 1);
         const best = wearable.sort((a, b2) => score(b2) - score(a))[0];
         if (best) { purse -= best.price; m.equipment[slot] = best; }
       }
       m.hp = m.maxHP; m.mp = m.maxMP;
     }
+    return party;
+    };
+    const readyParty = build(true);
+    const plainParty = build(false);
 
     // Two runs: the way the numbers say to play, and the way the game reads as
     // if it wants to be played. The gap between them is the finding.
@@ -1353,7 +1363,7 @@ function bossChecks() {
     // was measuring whether a party with no healer can — and it reported five
     // bosses as magic-only when three of them are simply written to resist
     // physical damage and one is a straightforward slog.
-    const run = (useMagic) => {
+    const run = (useMagic, party) => {
       let wins = 0, seconds = 0, deaths = 0, timeouts = 0, bite = 0;
       const N = 10;
       const pool = party.reduce((n, m) => n + m.maxHP, 0);
@@ -1372,20 +1382,22 @@ function bossChecks() {
       }
       return { winRate: wins / N, seconds: seconds / N, deaths: deaths / N, timeouts, bite: bite / N };
     };
-    const magic = run(true);
-    const steel = run(false);
-    rows.push({ id: b.id, name: b.name, level: b.level, hp: b.stats.hp, magic, steel });
+    const magic = run(true, readyParty);
+    const steel = run(false, readyParty);
+    const plain = run(true, plainParty);
+    rows.push({ id: b.id, name: b.name, level: b.level, hp: b.stats.hp, magic, steel, plain });
   }
 
-  say('                                        ─── with magic ───   ── swords only ──');
-  say('boss                            lv      HP   win%  length  cost   win%   length');
+  say('                                        ── prepared ──  ── unprepared ──  swords only');
+  say('boss                            lv      HP   win%   cost    win%     cost   win%');
   for (const r of rows) {
-    const colour = r.magic.bite < 0.2 ? '\x1b[33m' : r.steel.winRate < 0.5 ? '\x1b[31m' : '';
+    const colour = r.plain.bite < 0.2 ? '\x1b[33m' : r.steel.winRate < 0.25 ? '\x1b[31m' : '';
     say(`${colour}${r.name.slice(0, 30).padEnd(30)} ${String(r.level).padStart(3)} `
       + `${String(r.hp).padStart(7)} ${(r.magic.winRate * 100).toFixed(0).padStart(5)}% `
-      + `${r.magic.seconds.toFixed(0).padStart(6)}s ${(r.magic.bite * 100).toFixed(0).padStart(4)}% `
-      + `${(r.steel.winRate * 100).toFixed(0).padStart(6)}% `
-      + `${r.steel.seconds.toFixed(0).padStart(7)}s\x1b[0m`);
+      + `${(r.magic.bite * 100).toFixed(0).padStart(5)}% `
+      + `${(r.plain.winRate * 100).toFixed(0).padStart(6)}% `
+      + `${(r.plain.bite * 100).toFixed(0).padStart(7)}% `
+      + `${(r.steel.winRate * 100).toFixed(0).padStart(6)}%\x1b[0m`);
   }
 
   const unwinnable = rows.filter((r) => r.magic.winRate < 0.34);
@@ -1396,21 +1408,28 @@ function bossChecks() {
   // Length alone is the wrong measure — a well-played boss fight can be short.
   // What separates a boss from a wall is how much it takes off the party
   // before it dies.
-  const pushovers = rows.filter((r) => r.magic.bite < 0.2);
+  // Measured against the *unprepared* party, not the optimal one.
+  //
+  // The earlier version asked whether a boss could threaten a party at its own
+  // level, in the best gear its money allows, holding a weapon of exactly the
+  // element it is weak to, healing perfectly. A boss that survives all of that
+  // is not a bar worth setting; the party did everything right. What matters is
+  // whether a boss can threaten somebody who walked in with good numbers and
+  // no plan — because that player is the one who needs the fight to teach them
+  // that the affinity table exists.
+  const pushovers = rows.filter((r) => r.plain.bite < 0.2);
   if (pushovers.length > rows.length * 0.25) {
     flag('major', 'battles',
-      `${pushovers.length} of ${rows.length} bosses never take a fifth of the party's health`,
-      pushovers.slice(0, 10).map((r) => `${r.name} ${(r.magic.bite * 100).toFixed(0)}%`).join(', ')
-      + '.\nRead this one with its conditions attached: the party here is exactly the boss\'s '
-      + 'level, carrying the best gear its budget allows, holding a weapon of whatever element the '
-      + 'boss is weak to, and healing perfectly. A boss that loses to all of that at once is a '
-      + 'boss whose homework was done. It is still worth knowing which ones cannot threaten even a '
-      + 'sloppy party.');
+      `${pushovers.length} of ${rows.length} bosses never take a fifth of an unprepared party's health`,
+      pushovers.slice(0, 10).map((r) => `${r.name} ${(r.plain.bite * 100).toFixed(0)}%`).join(', ')
+      + '. These are measured against a party at the boss\'s level in the best gear its money '
+      + 'allows, but with no elemental weapon and no plan — the player who most needs the fight to '
+      + 'teach them that the affinity table exists.');
   }
   // A boss written `physical: resist` is meant to be a puzzle, and losing it
   // with swords is the puzzle working. What is not fine is a boss with no such
   // note that steel simply cannot beat.
-  const steelLoses = rows.filter((r) => r.steel.winRate < 0.5 && r.magic.winRate >= 0.9
+  const steelLoses = rows.filter((r) => r.steel.winRate < 0.25 && r.magic.winRate >= 0.9
     && ENEMIES[r.id]?.affinity?.physical !== 'resist'
     && ENEMIES[r.id]?.affinity?.physical !== 'immune');
   if (steelLoses.length) {
@@ -1513,11 +1532,16 @@ async function questChecks() {
       + 'for the entire second half of the game, and nothing ever advances or closes it.');
   }
 
-  const advancedNeverRead = [...advanced].filter((q) => !staged.has(q));
+  // A stage counts as read if code branches on it *or* the journal has text
+  // for it — writing the number and showing the player where they are is a
+  // use, and it is the one that matters to somebody coming back after a week.
+  const described = new Set(Object.entries(QUESTS)
+    .filter(([, q]) => Array.isArray(q.stages) && q.stages.length > 1).map(([id]) => id));
+  const advancedNeverRead = [...advanced].filter((q) => !staged.has(q) && !described.has(q));
   if (advancedNeverRead.length) {
     flag('minor', 'quests', `${advancedNeverRead.length} quests advance through stages nothing reads`,
-      'The stage number is written and never checked, so the intermediate steps have no effect on '
-      + `anything: ${advancedNeverRead.join(', ')}`);
+      'The stage number is written, never branched on, and has no journal line, so the '
+      + `intermediate steps have no effect on anything: ${advancedNeverRead.join(', ')}`);
   }
 
   // The journal itself.

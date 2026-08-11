@@ -7,10 +7,14 @@
  * way to find out what they had been doing. In a forty-hour game that is the
  * screen they need most, and it was a list of variable names.
  *
- * Each entry is a title, one line of *what*, and one line of *where*. No stage
- * text: the events advance stages freely and a stale objective line is worse
- * than none, so the journal says what the job is and trusts the world to say
- * how far along it is.
+ * Each entry is a title, one line of *what*, and one line of *where*. Most stop
+ * there — a quest that begins and ends in one conversation has no progress to
+ * report, and a stale objective line is worse than none.
+ *
+ * Three of them do have real stages, and carry `stages` text for each. Those
+ * three were already advancing a stage number through the events and nothing
+ * anywhere read it back, so the longest sidequests in the game moved through
+ * four or five steps with no way for the player to see any of them.
  *
  * `kind` sorts the screen. A recruitment is not a chore and the main line is
  * not a favour, and a player scanning the list should be able to see that at a
@@ -76,13 +80,46 @@ export const QUESTS = {
   moot: { name: 'The Moot', kind: 'side', what: 'Verrenholt cannot agree on a thing it has agreed on for two centuries.', where: 'Verrenholt' },
   millwheel: { name: 'The Millwheel', kind: 'side', what: 'The wheel turns and the mill does not.', where: 'Emberlyn' },
   surveyor: { name: "The Surveyor's Rota", kind: 'side', what: 'A survey was filed for ground that is not there.', where: 'Emberlyn' },
-  postbag: { name: 'The Last Postbag', kind: 'side', what: 'One bag of letters never reached anyone. Deliver it.', where: 'across the Reach' },
+  postbag: {
+    name: 'The Last Postbag', kind: 'side',
+    what: 'One bag of letters never reached anyone. Deliver it.',
+    where: 'across the Reach',
+    // Almer Selby's round: three letters in any order, and a fourth at the
+    // bottom of the bag that was never going to be posted.
+    stages: [
+      'Three letters in the bag and nobody left on the round to carry them.',
+      'One delivered. Two names still in the bag.',
+      'Two delivered. One name still in the bag.',
+      'All three delivered. There is something else at the bottom of the bag.',
+      'The fourth letter read. It was never going to be posted.',
+    ],
+  },
   withies: { name: 'The Withies', kind: 'side', what: 'The withies go in every spring or the channel walks.', where: 'Saltmarch' },
   cabinet: { name: 'The Cabinet of Species', kind: 'side', what: 'A collection with one drawer that will not close.', where: 'the Loom' },
-  count: { name: 'The Sealer of Weights', kind: 'side', what: "Oxmere's weights do not agree with each other any more.", where: 'Oxmere' },
+  count: {
+    name: 'The Sealer of Weights', kind: 'side',
+    what: "Oxmere's weights do not agree with each other any more.",
+    where: 'Oxmere',
+    stages: [
+      'Every weight in Oxmere is a little light, and all by different amounts.',
+      'The chalk bar read. Somebody has been recording the drift for years.',
+      'The weighing beam lit. The drift is not in the weights.',
+    ],
+  },
   hurdles: { name: 'The Last Hurdler', kind: 'side', what: 'One man still makes hurdles the old way and cannot say why.', where: 'Oxmere' },
   droveroad: { name: 'The Drove Road', kind: 'side', what: 'The drove road has a warning on it in a hand nobody recognises.', where: 'Oxmere' },
-  lodge: { name: 'The Lodge Notice', kind: 'side', what: 'A notice at Caldwick has been up for four hours and eleven years.', where: 'Caldwick' },
+  lodge: {
+    name: 'The Lodge Notice', kind: 'side',
+    what: 'A notice at Caldwick has been up for four hours and eleven years.',
+    where: 'Caldwick',
+    stages: [
+      'The notice on the lodge door names an hour, and no day.',
+      'The notice read. Somebody has been keeping the fourth hour.',
+      'The cord runs into the wall and stops being a cord.',
+      'The flue is open. It goes further than the chimney does.',
+      'The far end of the flue found, and what was using it.',
+    ],
+  },
   apron: { name: 'The Cold Apron', kind: 'side', what: 'The forge apron at Caldwick is cold in the middle of a working day.', where: 'Caldwick' },
   rent: { name: 'The Undercroft Rent', kind: 'side', what: 'Somebody is paying rent on a room under Marrowgate.', where: 'Marrowgate' },
   pitch: { name: 'Eight Yards of Pitch', kind: 'side', what: 'Eight yards of pitch, ordered and never collected.', where: 'Marrowgate' },

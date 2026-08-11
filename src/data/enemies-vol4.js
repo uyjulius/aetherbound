@@ -920,7 +920,7 @@ export const VOL4_ENEMIES = {
   theyardmaster: {
     id: 'theyardmaster', name: 'The Yardmaster', level: 46, boss: true,
     look: { plan: 'humanoid', scale: 1.7, color: '#96603f', accent: '#3a2226', metal: '#8a6a23', weapon: 'axe', armored: true, helmet: true, eyeColor: '#e0574f' },
-    stats: { hp: 16000, mp: 600, atk: 250, def: 198, mag: 170, mdef: 190, spd: 44, eva: 12, lck: 18 },
+    stats: { hp: 16000, mp: 600, atk: 385, def: 198, mag: 231, mdef: 190, spd: 44, eva: 12, lck: 18 },
     affinity: { bolt: 'weak', fire: 'resist' },
     immune: ['ko', 'stone', 'sleep', 'stop', 'doom', 'confuse', 'charm', 'berserk'],
     exp: 7500, gold: 9000, drops: [{ id: 'bloodinghelm', chance: 1.0 }],
@@ -940,7 +940,7 @@ export const VOL4_ENEMIES = {
   thebutchersbill: {
     id: 'thebutchersbill', name: "The Butcher's Bill", level: 50, boss: true,
     look: { plan: 'humanoid', scale: 1.9, color: '#9a6147', accent: '#8b2a2c', metal: '#a2acbb', weapon: 'axe', horns: true, eyeColor: '#ff7a2f' },
-    stats: { hp: 22000, mp: 700, atk: 272, def: 200, mag: 186, mdef: 194, spd: 40, eva: 8, lck: 14 },
+    stats: { hp: 22000, mp: 700, atk: 419, def: 200, mag: 253, mdef: 194, spd: 40, eva: 8, lck: 14 },
     affinity: { holy: 'weak', shadow: 'absorb', poison: 'immune' },
     immune: ['ko', 'stone', 'sleep', 'stop', 'doom', 'poison', 'silence', 'berserk'],
     exp: 9000, gold: 11000, drops: [{ id: 'bloodingplate', chance: 1.0 }],
@@ -960,7 +960,7 @@ export const VOL4_ENEMIES = {
   thekindlyone: {
     id: 'thekindlyone', name: 'The Kindly One', level: 54, boss: true,
     look: { plan: 'floater', scale: 1.9, color: '#4e4a52', eyeColor: '#dedbe0', eyeCount: 3, tendrils: true },
-    stats: { hp: 26000, mp: 1000, atk: 262, def: 190, mag: 212, mdef: 198, spd: 52, eva: 28, lck: 26 },
+    stats: { hp: 26000, mp: 1000, atk: 403, def: 190, mag: 289, mdef: 198, spd: 52, eva: 28, lck: 26 },
     affinity: { holy: 'weak', shadow: 'absorb', earth: 'resist' },
     immune: ['ko', 'stone', 'sleep', 'stop', 'doom', 'confuse', 'silence', 'poison', 'zombie'],
     exp: 12000, gold: 14500, drops: [{ id: 'kindlyvestment', chance: 1.0 }],
@@ -980,7 +980,7 @@ export const VOL4_ENEMIES = {
   thelongbarrow: {
     id: 'thelongbarrow', name: 'The Long Barrow', level: 58, boss: true,
     look: { plan: 'plant', scale: 2.0, color: '#4b382d', accent: '#2b2933', eyeColor: '#dbc891' },
-    stats: { hp: 30000, mp: 800, atk: 290, def: 200, mag: 206, mdef: 196, spd: 24, eva: 4, lck: 10 },
+    stats: { hp: 30000, mp: 800, atk: 469, def: 200, mag: 294, mdef: 196, spd: 24, eva: 4, lck: 10 },
     affinity: { fire: 'weak', earth: 'absorb', shadow: 'absorb', poison: 'immune' },
     immune: ['ko', 'stone', 'sleep', 'stop', 'doom', 'poison', 'venom', 'confuse', 'charm', 'zombie'],
     exp: 13800, gold: 16500, drops: [{ id: 'gravewardknot', chance: 1.0 }],
@@ -1003,7 +1003,7 @@ export const VOL4_ENEMIES = {
     // fight: three of its six rules only exist if the player reaches for the
     // lock that seems obvious.
     look: { plan: 'floater', scale: 2.0, color: '#12566b', eyeColor: '#96f0f5', eyeCount: 3, tendrils: true },
-    stats: { hp: 34000, mp: 1200, atk: 300, def: 194, mag: 226, mdef: 200, spd: 58, eva: 30, lck: 30 },
+    stats: { hp: 34000, mp: 1200, atk: 485, def: 194, mag: 323, mdef: 200, spd: 58, eva: 30, lck: 30 },
     affinity: { aether: 'absorb', bolt: 'resist', holy: 'weak' },
     immune: ['ko', 'stone', 'sleep', 'stop', 'charm'],
     exp: 15500, gold: 18500, drops: [{ id: 'answeringshield', chance: 1.0 }],
@@ -1024,7 +1024,7 @@ export const VOL4_ENEMIES = {
   thegainsayer: {
     id: 'thegainsayer', name: 'The Gainsayer', level: 65, boss: true,
     look: { plan: 'humanoid', scale: 1.75, color: '#b8b6bd', accent: '#4a4324', metal: '#d8ac31', weapon: 'staff', horns: true, eyeColor: '#fff3b8' },
-    stats: { hp: 37000, mp: 1300, atk: 316, def: 196, mag: 232, mdef: 200, spd: 60, eva: 24, lck: 32 },
+    stats: { hp: 37000, mp: 1300, atk: 511, def: 196, mag: 332, mdef: 200, spd: 60, eva: 24, lck: 32 },
     affinity: { holy: 'absorb', shadow: 'weak', aether: 'resist' },
     immune: ['ko', 'stone', 'sleep', 'stop', 'charm', 'confuse'],
     exp: 17000, gold: 20000, drops: [{ id: 'echostone', chance: 1.0 }],
@@ -1046,7 +1046,7 @@ export const VOL4_ENEMIES = {
   theacremother: {
     id: 'theacremother', name: 'The Acre Mother', level: 68, boss: true,
     look: { plan: 'insect', scale: 2.1, legs: 8, color: '#3a2226', accent: '#d5766a', eyeColor: '#e0574f', stinger: true, eyeCount: 6 },
-    stats: { hp: 40000, mp: 1000, atk: 320, def: 198, mag: 216, mdef: 196, spd: 54, eva: 22, lck: 20 },
+    stats: { hp: 40000, mp: 1000, atk: 517, def: 198, mag: 309, mdef: 196, spd: 54, eva: 22, lck: 20 },
     affinity: { fire: 'weak', poison: 'absorb', earth: 'resist' },
     immune: ['ko', 'stone', 'sleep', 'stop', 'doom', 'poison', 'venom', 'blind', 'charm'],
     exp: 18000, gold: 21500, drops: [{ id: 'broodfang', chance: 1.0 }],
@@ -1066,7 +1066,7 @@ export const VOL4_ENEMIES = {
   thelastlitter: {
     id: 'thelastlitter', name: 'The Last Litter', level: 71, boss: true,
     look: { plan: 'blob', scale: 1.9, color: '#4b382d', accent: '#d5766a', eyeColor: '#ffe45e', eyeCount: 3 },
-    stats: { hp: 43000, mp: 900, atk: 332, def: 196, mag: 210, mdef: 192, spd: 48, eva: 14, lck: 12 },
+    stats: { hp: 43000, mp: 900, atk: 533, def: 196, mag: 326, mdef: 192, spd: 48, eva: 14, lck: 12 },
     affinity: { fire: 'weak', earth: 'absorb', poison: 'immune' },
     immune: ['ko', 'stone', 'sleep', 'stop', 'doom', 'poison', 'venom', 'confuse'],
     exp: 19500, gold: 23000, drops: [{ id: 'broodleathers', chance: 1.0 }],
@@ -1087,7 +1087,7 @@ export const VOL4_ENEMIES = {
     // Not poison-immune, which for a plant of this size is a decision: Blight
     // is the obvious opener and it is also the rule that turns the fight.
     look: { plan: 'plant', scale: 2.2, color: '#4a4324', accent: '#496035', eyeColor: '#ffe45e' },
-    stats: { hp: 48000, mp: 1100, atk: 344, def: 200, mag: 224, mdef: 198, spd: 30, eva: 6, lck: 10 },
+    stats: { hp: 48000, mp: 1100, atk: 552, def: 200, mag: 347, mdef: 198, spd: 30, eva: 6, lck: 10 },
     affinity: { fire: 'weak', earth: 'absorb', wind: 'weak' },
     immune: ['ko', 'stone', 'sleep', 'stop', 'doom', 'venom', 'charm', 'blind'],
     exp: 21500, gold: 25500, drops: [{ id: 'broodveil', chance: 1.0 }],
@@ -1108,7 +1108,7 @@ export const VOL4_ENEMIES = {
   theslakingpit: {
     id: 'theslakingpit', name: 'The Slaking Pit', level: 76, boss: true,
     look: { plan: 'blob', scale: 2.1, color: '#1a3c48', accent: '#12566b', eyeColor: '#96f0f5', eyeCount: 3 },
-    stats: { hp: 52000, mp: 1200, atk: 352, def: 198, mag: 228, mdef: 198, spd: 40, eva: 10, lck: 12 },
+    stats: { hp: 52000, mp: 1200, atk: 565, def: 198, mag: 354, mdef: 198, spd: 40, eva: 10, lck: 12 },
     affinity: { water: 'absorb', ice: 'absorb', bolt: 'weak', poison: 'immune' },
     immune: ['ko', 'stone', 'sleep', 'stop', 'doom', 'poison', 'venom', 'confuse', 'silence'],
     exp: 23000, gold: 27500, drops: [{ id: 'quenchlance', chance: 1.0 }],
@@ -1130,7 +1130,7 @@ export const VOL4_ENEMIES = {
     // Drinks fire, and is carrying the best fire sword in the game. The player
     // who beats it with plain steel is handed the reason plain steel exists.
     look: { plan: 'construct', scale: 2.0, color: '#7d4436', accent: '#3a2226', eyeColor: '#ff7a2f', cannons: true },
-    stats: { hp: 56000, mp: 1200, atk: 366, def: 200, mag: 232, mdef: 200, spd: 44, eva: 8, lck: 10 },
+    stats: { hp: 56000, mp: 1200, atk: 588, def: 200, mag: 360, mdef: 200, spd: 44, eva: 8, lck: 10 },
     affinity: { fire: 'absorb', earth: 'absorb', water: 'weak', ice: 'weak', poison: 'immune' },
     immune: ['ko', 'stone', 'sleep', 'stop', 'doom', 'poison', 'confuse', 'silence', 'blind', 'berserk'],
     exp: 25000, gold: 29500, drops: [{ id: 'quenchbrand', chance: 1.0 }],
@@ -1150,7 +1150,7 @@ export const VOL4_ENEMIES = {
   thecoldforge: {
     id: 'thecoldforge', name: 'The Cold Forge', level: 80, boss: true,
     look: { plan: 'construct', scale: 2.3, color: '#414954', accent: '#12566b', eyeColor: '#96f0f5', cannons: true, treads: true, eyeCount: 3 },
-    stats: { hp: 60000, mp: 1400, atk: 380, def: 200, mag: 240, mdef: 200, spd: 46, eva: 8, lck: 12 },
+    stats: { hp: 60000, mp: 1400, atk: 610, def: 200, mag: 372, mdef: 200, spd: 46, eva: 8, lck: 12 },
     affinity: { bolt: 'absorb', aether: 'absorb', holy: 'absorb', water: 'weak', poison: 'immune' },
     immune: ['ko', 'stone', 'sleep', 'stop', 'slow', 'doom', 'confuse', 'silence', 'poison', 'berserk'],
     exp: 27000, gold: 32000, drops: [{ id: 'quenchgauntlets', chance: 1.0 }],
@@ -1172,7 +1172,7 @@ export const VOL4_ENEMIES = {
   theovertaking: {
     id: 'theovertaking', name: 'The Overtaking', level: 82, boss: true,
     look: { plan: 'quadruped', scale: 2.0, color: '#4e4a52', accent: '#241636', eyeColor: '#d63fb3', spines: true },
-    stats: { hp: 66000, mp: 1200, atk: 386, def: 194, mag: 226, mdef: 194, spd: 112, eva: 34, lck: 24 },
+    stats: { hp: 66000, mp: 1200, atk: 619, def: 194, mag: 351, mdef: 194, spd: 112, eva: 34, lck: 24 },
     affinity: { wind: 'absorb', shadow: 'absorb', earth: 'weak', holy: 'weak' },
     immune: ['ko', 'stone', 'sleep', 'stop', 'slow', 'doom', 'confuse', 'charm', 'paralysis'],
     exp: 29500, gold: 35000, drops: [{ id: 'overwindchakram', chance: 1.0 }],
@@ -1193,7 +1193,7 @@ export const VOL4_ENEMIES = {
     // Not silence-immune, alone among the great machines. It can be told to
     // stop talking, and what it does then is the fight.
     look: { plan: 'construct', scale: 2.2, color: '#a6b0bc', accent: '#22242a', eyeColor: '#3fc6d6', cannons: true, treads: true },
-    stats: { hp: 72000, mp: 1500, atk: 396, def: 200, mag: 240, mdef: 200, spd: 104, eva: 12, lck: 12 },
+    stats: { hp: 72000, mp: 1500, atk: 635, def: 200, mag: 372, mdef: 200, spd: 104, eva: 12, lck: 12 },
     affinity: { bolt: 'absorb', aether: 'absorb', water: 'weak', poison: 'immune' },
     immune: ['ko', 'stone', 'sleep', 'stop', 'slow', 'doom', 'confuse', 'poison', 'blind', 'berserk'],
     exp: 31500, gold: 37500, drops: [{ id: 'overwindrod', chance: 1.0 }],
@@ -1216,7 +1216,7 @@ export const VOL4_ENEMIES = {
     // The pinnacle of the volume, and the only thing in four books faster than
     // the Far Runner. Everything it does, it does before you do.
     look: { plan: 'humanoid', scale: 2.0, color: '#dedbe0', accent: '#241636', metal: '#d63fb3', weapon: 'staff', horns: true, eyeColor: '#8a5ce0', eyeCount: 3 },
-    stats: { hp: 82000, mp: 1800, atk: 412, def: 200, mag: 250, mdef: 200, spd: 120, eva: 30, lck: 32 },
+    stats: { hp: 82000, mp: 1800, atk: 661, def: 200, mag: 388, mdef: 200, spd: 120, eva: 30, lck: 32 },
     affinity: { wind: 'absorb', aether: 'absorb', shadow: 'absorb', holy: 'weak', earth: 'weak' },
     immune: ['ko', 'stone', 'sleep', 'stop', 'slow', 'doom', 'confuse', 'charm', 'poison', 'blind', 'berserk', 'paralysis', 'freeze'],
     exp: 36000, gold: 46000, drops: [{ id: 'overwindband', chance: 1.0 }, { id: 'megalixir', chance: 1.0 }],

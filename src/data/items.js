@@ -43,6 +43,56 @@ export const ITEMS = {
   tidecleaver: { id: 'tidecleaver', name: 'Tidecleaver', kind: 'weapon', type: 'sword', slot: 'weapon', price: 4200, sell: 2100, stats: { atk: 92, spd: 4 }, element: 'water', desc: 'Salt never dries on the blade.' },
   aetherglass: { id: 'aetherglass', name: 'Aetherglass', kind: 'weapon', type: 'sword', slot: 'weapon', price: 12000, sell: 6000, stats: { atk: 148, mag: 14, res: 8 }, element: 'aether', effects: ['halfMP'], desc: 'Cut from a sleeping Engine. It hums.' },
 
+  // --- weapons: the branded line -----------------------------------------
+  //
+  // A cheap elemental weapon for every element the bestiary uses as a
+  // weakness, on sale from the first town.
+  //
+  // The affinity table is the puzzle the whole game is built on, and until
+  // these existed only a mage could answer it. The cheapest elemental weapon
+  // was the Emberbrand at 2400 gil; the first boss with a weakness is the
+  // Bogfather at level 12, when a character can afford about 150. Every boss
+  // before level 35 was a fight a physical party had no tool for, and wind and
+  // shadow had no purchasable weapon at any price in the whole game.
+  //
+  // Deliberately weak. These are worse than the plain steel of their tier —
+  // the trade is that the right one doubles against the right creature, which
+  // is a decision rather than an upgrade.
+  emberbrand_lesser: { id: 'emberbrand_lesser', name: 'Ember Brand', kind: 'weapon', type: 'sword', slot: 'weapon', price: 620, sell: 310, stats: { atk: 20 }, element: 'fire', desc: 'A brand with a coal still in the pommel.' },
+  rimebrand:   { id: 'rimebrand', name: 'Rime Brand', kind: 'weapon', type: 'sword', slot: 'weapon', price: 620, sell: 310, stats: { atk: 20 }, element: 'ice', desc: 'The blade sweats in warm weather.' },
+  stormbrand:  { id: 'stormbrand', name: 'Storm Brand', kind: 'weapon', type: 'sword', slot: 'weapon', price: 660, sell: 330, stats: { atk: 20 }, element: 'bolt', desc: 'It clicks when the air is dry.' },
+  tidebrand:   { id: 'tidebrand', name: 'Tide Brand', kind: 'weapon', type: 'sword', slot: 'weapon', price: 640, sell: 320, stats: { atk: 20 }, element: 'water', desc: 'Salt dries on it overnight, wherever it has been.' },
+  galebrand:   { id: 'galebrand', name: 'Gale Brand', kind: 'weapon', type: 'sword', slot: 'weapon', price: 700, sell: 350, stats: { atk: 19, spd: 3 }, element: 'wind', desc: 'Lighter than it looks, and it hums on the downswing.' },
+  vigilbrand:  { id: 'vigilbrand', name: 'Vigil Brand', kind: 'weapon', type: 'sword', slot: 'weapon', price: 760, sell: 380, stats: { atk: 19, res: 3 }, element: 'holy', desc: 'Lantern-blessed, which the Ninth would say means very little.' },
+  ashbrand:    { id: 'ashbrand', name: 'Ash Brand', kind: 'weapon', type: 'sword', slot: 'weapon', price: 760, sell: 380, stats: { atk: 21 }, element: 'shadow', desc: 'It does not take a shine, and never has.' },
+  stonebrand:  { id: 'stonebrand', name: 'Stone Brand', kind: 'weapon', type: 'sword', slot: 'weapon', price: 680, sell: 340, stats: { atk: 22, sta: 2 }, element: 'earth', desc: 'Heavy at the tip. It wants to go downward.' },
+
+  // The middle rung of the same line, and the one that was missing.
+  //
+  // The branded weapons above are answer-shaped but tier-one; the real
+  // elemental weapons — Winter Long, Storm Fists, Frostmaul Claws — cost five
+  // to eight thousand, and the bosses they answer turn up at level 27 to 40,
+  // when the party has banked about four. The Cinder Wyrm is weak to ice and
+  // ice existed on exactly two weapons, a katana and a claw, so a party
+  // without Idris or Tam had no answer at any price.
+  //
+  // Swords, because every fighter in the cast who is not a monk can hold one.
+  emberedge:   { id: 'emberedge', name: 'Ember Edge', kind: 'weapon', type: 'sword', slot: 'weapon', price: 1600, sell: 800, stats: { atk: 48 }, element: 'fire', desc: 'The fuller glows when it is drawn quickly.' },
+  rimeedge:    { id: 'rimeedge', name: 'Rime Edge', kind: 'weapon', type: 'sword', slot: 'weapon', price: 1600, sell: 800, stats: { atk: 48 }, element: 'ice', desc: 'It rings a half-tone flat in the cold.' },
+  stormedge:   { id: 'stormedge', name: 'Storm Edge', kind: 'weapon', type: 'sword', slot: 'weapon', price: 1650, sell: 825, stats: { atk: 48 }, element: 'bolt', desc: 'Grounded through the grip, mostly.' },
+  tideedge:    { id: 'tideedge', name: 'Tide Edge', kind: 'weapon', type: 'sword', slot: 'weapon', price: 1620, sell: 810, stats: { atk: 48 }, element: 'water', desc: 'Beaded, always, whatever the weather.' },
+  galeedge:    { id: 'galeedge', name: 'Gale Edge', kind: 'weapon', type: 'sword', slot: 'weapon', price: 1700, sell: 850, stats: { atk: 46, spd: 5 }, element: 'wind', desc: 'The parry is faster than the swing.' },
+  vigiledge:   { id: 'vigiledge', name: 'Vigil Edge', kind: 'weapon', type: 'sword', slot: 'weapon', price: 1800, sell: 900, stats: { atk: 46, res: 5 }, element: 'holy', desc: 'Nine bands at the ricasso, one worn smooth.' },
+  ashedge:     { id: 'ashedge', name: 'Ash Edge', kind: 'weapon', type: 'sword', slot: 'weapon', price: 1800, sell: 900, stats: { atk: 50 }, element: 'shadow', desc: 'Nothing reflects in it, including the room.' },
+  stoneedge:   { id: 'stoneedge', name: 'Stone Edge', kind: 'weapon', type: 'sword', slot: 'weapon', price: 1700, sell: 850, stats: { atk: 52, sta: 3 }, element: 'earth', desc: 'Forged around a core of something older.' },
+
+  // The same idea for the cast who will never hold a sword. Fists and claws
+  // between them cover Bastian, Oda, Rusk and Tam.
+  emberwraps:  { id: 'emberwraps', name: 'Ember Wraps', kind: 'weapon', type: 'fist', slot: 'weapon', price: 640, sell: 320, stats: { atk: 22 }, element: 'fire', desc: 'Wound over a banked coal. Rewrapped daily.' },
+  stormwraps:  { id: 'stormwraps', name: 'Storm Wraps', kind: 'weapon', type: 'fist', slot: 'weapon', price: 680, sell: 340, stats: { atk: 22 }, element: 'bolt', desc: 'The knuckles spark on stone.' },
+  rimeclaws:   { id: 'rimeclaws', name: 'Rime Claws', kind: 'weapon', type: 'claw', slot: 'weapon', price: 640, sell: 320, stats: { atk: 22 }, element: 'ice', desc: 'They frost over between fights.' },
+  ashclaws:    { id: 'ashclaws', name: 'Ash Claws', kind: 'weapon', type: 'claw', slot: 'weapon', price: 760, sell: 380, stats: { atk: 23 }, element: 'shadow', desc: 'Cut from something that did not want to be cut from.' },
+
   // --- weapons: daggers --------------------------------------------------
   boltdirk:    { id: 'boltdirk', name: 'Bolt Dirk', kind: 'weapon', type: 'dagger', slot: 'weapon', price: 250, sell: 125, stats: { atk: 18, spd: 5 }, desc: 'Quick, and quiet enough.' },
   thiefsknife: { id: 'thiefsknife', name: "Thief's Knife", kind: 'weapon', type: 'dagger', slot: 'weapon', price: 1800, sell: 900, stats: { atk: 40, spd: 8, lck: 10 }, effects: ['stealOnHit'], desc: 'Sometimes takes more than blood.' },
@@ -115,7 +165,10 @@ export const SHOPS = {
   },
   harrowmere_arms: {
     name: 'Halloran Forge',
-    stock: ['ironsword', 'boltdirk', 'ironknuckles', 'ashrod', 'woodshield', 'travelvest', 'leathercap'],
+    stock: ['ironsword', 'boltdirk', 'ironknuckles', 'ashrod', 'woodshield', 'travelvest', 'leathercap',
+      // The branded line. Halloran keeps one of each and an opinion about all of them.
+      'emberbrand_lesser', 'rimebrand', 'stormbrand', 'tidebrand', 'galebrand',
+      'vigilbrand', 'ashbrand', 'stonebrand', 'emberwraps', 'stormwraps', 'rimeclaws', 'ashclaws'],
   },
   solmere_items: {
     name: 'Aetheric Supply',
@@ -126,7 +179,11 @@ export const SHOPS = {
     name: 'Marchetti Works',
     stock: ['guardsabre', 'ashenkatana', 'longspear', 'thiefsknife', 'stormfists', 'lanternstaff',
       'scalecoat', 'guardplate', 'silkrobe', 'ironhelm', 'scholarhood', 'towershield',
-      'swiftband', 'ironbrooch', 'focusring', 'sprinter'],
+      'swiftband', 'ironbrooch', 'focusring', 'sprinter',
+      // The middle rung of the branded line. Solmere is the first city with a
+      // real armoury and it sits at the level the elemental bosses begin.
+      'emberedge', 'rimeedge', 'stormedge', 'tideedge', 'galeedge',
+      'vigiledge', 'ashedge', 'stoneedge'],
   },
   ferran_quartermaster: {
     name: 'Requisitions',

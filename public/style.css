@@ -598,6 +598,7 @@ html, body {
 
 .quest-what  { margin-bottom: calc(6 * var(--u)); line-height: 1.5; }
 .quest-where { font-style: italic; }
+.quest-stage { margin-top: calc(8 * var(--u)); color: #ffd76a; line-height: 1.5; }
 .quest-done  { margin-top: calc(8 * var(--u)); color: #8ce07a; }
 
 .beast-line   { margin-bottom: calc(4 * var(--u)); }
