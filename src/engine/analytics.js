@@ -70,6 +70,7 @@ export const EV = {
   ASSETS_LOADED: 'Assets Loaded',               // models and textures in
   SESSION_STARTED: 'Session Started',
   SESSION_ENDED: 'Session Ended',               // sent on pagehide, via beacon
+  TITLE_VIEWED: 'Title Viewed',                 // reached the front door
   GAME_STARTED: 'Game Started',                 // new campaign from the title
   GAME_LOADED: 'Game Loaded',                   // continued from a slot
   GAME_SAVED: 'Game Saved',

@@ -26,6 +26,7 @@ import { ShopScreen } from './ui/shop.js';
 import { ESPERS } from './data/espers.js';
 import { analytics, EV } from './engine/analytics.js';
 import { dangerOf } from './world/danger.js';
+import { TitleState } from './ui/title.js';
 
 /** Stamped into every event so releases can be told apart. */
 const BUILD = 'aetherbound-2026-08';
@@ -779,6 +780,53 @@ class Game {
 // Boot
 // ---------------------------------------------------------------------------
 
+/**
+ * A fresh campaign: the starting three, geared and taught enough magic to make
+ * combat interesting from the first fight.
+ */
+async function startNewCampaign(game) {
+  const equip = (member, ids) => {
+    for (const id of ids) {
+      const item = ITEMS[id];
+      if (item) member.equipment[item.slot] = item;
+    }
+    member.fullRestore();
+  };
+  const vesna = game.party.recruit('vesna', 6);
+  equip(vesna, ['ironsword', 'travelvest', 'leathercap']);
+  for (const s of ['ember', 'rime', 'spark', 'mend', 'dimming']) vesna.learnSpell(s);
+
+  const corvin = game.party.recruit('corvin', 6);
+  equip(corvin, ['boltdirk', 'travelvest', 'leathercap', 'woodshield']);
+
+  const wick = game.party.recruit('wick', 6);
+  equip(wick, ['ashrod', 'silkrobe', 'leathercap']);
+  for (const s of ['mend', 'cleanse', 'renewal', 'wardflesh', 'scan']) wick.learnSpell(s);
+
+  game.party.addItem('potion', 5);
+  game.party.addItem('antidote', 2);
+  game.party.addItem('tonic', 2);
+  // One esper to start, so the progression system is legible from the outset.
+  game.party.espers.add('emberwake');
+  vesna.esper = ESPERS.emberwake;
+
+  analytics.track(EV.GAME_STARTED, { start_level: 6, party: game.party.active });
+  // The opening map is set directly rather than through `gotoMap`, so it needs
+  // its own event — without it every session's first map is missing and the
+  // funnel starts at whatever door the player walked through second.
+  analytics.register({ map: 'harrowmere', map_name: HARROWMERE.name, world_state: 'whole' });
+  analytics.track(EV.MAP_ENTERED, {
+    map: 'harrowmere', map_name: HARROWMERE.name, spawn: 'default', via: 'boot',
+    party_level: Math.round(game.party.averageLevel()), play_seconds: 0, danger: 0,
+  });
+  analytics.track(EV.MAP_FIRST_SEEN, { map: 'harrowmere', map_name: HARROWMERE.name, via: 'boot' });
+
+  game.currentMapId = 'harrowmere';
+  game.currentMapName = HARROWMERE.name;
+  game.setState(game._wireField(new FieldState(game, { mapDef: HARROWMERE, spawn: 'default' })));
+  game._applyPendingState();
+}
+
 async function boot() {
   const bootStarted = performance.now();
   const canvas = document.getElementById('view');
@@ -845,33 +893,6 @@ async function boot() {
   game.dialogue = new DialogueBox(game.uiRoot);
   game.menu = new MenuSystem(game);
 
-  // Starting party, geared and taught enough magic to make combat interesting
-  // from the first fight.
-  const equip = (member, ids) => {
-    for (const id of ids) {
-      const item = ITEMS[id];
-      if (item) member.equipment[item.slot] = item;
-    }
-    member.fullRestore();
-  };
-  const vesna = game.party.recruit('vesna', 6);
-  equip(vesna, ['ironsword', 'travelvest', 'leathercap']);
-  for (const s of ['ember', 'rime', 'spark', 'mend', 'dimming']) vesna.learnSpell(s);
-
-  const corvin = game.party.recruit('corvin', 6);
-  equip(corvin, ['boltdirk', 'travelvest', 'leathercap', 'woodshield']);
-
-  const wick = game.party.recruit('wick', 6);
-  equip(wick, ['ashrod', 'silkrobe', 'leathercap']);
-  for (const s of ['mend', 'cleanse', 'renewal', 'wardflesh', 'scan']) wick.learnSpell(s);
-
-  game.party.addItem('potion', 5);
-  game.party.addItem('antidote', 2);
-  game.party.addItem('tonic', 2);
-  // One esper to start, so the progression system is legible from the outset.
-  game.party.espers.add('emberwake');
-  vesna.esper = ESPERS.emberwake;
-
   status.textContent = 'Waking the world…';
   fill.style.width = '100%';
 
@@ -879,39 +900,15 @@ async function boot() {
     boot_seconds: (performance.now() - bootStarted) / 1000,
     quality: game.config?.quality ?? null,
   });
-  analytics.track(EV.GAME_STARTED, { start_level: 6, party: game.party.active });
 
-  // The opening map is set directly rather than through `gotoMap`, so it needs
-  // its own event — without it every session's first map is missing and the
-  // funnel starts at whatever door the player walked through second.
-  analytics.register({ map: 'harrowmere', map_name: HARROWMERE.name, world_state: 'whole' });
-  analytics.track(EV.MAP_ENTERED, {
-    map: 'harrowmere', map_name: HARROWMERE.name, spawn: 'default', via: 'boot',
-    party_level: Math.round(game.party.averageLevel()), play_seconds: 0, danger: 0,
-  });
-  analytics.track(EV.MAP_FIRST_SEEN, { map: 'harrowmere', map_name: HARROWMERE.name, via: 'boot' });
-
-  game.setState(game._wireField(new FieldState(game, { mapDef: HARROWMERE, spawn: 'default' })));
-
-  // The Prelude holds until the player actually moves.
-  //
-  // Entering the field queues Harrowmere's theme, which would mean the first
-  // thing anyone ever hears is a village tune under a village they have not
-  // looked at yet. Overriding it here and swapping on the first step gives the
-  // opening the beat it was written for: harp and choir over a still screen,
-  // and the world starts when the player decides it does.
-  game.playMusic('prelude', { fade: 2.0 });
-  const openingSwap = () => {
-    window.removeEventListener('keydown', openingSwap);
-    window.removeEventListener('pointerdown', openingSwap);
-    setTimeout(() => {
-      const map = game.state?.mapDef;
-      if (map?.music) game.playMusic(map.music, { fade: 2.2 });
-    }, 1600);
-  };
-  window.addEventListener('keydown', openingSwap);
-  window.addEventListener('pointerdown', openingSwap);
-
+  // Boot ends at the title, not in the field. The game used to start a fresh
+  // campaign on every load, and the only way to reach a save was to start a
+  // new game over the top of it and open the menu from inside.
+  game.setState(new TitleState(game, {
+    mapDef: HARROWMERE,
+    onNewGame: () => startNewCampaign(game),
+    onLoad: (data) => game.loadFrom(data),
+  }));
   game.start();
 
   // Debug hook so combat can be exercised without walking to an encounter.

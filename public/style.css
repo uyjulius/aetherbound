@@ -605,3 +605,140 @@ html, body {
 .beast-weak   { color: #ff9d63; }
 .beast-resist { color: #9aa2b8; }
 .beast-absorb { color: #8ce07a; }
+
+
+/* ==========================================================================
+   Title screen
+   ========================================================================== */
+
+#title-layer {
+  position: absolute;
+  inset: 0;
+  z-index: 40;
+  display: grid;
+  grid-template-rows: minmax(calc(30 * var(--u)), 0.55fr) auto 1fr auto auto;
+  justify-items: center;
+  align-items: center;
+  pointer-events: none;
+  /* A vignette so the wordmark sits on the scene without a panel behind it. */
+  background:
+    radial-gradient(ellipse 90% 70% at 50% 42%, transparent 45%, rgba(4,6,15,.42) 100%),
+    linear-gradient(180deg, rgba(4,6,15,.30), transparent 30%, transparent 62%, rgba(4,6,15,.55));
+  animation: title-in 2.4s ease-out both;
+}
+@keyframes title-in { from { opacity: 0; } to { opacity: 1; } }
+
+.title-block {
+  grid-row: 2;
+  display: grid;
+  justify-items: center;
+  gap: calc(6 * var(--u));
+  padding: calc(18 * var(--u)) calc(40 * var(--u)) calc(14 * var(--u));
+  background: radial-gradient(ellipse 62% 78% at 50% 46%, rgba(4,6,15,.52), transparent 78%);
+}
+
+.title-star {
+  width: calc(74 * var(--u));
+  height: calc(74 * var(--u));
+  filter: drop-shadow(0 0 calc(18 * var(--u)) rgba(63,198,214,.55));
+  animation: title-star-breathe 6s ease-in-out infinite;
+}
+@keyframes title-star-breathe {
+  0%, 100% { transform: translateY(0); filter: drop-shadow(0 0 calc(14 * var(--u)) rgba(63,198,214,.45)); }
+  50%      { transform: translateY(calc(-4 * var(--u))); filter: drop-shadow(0 0 calc(26 * var(--u)) rgba(150,240,245,.7)); }
+}
+
+/* SVG text, because a CSS gradient clipped to glyphs goes black the moment a
+   filter is involved — which the screenshot duly showed. */
+.title-word-svg {
+  width: min(calc(620 * var(--u)), 86vw);
+  height: auto;
+  overflow: visible;
+  filter:
+    drop-shadow(0 calc(3 * var(--u)) calc(2 * var(--u)) rgba(4,8,24,.85))
+    drop-shadow(0 0 calc(24 * var(--u)) rgba(63,198,214,.45));
+}
+.title-word {
+  font-family: var(--font-display);
+  font-size: 76px;
+  letter-spacing: .26em;
+}
+
+.title-rule {
+  display: flex;
+  align-items: center;
+  gap: calc(10 * var(--u));
+  margin-top: calc(-2 * var(--u));
+}
+.title-rule span {
+  display: block;
+  width: calc(90 * var(--u));
+  height: 1px;
+  background: linear-gradient(90deg, transparent, rgba(216,172,49,.75));
+}
+.title-rule span:last-child { transform: scaleX(-1); }
+.title-rule em {
+  font-style: normal;
+  font-size: calc(12 * var(--u));
+  letter-spacing: .34em;
+  text-indent: .34em;
+  color: rgba(233,226,200,.85);
+  text-transform: lowercase;
+  white-space: nowrap;
+}
+
+.title-menu {
+  grid-row: 4;
+  align-self: end;
+  margin-bottom: calc(30 * var(--u));
+  display: grid;
+  gap: calc(6 * var(--u));
+  justify-items: center;
+  pointer-events: auto;
+}
+.title-item {
+  position: relative;
+  padding: calc(6 * var(--u)) calc(26 * var(--u));
+  font-family: var(--font-display);
+  font-size: calc(19 * var(--u));
+  letter-spacing: .22em;
+  text-indent: .22em;
+  color: rgba(244,241,230,.72);
+  cursor: pointer;
+  text-align: center;
+  text-shadow: 0 calc(1 * var(--u)) calc(8 * var(--u)) rgba(4,8,24,.9);
+  transition: color .15s ease;
+}
+.title-item.selected { color: #fdfaf0; }
+.title-item.selected::before,
+.title-item.selected::after {
+  content: '';
+  position: absolute;
+  top: 50%;
+  width: calc(14 * var(--u));
+  height: calc(14 * var(--u));
+  transform: translateY(-50%) rotate(45deg) scale(.5);
+  background: linear-gradient(135deg, #96f0f5, #1a8fa5);
+  box-shadow: 0 0 calc(8 * var(--u)) rgba(63,198,214,.8);
+}
+.title-item.selected::before { left: calc(-2 * var(--u)); }
+.title-item.selected::after  { right: calc(-2 * var(--u)); }
+.title-item-label { display: block; }
+.title-item-hint {
+  display: block;
+  margin-top: calc(2 * var(--u));
+  font-family: var(--font-body, inherit);
+  font-size: calc(10 * var(--u));
+  letter-spacing: .08em;
+  text-indent: 0;
+  color: rgba(191,205,224,.75);
+}
+
+.title-foot {
+  grid-row: 5;
+  justify-self: end;
+  padding: calc(10 * var(--u)) calc(16 * var(--u));
+  font-size: calc(10 * var(--u));
+  letter-spacing: .18em;
+  color: rgba(191,205,224,.5);
+}

@@ -52,7 +52,18 @@ const tap = async (code, wait = 220) => {
 };
 
 // --- boot -------------------------------------------------------------------
+// Boot now ends at the title screen; a fresh campaign is behind New Game.
+await page.waitForFunction(() => window.__game?.state?.newGame || window.__game?.state?.player,
+  null, { timeout: 20000 });
+const title = await page.evaluate(() => {
+  const st = window.__game.state;
+  const shown = !!document.querySelector('#title-layer .title-word');
+  st.newGame?.();
+  return { shown, word: document.querySelector('.title-word')?.textContent ?? null };
+});
 await page.waitForFunction(() => window.__game?.state?.player, null, { timeout: 20000 });
+check('the title screen is the front door', title.shown && title.word === 'AETHERBOUND',
+  title.word ?? 'no title layer');
 const boot = await page.evaluate(() => ({
   map: window.__game.currentMapId,
   party: window.__game.party.activeMembers.map((m) => m.name),

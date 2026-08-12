@@ -216,6 +216,12 @@ export class ControlBar {
    * field, and "Talk" is only the right word for the confirm button there.
    */
   update() {
+    // The title screen has its own two buttons and no game behind it; a bar
+    // offering Menu, Pause and Flee in front of a logo is noise.
+    const onTitle = this.game.state?.isTitle === true;
+    this.el.classList.toggle('hidden', onTitle);
+    if (onTitle) return;
+
     const onField = !!this.game.state?.player;
     const inBattle = !!this.game.state?.enemies;
     for (const [, { el, spec }] of this.buttons) {
