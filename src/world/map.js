@@ -246,6 +246,14 @@ export class CollisionGrid {
     if (slideX) return slideX;
     const slideZ = tryMove(fromX, toZ);
     if (slideZ) return slideZ;
+
+    // Never trap. If the *standing* position is itself illegal — a script
+    // placed someone badly, a collider changed under a saved position, a
+    // ruin variant redrew the ground — then every candidate above fails and
+    // the mover is stuck in every direction forever, with no way out and no
+    // error. A body inside geometry may always walk, so it can escape; it
+    // just cannot use collision to stop, which it has already lost anyway.
+    if (!this.clear(fromX, fromZ, radius)) return { x: toX, z: toZ };
     return { x: fromX, z: fromZ };
   }
 

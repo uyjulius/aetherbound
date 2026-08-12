@@ -1407,6 +1407,63 @@ check('a safe doorway does not', warned.low.home.shown && !warned.low.home.warn,
 check('the warning goes away once you outgrow it', !warned.high.deadly.warn,
   warned.high.deadly.warn ? `lv 93 still warned — ${warned.high.deadly.warn}` : 'silent at lv 93');
 
+// --- escape actually escapes -------------------------------------------------
+//
+// The battle taught "hold both shoulders to run away" and the bottom bar grew
+// a Flee button, and neither has ever worked: the escape hold only accumulated
+// in phase 'active', and in the default wait mode a command menu is open from
+// the moment anyone's gauge fills — so phase was 'menu' almost every frame and
+// no battle could be fled at all. Found while chasing a stuck-controls report.
+const fled = await page.evaluate(async () => {
+  const g = window.__game;
+  g.startBattle(g.encounterTable('siltroad_south'));
+  await new Promise((r) => setTimeout(r, 3000));
+  const bt = g.state;
+  const menuWasOpen = !!bt.ui?.activeMenu;
+  return { menuWasOpen, inBattle: !bt.player };
+});
+await page.keyboard.down('KeyQ');
+await page.keyboard.down('KeyE');
+await page.waitForTimeout(2200);
+await page.keyboard.up('KeyQ');
+await page.keyboard.up('KeyE');
+const fledOut = await page.evaluate(async () => {
+  await new Promise((r) => setTimeout(r, 1200));
+  return { onField: !!window.__game.state.player };
+});
+check('a battle can be fled from the menu', fled.menuWasOpen && fledOut.onField,
+  fled.menuWasOpen ? (fledOut.onField ? 'escaped with the menu open' : 'held both shoulders, still in the fight')
+    : 'menu never opened');
+
+// --- collision never traps ---------------------------------------------------
+//
+// If a body ever ends up standing inside a collider — a script places someone
+// badly, a collider changes under a saved position — every direction used to
+// fail and the game was soft-locked with no error. A body inside geometry may
+// always walk, so it can get out.
+const escaped = await page.evaluate(async () => {
+  const g = window.__game;
+  await g.gotoMap('overworld', 'harrowmere', { viaExit: true });
+  await new Promise((r) => setTimeout(r, 900));
+  const st = g.state;
+  const prop = (st.mapDef.props || []).find((pr) => pr.interact?.event === 'toll_baron');
+  st.player.place(prop.at[0] * 2 - 1.4, prop.at[1] * 2, 0);
+  st.camera.snapTo(st.player.x, st.player.z);
+  const wedged = !st.map.grid.clear(st.player.x, st.player.z, 0.42);
+  const from = { x: st.player.x, z: st.player.z };
+  return { wedged, from };
+});
+await page.keyboard.down('ArrowDown');
+await page.waitForTimeout(1400);
+await page.keyboard.up('ArrowDown');
+const freed = await page.evaluate(() => {
+  const st = window.__game.state;
+  return { x: st.player.x, z: st.player.z, clear: st.map.grid.clear(st.player.x, st.player.z, 0.42) };
+});
+const escapedDist = Math.hypot(freed.x - escaped.from.x, freed.z - escaped.from.z);
+check('a wedged body can walk itself free', escaped.wedged && escapedDist > 1 && freed.clear,
+  escaped.wedged ? `walked ${escapedDist.toFixed(1)}u out, now on clear ground` : 'never wedged');
+
 // --- statuses that exist have to do something --------------------------------
 //
 // Charm, Imp and Float were in the status table, displayed in the UI, granted
@@ -1423,7 +1480,12 @@ const statuses = await page.evaluate(async () => {
   const hero = bt.party[0], foe = bt.enemies[0];
   const out = {};
 
-  out.earthLands = drive(bt.resolvePhysical(foe, hero, { power: 1, element: 'earth' })) > 0;
+  // Several rolls, not one: a single swing can simply miss, and this check is
+  // about the element, not the accuracy table.
+  out.earthLands = false;
+  for (let i = 0; i < 5 && !out.earthLands; i++) {
+    out.earthLands = drive(bt.resolvePhysical(foe, hero, { power: 1, element: 'earth' })) > 0;
+  }
   hero.addStatus('float');
   const hp0 = hero.hp;
   drive(bt.resolvePhysical(foe, hero, { power: 1, element: 'earth' }));

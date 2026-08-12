@@ -289,6 +289,13 @@ export class BattleState {
     }
     if (this.phase === 'active') {
       this._maybeStartTurn();
+    }
+    // Fleeing works with a menu open. It has to: in wait mode a command menu
+    // is up almost every frame — the moment anyone's gauge fills, phase is
+    // 'menu' — so gating this on 'active' meant the escape hold literally
+    // never accumulated and no battle could be fled at all, from the keyboard
+    // or the Flee button alike.
+    if (this.phase === 'active' || this.phase === 'menu') {
       this._handleFleeInput(dt);
     }
     if (this.phase === 'menu' && this.ui.activeMenu) {

@@ -469,6 +469,29 @@ export class FieldState {
         this.player.x + nx * step, this.player.z + nz * step,
         PLAYER_RADIUS);
       const travelled = Math.hypot(to.x - this.player.x, to.z - this.player.z);
+
+      // The stuck detector. A held movement key that moves nobody for three
+      // straight seconds is either a player pinned by a bug or pressing into
+      // a wall and confused about why — and neither is visible from anywhere
+      // else. One event per session, with enough context to reproduce:
+      // this exists because a report of exactly this could not be reproduced
+      // from the outside.
+      if (travelled < 0.005) {
+        this._stuckFor = (this._stuckFor ?? 0) + dt;
+        if (this._stuckFor > 3) {
+          analytics.once('stuck', EV.PLAYER_STUCK, {
+            map: this.mapDef?.id ?? null,
+            x: Math.round(this.player.x * 10) / 10,
+            z: Math.round(this.player.z * 10) / 10,
+            standing_clear: this.map.grid.clear(this.player.x, this.player.z, PLAYER_RADIUS),
+            dir: `${nx.toFixed(2)},${nz.toFixed(2)}`,
+            busy: this.busy, world_state: this.game.party.worldState,
+          });
+        }
+      } else {
+        this._stuckFor = 0;
+      }
+
       this.player.x = to.x;
       this.player.z = to.z;
       this.player.targetFacing = Math.atan2(nx, nz);

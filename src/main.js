@@ -835,6 +835,7 @@ async function boot() {
 
   analytics.init({ version: BUILD }).register({ quality: game.config?.quality ?? null });
   window.__analytics = analytics;
+  window.__input = input;   // debug: the input singleton, for the stuck-controls probes
   analytics.track(EV.APP_LOADED, { load_seconds: performance.now() / 1000 });
 
   // A crash the player hits and never reports is the most expensive kind.

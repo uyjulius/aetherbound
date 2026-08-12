@@ -137,6 +137,7 @@ export const EV = {
   DIALOGUE_SKIPPED: 'Dialogue Skipped',
 
   // --- health -------------------------------------------------------------
+  PLAYER_STUCK: 'Player Stuck',              // movement held, nobody moving
   ERROR_THROWN: 'Error Thrown',
   ASSET_FAILED: 'Asset Failed',
   PERFORMANCE_SAMPLED: 'Performance Sampled',   // periodic fps / draw calls
