@@ -1396,6 +1396,52 @@ check('a safe doorway does not', warned.low.home.shown && !warned.low.home.warn,
 check('the warning goes away once you outgrow it', !warned.high.deadly.warn,
   warned.high.deadly.warn ? `lv 93 still warned — ${warned.high.deadly.warn}` : 'silent at lv 93');
 
+// --- statuses that exist have to do something --------------------------------
+//
+// Charm, Imp and Float were in the status table, displayed in the UI, granted
+// by three learnable spells and guarded against by four relics, and no line of
+// code read any of them. The player paid the MP and spent the turn for nothing.
+// This is the class of bug that never throws and never looks broken, so it
+// gets a check rather than a comment.
+const statuses = await page.evaluate(async () => {
+  const g = window.__game;
+  g.startBattle({ enemies: ['fenrat', 'fenrat'] }, { scenery: 'field' });
+  await new Promise((r) => setTimeout(r, 3000));
+  const bt = g.state;
+  const drive = (gen) => { let r = gen.next(), n = 0; while (!r.done && n++ < 400) r = gen.next(); return r.value; };
+  const hero = bt.party[0], foe = bt.enemies[0];
+  const out = {};
+
+  out.earthLands = drive(bt.resolvePhysical(foe, hero, { power: 1, element: 'earth' })) > 0;
+  hero.addStatus('float');
+  const hp0 = hero.hp;
+  drive(bt.resolvePhysical(foe, hero, { power: 1, element: 'earth' }));
+  out.floatBlocks = hero.hp === hp0;
+  hero.removeStatus('float');
+
+  const avg = () => { let t = 0; for (let i = 0; i < 8; i++) t += drive(bt.resolvePhysical(foe, hero, { power: 1 })); return t / 8; };
+  const normal = avg();
+  foe.addStatus('imp');
+  out.impRatio = avg() / Math.max(1, normal);
+  foe.removeStatus('imp');
+
+  bt.ui.clearMenus();
+  hero.addStatus('charm');
+  bt.activeActor = null;
+  bt._beginPlayerTurn(hero);
+  out.charmActsAlone = !bt.ui.activeMenu;
+  hero.removeStatus('charm');
+  bt.ui.clearMenus();
+  return out;
+});
+check('Float turns earth aside', statuses.earthLands && statuses.floatBlocks,
+  statuses.earthLands ? (statuses.floatBlocks ? 'earth nullified while floating' : 'float did nothing')
+    : 'earth did not land at all');
+check('Imp cripples what it lands on', statuses.impRatio < 0.4,
+  `an imp deals ${(statuses.impRatio * 100).toFixed(0)}% of normal damage`);
+check('Charm takes the turn away', statuses.charmActsAlone === true,
+  statuses.charmActsAlone ? 'no command menu, acted on its own' : 'the player still got their menu');
+
 // --- the airship -------------------------------------------------------------
 const airship = await page.evaluate(async () => {
   const g = window.__game;

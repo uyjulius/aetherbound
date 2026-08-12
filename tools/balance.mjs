@@ -728,6 +728,58 @@ function dataChecks() {
       dead.slice(0, 12).join('; ') + (dead.length > 12 ? `; …and ${dead.length - 12} more` : ''));
   }
 
+  // --- mechanics that exist and do nothing ---------------------------------
+  //
+  // The most expensive kind of bug in a game this size, because it never
+  // throws and never looks broken: a spell the player learns, pays MP for and
+  // spends a turn on, whose effect no line of code reads. Beguile, Wither and
+  // Buoy were all in this state — three spells, and four relics selling
+  // immunity to a status that could not do anything to anybody.
+  const battleCode = fs.readFileSync(path.join(root, 'src/battle/battle.js'), 'utf8');
+  const inflictedBy = new Map();
+  for (const sp of Object.values(SPELLS)) {
+    for (const k of Object.keys(sp.status ?? {})) {
+      if (!inflictedBy.has(k)) inflictedBy.set(k, []);
+      inflictedBy.get(k).push(sp.name);
+    }
+  }
+  for (const it of Object.values(ITEMS)) {
+    for (const k of Object.keys(it.effect?.status ?? {})) {
+      if (!inflictedBy.has(k)) inflictedBy.set(k, []);
+      inflictedBy.get(k).push(it.name);
+    }
+  }
+  const inert = [];
+  for (const [id, def] of Object.entries(STATUSES)) {
+    // A status earns its keep generically if it blocks turns, ticks damage, or
+    // kills on expiry — those are read from the table, not by name.
+    if (def.blocksTurn || def.tick || def.onExpire) continue;
+    if (new RegExp(`['"\`]${id}['"\`]`).test(battleCode)) continue;
+    const from = inflictedBy.get(id);
+    if (from?.length) inert.push(`${def.name} (from ${[...new Set(from)].join(', ')})`);
+  }
+  say(`statuses that can be inflicted and are never read: ${inert.length}`);
+  if (inert.length) {
+    flag('major', 'battles', `${inert.length} statuses can be inflicted and do nothing`,
+      'The spell resolves, the icon appears, the MP is spent, and no code anywhere acts on it: '
+      + inert.join('; '));
+  }
+
+  // The same rot one step downstream: gear sold against a status that cannot
+  // land, which is a purchase the player makes for nothing.
+  const liveStatus = new Set(Object.entries(STATUSES)
+    .filter(([id, d]) => d.blocksTurn || d.tick || d.onExpire
+      || new RegExp(`['"\`]${id}['"\`]`).test(battleCode)).map(([id]) => id));
+  const hollowGear = [];
+  for (const it of Object.values(ITEMS)) {
+    const dead = (it.immune ?? []).filter((st) => !liveStatus.has(st));
+    if (dead.length && dead.length === (it.immune ?? []).length) hollowGear.push(`${it.name} (${dead.join(', ')})`);
+  }
+  if (hollowGear.length) {
+    flag('minor', 'battles', `${hollowGear.length} items sell immunity only to statuses that do nothing`,
+      hollowGear.join('; '));
+  }
+
   // --- enemies whose whole script is one plain attack -----------------------
   const plain = Object.values(ENEMIES).filter((e) => {
     const rules = e.ai ?? [];
@@ -738,6 +790,30 @@ function dataChecks() {
     flag('minor', 'battles', `${plain.length} of ${Object.keys(ENEMIES).length} enemies only ever swing`,
       'Nothing to read, nothing to counter — these fights resolve identically every time. '
       + plain.slice(0, 8).map((e) => e.name).join(', ') + '…');
+  }
+
+  // --- does the cast still differ from itself at the end? -------------------
+  //
+  // A stat that stops counting is a stat that stops being a decision, and the
+  // symptom is that the specialists converge. Four mages casting the same
+  // number is the same defect as fifty-three creatures with the same armour.
+  const mages = CAST_ORDER.filter((id) => CHARACTERS[id].innateMagic);
+  const casts = mages.map((id) => ({
+    id, name: CHARACTERS[id].name,
+    dmg: magicDamage({
+      casterLevel: 85, magic: statAt(id, 'mag', 85), spellPower: 120,
+      magicDefence: 150, variance: false,
+    }),
+  })).sort((a, b) => b.dmg - a.dmg);
+  const spread = casts[0].dmg / casts[casts.length - 1].dmg;
+  say(`the ${casts.length} casters at level 85: `
+    + casts.map((c) => `${c.name} ${c.dmg}`).join(', '));
+  say(`spread between best and worst caster: ${((spread - 1) * 100).toFixed(0)}%`);
+  if (spread < 1.04) {
+    flag('major', 'scaling', 'Every caster in the party casts for the same number',
+      `Only ${((spread - 1) * 100).toFixed(0)}% separates the best from the worst at level 85, so `
+      + 'the magic stat has stopped counting — which means level-ups, rods and magic relics all '
+      + 'stop buying anything, and the mages of the cast are mechanically the same character.');
   }
 
   // --- healing items that stop mattering -----------------------------------

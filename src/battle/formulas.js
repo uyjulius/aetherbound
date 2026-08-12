@@ -99,10 +99,23 @@ function throughDefence(dmg, defence, ignore = 0) {
  *
  * Both damage formulas take level *and* a stat that itself grows with level.
  * Left unbounded that is cubic growth, which is how magic came to outdamage
- * steel by a hundred to one at level 85. Saturating the stat leaves the level
+ * steel by a hundred to one at level 85. Softening the stat leaves the level
  * term as the only compounding one, and puts both schools on the same curve.
+ *
+ * It *softens*, it does not clamp. The first version took `min(128, magic)`
+ * and that was the defence cap's mistake made twice: every mage in the cast
+ * passes 128 around level 33, so from a third of the way into the game
+ * Ilsabet, Vesna, Wick and Kestrel all cast for exactly the same number, and
+ * every point of magic on a level-up, a rod or a relic bought nothing. A stat
+ * that stops counting is a stat that stops being a decision.
  */
 const MAGIC_SOFT = 128;
+const MAGIC_SLOPE = 0.35;
+
+function effectiveMagic(magic) {
+  const m = Math.max(1, magic);
+  return m <= MAGIC_SOFT ? m : MAGIC_SOFT + (m - MAGIC_SOFT) * MAGIC_SLOPE;
+}
 
 /**
  * Physical damage, for a member of the party.
@@ -187,8 +200,11 @@ export function magicDamage({
   casterLevel, magic, spellPower, magicDefence,
   multiplier = 1, variance = true,
 }) {
-  const mag = Math.min(MAGIC_SOFT, Math.max(1, magic));
-  const base = spellPower * 1.5 + Math.floor((casterLevel * mag * spellPower) / 208);
+  const mag = effectiveMagic(magic);
+  // The divisor is set against the old flat cap so a mid-range caster's output
+  // is unchanged; what moves is that a dedicated mage is now ahead of a
+  // dabbler, and magic gear does something again.
+  const base = spellPower * 1.5 + Math.floor((casterLevel * mag * spellPower) / 257);
   let dmg = Math.floor(base * multiplier);
   dmg = throughDefence(dmg, magicDefence);
   if (variance) dmg = applyVariance(dmg);
@@ -201,8 +217,8 @@ export function magicDamage({
  * pass through, the same numbers would restore several health bars a cast.
  */
 export function healAmount({ casterLevel, magic, spellPower, multiplier = 1 }) {
-  const mag = Math.min(MAGIC_SOFT, Math.max(1, magic));
-  const base = spellPower * 4 + Math.floor((casterLevel * mag * spellPower) / 1100);
+  const mag = effectiveMagic(magic);
+  const base = spellPower * 4 + Math.floor((casterLevel * mag * spellPower) / 1360);
   return Math.max(1, applyVariance(Math.floor(base * multiplier)));
 }
 

@@ -350,6 +350,20 @@ export class BattleState {
       this._commitAction({ actor, kind: 'attack', targets: [rng.battle.pick(t)] });
       return;
     }
+    // Charmed: fighting for the other side, and meaning it.
+    //
+    // Beguile has been in the spell list from the beginning, costs 16 MP, and
+    // did nothing at all — `charm` was in the status table, the UI displayed
+    // it, four relics sold immunity to it, and no line of code anywhere read
+    // it. Confuse hits either side at random; charm always hits your own,
+    // which is what makes it worth the extra MP.
+    if (actor.hasStatus('charm')) {
+      const own = this.party.filter((c) => !c.isKO && c !== actor);
+      if (own.length) {
+        this._commitAction({ actor, kind: 'attack', targets: [rng.battle.pick(own)] });
+        return;
+      }
+    }
     this._openCommandMenu(actor);
   }
 
@@ -357,7 +371,9 @@ export class BattleState {
     const items = [
       { label: 'Attack', cmd: 'attack' },
       { label: commandLabel(actor.def.command), cmd: actor.def.command },
-      { label: 'Magic', cmd: 'magic', disabled: actor.hasStatus('silence') || !this._spellsFor(actor).length },
+      { label: 'Magic', cmd: 'magic',
+        disabled: actor.hasStatus('silence') || actor.hasStatus('imp')
+          || !this._spellsFor(actor).length },
       { label: 'Item', cmd: 'item' },
       { label: 'Defend', cmd: 'defend' },
       { label: actor.row === 'front' ? 'Row: Front' : 'Row: Back', cmd: 'row' },
@@ -744,6 +760,24 @@ export class BattleState {
   _beginEnemyTurn(enemy) {
     this.activeActor = enemy;
     enemy.aiTurn++;
+    // A charmed creature fights its own side; a confused one swings at random.
+    // Without this the player's Beguile and Addle were decoration on anything
+    // that was not immune to them, which is most of the bestiary.
+    if (enemy.hasStatus('charm')) {
+      const own = this.enemies.filter((e) => !e.isKO && e !== enemy);
+      if (own.length) {
+        this._commitAction({ actor: enemy, kind: 'attack', targets: [rng.battle.pick(own)] });
+        return;
+      }
+    }
+    if (enemy.hasStatus('confuse')) {
+      const pool = rng.battle.next() < 0.5 ? this.enemies : this.party;
+      const live = pool.filter((c) => !c.isKO && c !== enemy);
+      if (live.length) {
+        this._commitAction({ actor: enemy, kind: 'attack', targets: [rng.battle.pick(live)] });
+        return;
+      }
+    }
     const action = this._evaluateAI(enemy);
     this._commitAction(action);
   }
@@ -965,8 +999,13 @@ export class BattleState {
 
     // Tam's Quarry marks a target for the whole party, not just for Tam.
     const quarry = target._quarry ? 1.25 : 1;
-    const defence = target.hasStatus('protect') ? Math.floor(target.defence * 1.6) : target.defence;
-    const multiplier = power * (actor.hasStatus('berserk') ? 1.25 : 1) * quarry;
+    let defence = target.hasStatus('protect') ? Math.floor(target.defence * 1.6) : target.defence;
+    // Imp. Wither has cost 12 MP for nothing since the spell list was written:
+    // the status was inflicted, shown in the UI, and read by no one. An imp
+    // can barely hit and can barely take one, which is the whole joke.
+    if (target.hasStatus('imp')) defence = Math.floor(defence * 0.35);
+    const multiplier = power * (actor.hasStatus('berserk') ? 1.25 : 1) * quarry
+      * (actor.hasStatus('imp') ? 0.25 : 1);
 
     // The two sides do not share a damage curve. A party member's output has
     // to climb from rats to a boss with eighty thousand hit points; a
@@ -992,7 +1031,8 @@ export class BattleState {
         ignoreDefence,
       });
 
-    const mult = elementalMultiplier(element, target.affinity);
+    let mult = elementalMultiplier(element, target.affinity);
+    if (element === 'earth' && target.hasStatus('float')) mult = 0;
     dmg = Math.round(dmg * Math.abs(mult));
     this._trackAffinity(actor, target, element, mult);
 
@@ -1209,7 +1249,11 @@ export class BattleState {
           level: actor.level, power: casterMag, defence: mdef,
           multiplier: spell.power / MONSTER_SPELL_REFERENCE,
         });
-      const mult = elementalMultiplier(spell.element, target.affinity);
+      let mult = elementalMultiplier(spell.element, target.affinity);
+      // Buoy grants Float and Float did nothing, so a 14 MP party-wide buff
+      // was a no-op — and `upheaval`'s own `ignores: 'float'` note, written to
+      // be the exception, had no rule to be an exception to.
+      if (spell.element === 'earth' && target.hasStatus('float') && spell.ignores !== 'float') mult = 0;
       dmg = Math.round(dmg * Math.abs(mult));
       this._trackAffinity(actor, target, spell.element, mult, spell.id);
       if (mult < 0) {
