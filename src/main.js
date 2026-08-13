@@ -836,6 +836,18 @@ async function boot() {
   analytics.init({ version: BUILD }).register({ quality: game.config?.quality ?? null });
   window.__analytics = analytics;
   window.__input = input;   // debug: the input singleton, for the stuck-controls probes
+  // One line for a stuck player to run in the console and paste back.
+  window.__diag = () => {
+    const st = game.state;
+    return JSON.stringify({
+      state: st?.constructor?.name, map: game.currentMapId,
+      player: st?.player ? { x: +st.player.x.toFixed(1), z: +st.player.z.toFixed(1) } : null,
+      standing_clear: st?.player ? st.map.grid.clear(st.player.x, st.player.z, 0.42) : null,
+      busy: st?.busy, paused: st?.paused, suspended: st?.suspended,
+      game_paused: game.paused, menu_open: game.menu?.open,
+      input: input.diagnose(),
+    });
+  };
   analytics.track(EV.APP_LOADED, { load_seconds: performance.now() / 1000 });
 
   // A crash the player hits and never reports is the most expensive kind.

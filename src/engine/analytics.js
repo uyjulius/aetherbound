@@ -138,6 +138,7 @@ export const EV = {
 
   // --- health -------------------------------------------------------------
   PLAYER_STUCK: 'Player Stuck',              // movement held, nobody moving
+  PLAYER_UNSTUCK: 'Player Unstuck',          // …and what fixed it
   ERROR_THROWN: 'Error Thrown',
   ASSET_FAILED: 'Asset Failed',
   PERFORMANCE_SAMPLED: 'Performance Sampled',   // periodic fps / draw calls

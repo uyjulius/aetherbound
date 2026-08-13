@@ -183,6 +183,43 @@ class InputManager {
     setTimeout(() => this.virtualRelease(action), holdMs);
   }
 
+  /**
+   * A snapshot of everything that decides whether movement works.
+   *
+   * Attached to the Player Stuck telemetry, because a stuck report from the
+   * field arrived that no reproduction could explain: every externally
+   * visible flag was clean and the character still would not move. If it is
+   * input-state corruption, this is the state that will show it.
+   */
+  diagnose() {
+    return {
+      down: [...this.down].join(','),
+      raw: [...this._rawDown].join(','),
+      virtual: [...this._virtualDown].join(','),
+      latched: [...this._latched].join(','),
+      axis_x: this.axis.x, axis_y: this.axis.y,
+      enabled: this.enabled,
+    };
+  }
+
+  /**
+   * Rebuild the action state from what is physically true.
+   *
+   * `down` becomes exactly what the held keys and latches imply, and any
+   * virtual press that has outlived its pointer is dropped — a stuck
+   * on-screen button must not hold an action forever. Called by the field's
+   * stuck watchdog, never in normal play, so a player whose input state has
+   * somehow rotted gets it back after three seconds instead of never.
+   */
+  resync() {
+    this._virtualDown.clear();
+    this.down.clear();
+    for (const code of this._rawDown) {
+      for (const a of this.keyToActions.get(code) || []) this.down.add(a);
+    }
+    for (const a of this._latched) this.down.add(a);
+  }
+
   /** Call once per frame, before game logic. */
   poll(now) {
     // Swap in everything that arrived since the last frame.

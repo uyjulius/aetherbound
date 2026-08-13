@@ -395,6 +395,7 @@ export class FieldState {
 
   update(dt, game) {
     if (this.paused) return;
+    this._watchdog(dt, game);
     const r = game.renderer;
 
     // The field menu suspends exploration entirely while it's open.
@@ -447,6 +448,77 @@ export class FieldState {
     if (this.map.sky) this.map.sky.position.copy(r.camera.position);
   }
 
+  /**
+   * The stuck watchdog.
+   *
+   * A held movement key that moves nobody for three straight seconds is a
+   * player trapped by *something* — a wall they cannot read, a wedged body, a
+   * cutscene flag that never cleared, corrupted input state — and a report of
+   * exactly this arrived from the field twice while fourteen reproduction
+   * attempts here came back clean. So the game now does the two things a
+   * debugger cannot do remotely: it phones home the entire relevant state at
+   * the moment it happens, and then it heals what it safely can. Input state
+   * is rebuilt from the physically held keys; if the ground underfoot is
+   * illegal, the collision escape (see grid.resolve) is already letting them
+   * walk out. If movement returns inside two seconds, that gets reported too
+   * — with what fixed it, which is the root cause by another name.
+   */
+  _watchdog(dt, game) {
+    const mv = input.moveVector();
+    // "Wants to move" is judged on the raw action state, not the composed
+    // vector: a phantom held direction — input state that has rotted — can
+    // exactly cancel a real keypress, leaving moveVector at zero while the
+    // player is pressing a key and going nowhere. That case is precisely the
+    // one this watchdog exists for, so it must not be blind to it.
+    const held = ['up', 'down', 'left', 'right'].filter((a) => input.isDown(a));
+    const wants = held.length > 0 || Math.abs(mv.x) > 0.01 || Math.abs(mv.y) > 0.01;
+    const px = this.player?.x ?? 0, pz = this.player?.z ?? 0;
+    const moved = Math.hypot(px - (this._wdX ?? px), pz - (this._wdZ ?? pz));
+    this._wdX = px; this._wdZ = pz;
+
+    if (!wants || this.vehicle) { this._wdFor = 0; return; }
+    if (moved > 0.01) {
+      // Movement is back: close the episode and re-arm. A watchdog that can
+      // only ever fire once per session leaves the second stuck of the night
+      // unhealed — and a smoke run proved it, when an early trip left a later
+      // corruption untreated.
+      if (this._wdFired) {
+        analytics.track(EV.PLAYER_UNSTUCK, {
+          map: this.mapDef?.id ?? null,
+          after_seconds: Math.round((this._wdFor ?? 0) * 10) / 10,
+          fixed_by: this._wdResynced ? 'resync' : 'unknown',
+        });
+        this._wdFired = false;
+        this._wdResynced = false;
+      }
+      this._wdFor = 0;
+      return;
+    }
+
+    this._wdFor = (this._wdFor ?? 0) + dt;
+    // Rate-limited per session, not once per session: each episode fires one
+    // report and one heal, and a fourth episode stays quiet on the wire.
+    if (this._wdFor > 3 && !this._wdFired && (this._wdEpisodes ?? 0) < 3) {
+      this._wdFired = true;
+      this._wdEpisodes = (this._wdEpisodes ?? 0) + 1;
+      analytics.track(EV.PLAYER_STUCK, {
+        map: this.mapDef?.id ?? null,
+        x: Math.round(px * 10) / 10, z: Math.round(pz * 10) / 10,
+        standing_clear: this.map.grid.clear(px, pz, PLAYER_RADIUS),
+        dir: `${mv.x.toFixed(2)},${mv.y.toFixed(2)}`, held: held.join(','),
+        busy: this.busy, menu_open: game.menu?.open === true,
+        suspended: this.suspended, world_state: this.game.party.worldState,
+        play_seconds: Math.round(this.game.party.playTime),
+        ...input.diagnose(),
+      });
+      // Heal what can be healed without stepping on a live cutscene.
+      if (!this.busy && !game.menu?.open) {
+        input.resync();
+        this._wdResynced = true;
+      }
+    }
+  }
+
   _updatePlayer(dt) {
     const mv = input.moveVector();
     const running = input.isDown('run');
@@ -469,29 +541,6 @@ export class FieldState {
         this.player.x + nx * step, this.player.z + nz * step,
         PLAYER_RADIUS);
       const travelled = Math.hypot(to.x - this.player.x, to.z - this.player.z);
-
-      // The stuck detector. A held movement key that moves nobody for three
-      // straight seconds is either a player pinned by a bug or pressing into
-      // a wall and confused about why — and neither is visible from anywhere
-      // else. One event per session, with enough context to reproduce:
-      // this exists because a report of exactly this could not be reproduced
-      // from the outside.
-      if (travelled < 0.005) {
-        this._stuckFor = (this._stuckFor ?? 0) + dt;
-        if (this._stuckFor > 3) {
-          analytics.once('stuck', EV.PLAYER_STUCK, {
-            map: this.mapDef?.id ?? null,
-            x: Math.round(this.player.x * 10) / 10,
-            z: Math.round(this.player.z * 10) / 10,
-            standing_clear: this.map.grid.clear(this.player.x, this.player.z, PLAYER_RADIUS),
-            dir: `${nx.toFixed(2)},${nz.toFixed(2)}`,
-            busy: this.busy, world_state: this.game.party.worldState,
-          });
-        }
-      } else {
-        this._stuckFor = 0;
-      }
-
       this.player.x = to.x;
       this.player.z = to.z;
       this.player.targetFacing = Math.atan2(nx, nz);

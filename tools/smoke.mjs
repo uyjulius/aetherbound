@@ -1407,6 +1407,46 @@ check('a safe doorway does not', warned.low.home.shown && !warned.low.home.warn,
 check('the warning goes away once you outgrow it', !warned.high.deadly.warn,
   warned.high.deadly.warn ? `lv 93 still warned — ${warned.high.deadly.warn}` : 'silent at lv 93');
 
+// --- the stuck watchdog heals ------------------------------------------------
+//
+// A field report — "after a battle I cannot move" — that fourteen local
+// reproductions could not trigger. The game now watches for held movement
+// that moves nobody, reports the whole input state, and rebuilds that state
+// from the physically held keys. This drives the exact corruption class the
+// watchdog exists for and expects to be walking again within four seconds.
+const healed = await page.evaluate(async () => {
+  const g = window.__game;
+  if (!g.state.player) return { skip: true };
+  // Open ground first: in a town the phantom's own auto-walk hits a wall and
+  // muddies the measurement.
+  await g.gotoMap('overworld', 'harrowmere', { viaExit: true });
+  await new Promise((r) => setTimeout(r, 900));
+  return { skip: false };
+});
+if (!healed.skip) {
+  // Phantom and real key in the same breath, and the start position captured
+  // only after both are down — the first version measured the phantom's
+  // solo auto-walk during the gap and called it a heal.
+  await page.keyboard.down('ArrowDown');
+  const start = await page.evaluate(() => {
+    window.__input.down.add('up');           // now the two cancel: mv = 0
+    const st = window.__game.state;
+    return { x: st.player.x, z: st.player.z };
+  });
+  await page.waitForTimeout(4600);           // watchdog: fire at 3s, resync
+  await page.keyboard.up('ArrowDown');
+  const after = await page.evaluate(() => ({
+    x: window.__game.state.player.x, z: window.__game.state.player.z,
+    down: [...window.__input.down].join(','),
+    episodes: window.__game.state._wdEpisodes ?? 0,
+  }));
+  const dist = Math.hypot(after.x - start.x, after.z - start.z);
+  await page.evaluate(() => window.__input.resync());
+check('the stuck watchdog heals rotted input', dist > 0.5,
+    dist > 0.5 ? `phantom cleared, walked ${dist.toFixed(1)}u after the heal`
+      : `still pinned (down=${after.down}, episodes=${after.episodes})`);
+}
+
 // --- escape actually escapes -------------------------------------------------
 //
 // The battle taught "hold both shoulders to run away" and the bottom bar grew
@@ -1417,10 +1457,14 @@ check('the warning goes away once you outgrow it', !warned.high.deadly.warn,
 const fled = await page.evaluate(async () => {
   const g = window.__game;
   g.startBattle(g.encounterTable('siltroad_south'));
-  await new Promise((r) => setTimeout(r, 3000));
-  const bt = g.state;
-  const menuWasOpen = !!bt.ui?.activeMenu;
-  return { menuWasOpen, inBattle: !bt.player };
+  // Wait for a command menu rather than sampling one instant — the gauge
+  // takes a variable moment to fill and a fixed 3s sample was flaky.
+  let menuWasOpen = false;
+  for (let t = 0; t < 40 && !menuWasOpen; t++) {
+    await new Promise((r) => setTimeout(r, 250));
+    menuWasOpen = !!g.state?.ui?.activeMenu;
+  }
+  return { menuWasOpen, inBattle: !g.state.player };
 });
 await page.keyboard.down('KeyQ');
 await page.keyboard.down('KeyE');
