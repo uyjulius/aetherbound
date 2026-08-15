@@ -980,14 +980,14 @@ export const VOL4_ENEMIES = {
   thelongbarrow: {
     id: 'thelongbarrow', name: 'The Long Barrow', level: 58, boss: true,
     look: { plan: 'plant', scale: 2.0, color: '#4b382d', accent: '#2b2933', eyeColor: '#dbc891' },
-    stats: { hp: 30000, mp: 800, atk: 469, def: 200, mag: 294, mdef: 196, spd: 24, eva: 4, lck: 10 },
+    stats: { hp: 30000, mp: 800, atk: 445, def: 200, mag: 294, mdef: 196, spd: 24, eva: 4, lck: 10 },
     affinity: { fire: 'weak', earth: 'absorb', shadow: 'absorb', poison: 'immune' },
     immune: ['ko', 'stone', 'sleep', 'stop', 'doom', 'poison', 'venom', 'confuse', 'charm', 'zombie'],
     exp: 13800, gold: 16500, drops: [{ id: 'gravewardknot', chance: 1.0 }],
     steal: [{ id: 'ninthcrown', chance: 0.06 }, { id: 'megalixir', chance: 0.4 }],
     intro: 'Nine hundred of them lengthways, and room yet.',
     ai: [
-      { if: 'hpBelow', v: 0.15, phase: 4, do: { kind: 'attack', name: 'Everyone Fits', power: 3.0, target: 'all' } },
+      { if: 'hpBelow', v: 0.15, phase: 4, do: { kind: 'attack', name: 'Everyone Fits', power: 2.8, target: 'all' } },
       { if: 'hpBelow', v: 0.35, phase: 3, do: { kind: 'attack', name: 'Take The Whole Row', power: 2.4, target: 'all', drain: true } },
       { if: 'hpBelow', v: 0.7, phase: 2, do: { kind: 'spell', spell: 'blight', target: 'all' } },
       { if: 'turnEvery', n: 5, do: { kind: 'spell', spell: 'ossify' } },
@@ -1215,8 +1215,14 @@ export const VOL4_ENEMIES = {
     id: 'theoverwind', name: 'The Overwind', level: 85, boss: true,
     // The pinnacle of the volume, and the only thing in four books faster than
     // the Far Runner. Everything it does, it does before you do.
+    //
+    // Also the peak of the whole ledger, enforced by the balance audit: the
+    // finale has to cost an unprepared party more of its health than almost
+    // anything on the road to it, or forty hours point at an anticlimax. It
+    // was shipped at atk 661 costing 40% of a party's bar — easier than six
+    // mid-game bosses — which is the difficulty curve ending upside down.
     look: { plan: 'humanoid', scale: 2.0, color: '#dedbe0', accent: '#241636', metal: '#d63fb3', weapon: 'staff', horns: true, eyeColor: '#8a5ce0', eyeCount: 3 },
-    stats: { hp: 82000, mp: 1800, atk: 661, def: 200, mag: 388, mdef: 200, spd: 120, eva: 30, lck: 32 },
+    stats: { hp: 92000, mp: 1800, atk: 740, def: 200, mag: 430, mdef: 200, spd: 120, eva: 30, lck: 32 },
     affinity: { wind: 'absorb', aether: 'absorb', shadow: 'absorb', holy: 'weak', earth: 'weak' },
     immune: ['ko', 'stone', 'sleep', 'stop', 'slow', 'doom', 'confuse', 'charm', 'poison', 'blind', 'berserk', 'paralysis', 'freeze'],
     exp: 36000, gold: 46000, drops: [{ id: 'overwindband', chance: 1.0 }, { id: 'megalixir', chance: 1.0 }],
@@ -1230,8 +1236,8 @@ export const VOL4_ENEMIES = {
       { if: 'hasStatus', status: 'silence', do: { kind: 'attack', name: 'By Hand, Then, And Faster', power: 3.0, target: 'all' } },
       { if: 'turnEvery', n: 5, do: { kind: 'spell', spell: 'severance' } },
       { if: 'turnEvery', n: 4, do: { kind: 'spell', spell: 'halve' } },
-      { if: 'turnEvery', n: 3, do: { kind: 'attack', name: 'Three To Your One', power: 2.4, target: 'all' } },
-      { if: 'always', do: { kind: 'attack', name: 'Ahead Of You', power: 2.0 } },
+      { if: 'turnEvery', n: 3, do: { kind: 'attack', name: 'Three To Your One', power: 2.7, target: 'all' } },
+      { if: 'always', do: { kind: 'attack', name: 'Ahead Of You', power: 2.3 } },
     ],
   },
 };

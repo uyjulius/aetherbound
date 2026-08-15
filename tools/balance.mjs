@@ -32,6 +32,7 @@ import {
   monsterDamage, MONSTER_SPELL_REFERENCE, effectiveDefence, goldShare, GOLD_RATE,
 } from '../src/battle/formulas.js';
 import { RNG } from '../src/engine/rng.js';
+import { PACING } from '../src/battle/pacing.js';
 import * as legendModule from '../src/world/map.js';
 import { dangerNote, dangerOf } from '../src/world/danger.js';
 import fs from 'node:fs';
@@ -41,7 +42,8 @@ import { fileURLToPath } from 'node:url';
 const root = path.dirname(fileURLToPath(new URL('../package.json', import.meta.url)));
 const args = process.argv.slice(2);
 const only = (flag) => args.includes(flag);
-const runAll = !only('--sim') && !only('--data') && !only('--quests') && !only('--reach');
+const runAll = !only('--sim') && !only('--data') && !only('--quests') && !only('--reach')
+  && !only('--boss');
 
 const findings = [];
 function flag(severity, area, title, detail) {
@@ -375,7 +377,7 @@ const ACTION_TIME = 1.1;            // roughly what the animations cost
  * for perfect play tells you nothing about the game most people will meet.
  */
 function simulateBattle(party, enemyIds, {
-  battleSpeed = 3, healAt = 0.4, useMagic = true, allowHeal = true,
+  battleSpeed = 3, healAt = 0.4, useMagic = true, allowHeal = true, items = null,
 } = {}) {
   const foes = enemyIds.map((id, i) => ENEMIES[id] ? new SimEnemy(ENEMIES[id], i) : null).filter(Boolean);
   if (!foes.length) return null;
@@ -453,6 +455,29 @@ function simulateBattle(party, enemyIds, {
         hurt.hp = Math.min(hurt.maxHP, hurt.hp + amount);
         return;
       }
+      // No spell, or no MP left for it: the bag. For years of this audit the
+      // bag did not exist, which measured a party poorer than any party that
+      // ever walks into a boss room — and, more to the point, made consumable
+      // prices invisible to the one tool whose job is the economy. An item
+      // costs the turn, exactly as it does in battle.js.
+      if (items) {
+        for (const id of ['xpotion', 'hipotion', 'potion']) {
+          if (items[id] > 0) {
+            items[id]--;
+            hurt.hp = Math.min(hurt.maxHP, hurt.hp + ITEMS[id].effect.heal);
+            return;
+          }
+        }
+      }
+    }
+
+    // A dry caster drinks. 40 MP is the band where every attack spell worth
+    // a turn has stopped being castable; below it the mage is a bad fighter
+    // with a stick, and no player lets them stay one while tonics are held.
+    if (items && h.m.def.innateMagic && h.mp < 40 && items.hitonic > 0) {
+      items.hitonic--;
+      h.mp = Math.min(h.maxMP, h.mp + ITEMS.hitonic.effect.mp);
+      return;
     }
 
     const target = aliveFoes().sort((a, b) => a.hp - b.hp)[0];
@@ -496,6 +521,25 @@ function simulateBattle(party, enemyIds, {
     if (spec.kind === 'spell') {
       const spell = SPELLS[spec.spell];
       if (!spell) return;
+      // 'special' spells that are damage in different clothes. Halve is half
+      // a hero's current HP and Sap is a drain with a power rating — on some
+      // scripts they are most of the boss's real output, and skipping them
+      // measured The Long Hand as a pushover whose main loop was "do
+      // nothing". Statuses stay unmodelled: doom and stop are dice, these
+      // two are arithmetic.
+      if (spell.kind === 'special' && spell.effect === 'fractionHP') {
+        for (const h of targets) hurt(h, Math.floor(h.hp * spell.fraction));
+        return;
+      }
+      if (spell.kind === 'special' && spell.effect === 'drainHP') {
+        for (const h of targets) {
+          hurt(h, monsterDamage({
+            level: f.level, power: f.def.stats.mag, defence: h.m.magicDefence,
+            multiplier: spell.power / MONSTER_SPELL_REFERENCE,
+          }));
+        }
+        return;
+      }
       if (spell.kind !== 'attack') return;      // buffs/heals do not hurt anybody
       for (const h of targets) {
         let dmg = monsterDamage({
@@ -1315,16 +1359,33 @@ function progression() {
   const hours = seconds / 3600;
   const finalLevel = party.reduce((n, m) => n + m.level, 0) / party.length;
   // What the simulation does not sit through: the encounter transition, the
-  // Victory banner, and the spoils dialogue the player has to dismiss. Those
-  // are fixed costs the game charges for every single random battle, and they
-  // dominate the total once the fights themselves are this short.
-  const CEREMONY = 8;
+  // Victory banner, and the spoils text. Those are fixed costs the game
+  // charges for every single random battle, and they dominate the total once
+  // the fights themselves are this short. This used to be a hard-coded 8 —
+  // a guess nobody could argue with because nothing in the game recorded the
+  // real durations. Now the fades and beats come from battle/pacing.js, the
+  // same module the game reads, plus two modelled human costs: SETUP for the
+  // scene build, victory poses and music sting the constants do not cover,
+  // and READ for the spoils — a button press if the dialogue blocks, a
+  // glance if it clears itself.
+  const SETUP = 1.0;
+  const READ = PACING.spoilsBlocking ? 2.5 : 0.9;
+  const CEREMONY = PACING.fadeToBattle + PACING.fadeIntoBattle + PACING.fadeOutOfBattle
+    + PACING.fadeBackToField + PACING.victoryBeat + SETUP + READ;
   const wall = (seconds + battles * CEREMONY) / 3600;
   say();
   say(`${battles} battles, party finishes at level ${finalLevel.toFixed(1)}, `
     + `${Math.round(gold).toLocaleString()} gil in hand`);
   say(`${hours.toFixed(1)}h resolving them, ${wall.toFixed(1)}h once the fixed `
-    + `${CEREMONY}s of transition, Victory banner and spoils text per battle is counted`);
+    + `${CEREMONY.toFixed(1)}s of transition, Victory banner and spoils text per battle is counted`);
+  if (CEREMONY > 5) {
+    flag('minor', 'battles',
+      `Every random battle charges ${CEREMONY.toFixed(1)}s of ceremony on top of the fight`,
+      `Across ${battles} battles that is ${((battles * CEREMONY) / 3600).toFixed(1)} hours of fades, `
+      + 'banner and spoils text — bought with no decisions at all. The spoils dialogue blocking on '
+      + 'a button press for a one-line "Gained 61 EXP" is most of it; the fades are the rest. '
+      + 'Five seconds is the budget; everything past it is the game charging the player rent.');
+  }
 
   // --- the findings --------------------------------------------------------
 
@@ -1385,7 +1446,14 @@ function progression() {
 
 function bossChecks() {
   head('5. Bosses');
-  const bosses = Object.values(ENEMIES).filter((e) => e.boss).sort((a, b) => a.level - b.level);
+  // `--boss id[,id]` narrows the table to the bosses being tuned. The shape
+  // checks below (first boss, finale, quartiles) only mean anything against
+  // the full roster, so they are skipped on a filtered run.
+  const bossArg = args[args.indexOf('--boss') + 1];
+  const bossFilter = args.includes('--boss') && bossArg ? new Set(bossArg.split(',')) : null;
+  const bosses = Object.values(ENEMIES).filter((e) => e.boss)
+    .filter((e) => !bossFilter || bossFilter.has(e.id))
+    .sort((a, b) => a.level - b.level);
   const rows = [];
 
   for (const b of bosses) {
@@ -1396,6 +1464,31 @@ function bossChecks() {
     // the game for four costs 220,800 gil, and they should only be able to
     // afford all of it right at the end.
     const budget = Math.round(0.36 * Math.pow(b.level, 3));
+
+    // The bag comes out of the same purse as the armour. A slice of the boss
+    // budget buys consumables *before* gear is scored, because that is the
+    // order a player shops in on a boss run — and because it is what finally
+    // makes an item's price a balance lever: raise X-Potions and the sim
+    // arrives carrying fewer of them. Stack caps keep the endgame surplus
+    // from turning into a bottomless bag; a hundred X-Potions is exactly the
+    // failure mode the economy findings exist to catch, not to simulate away.
+    // ...but only once there is money not already spoken for. The first
+    // draft took 12% flat at every level, which pushed the level-27 party
+    // down a whole gear price tier and reported the Cinder Wyrm as a
+    // steel-proof wall it is not — 90% swords-only with the armour a real
+    // party owns, 17% in the model's skimped kit. Below the mid-game the
+    // economy section shows every gil going into gear, so the slice ramps in
+    // across the band where its own numbers say surplus appears, and reaches
+    // the full 12% by the level money stops mattering (currently 49).
+    const surplus = Math.max(0, Math.min(1, (b.level - 25) / 20));
+    const itemSlice = budget * 0.12 * surplus;
+    const stock = (id, share, cap) =>
+      Math.max(0, Math.min(cap, Math.floor(share / ITEMS[id].price)));
+    const bag = { xpotion: stock('xpotion', itemSlice * 0.6, 8), hipotion: 0, potion: 0,
+      hitonic: stock('hitonic', itemSlice * 0.4, 4) };
+    if (!bag.xpotion) bag.hipotion = stock('hipotion', itemSlice * 0.6, 8);
+    if (!bag.xpotion && !bag.hipotion) bag.potion = stock('potion', itemSlice * 0.6, 8);
+
     const build = (prepared) => {
     const party = ['vesna', 'corvin', 'aurelian', 'wick'].map((id) => new SimMember(id, b.level));
     for (const m of party) {
@@ -1406,7 +1499,7 @@ function bossChecks() {
         if (b.level >= 34) { m.spells.add('conflagrate'); m.spells.add('mendall'); }
         if (b.level >= 46) m.spells.add('sunder');
       }
-      let purse = budget / 4;
+      let purse = (budget - itemSlice) / 4;
       // A player fighting a boss with a known weakness brings the weapon that
       // exploits it — that is the whole point of the affinity table, and of
       // Vesna's Attune. Scoring gear on raw stats alone made a heavily
@@ -1441,11 +1534,15 @@ function bossChecks() {
     // physical damage and one is a straightforward slog.
     const run = (useMagic, party) => {
       let wins = 0, seconds = 0, deaths = 0, timeouts = 0, bite = 0;
-      const N = 10;
+      // 30 trials, not 10. The new shape checks below read individual bosses
+      // off this table, and at N=10 a boss's win rate moves in 10% steps —
+      // coarse enough that a re-tuned boss flickers in and out of a finding
+      // between runs that changed nothing.
+      const N = 30;
       const pool = party.reduce((n, m) => n + m.maxHP, 0);
       for (let i = 0; i < N; i++) {
         for (const m of party) { m.hp = m.maxHP; m.mp = m.maxMP; }
-        const r = simulateBattle(party, [b.id], { useMagic, allowHeal: true });
+        const r = simulateBattle(party, [b.id], { useMagic, allowHeal: true, items: { ...bag } });
         if (!r) break;
         if (r.win) wins++;
         if (r.timeout) timeouts++;
@@ -1494,13 +1591,54 @@ function bossChecks() {
   // no plan — because that player is the one who needs the fight to teach them
   // that the affinity table exists.
   const pushovers = rows.filter((r) => r.plain.bite < 0.2);
-  if (pushovers.length > rows.length * 0.25) {
+  if (!bossFilter && pushovers.length > rows.length * 0.10) {
     flag('major', 'battles',
       `${pushovers.length} of ${rows.length} bosses never take a fifth of an unprepared party's health`,
       pushovers.slice(0, 10).map((r) => `${r.name} ${(r.plain.bite * 100).toFixed(0)}%`).join(', ')
       + '. These are measured against a party at the boss\'s level in the best gear its money '
-      + 'allows, but with no elemental weapon and no plan — the player who most needs the fight to '
-      + 'teach them that the affinity table exists.');
+      + 'allows and carrying the potions and tonics that money buys, but with no elemental weapon '
+      + 'and no plan — the player who most needs the fight to teach them that the affinity table '
+      + 'exists. The old threshold let a quarter of the roster through; a tenth is already generous.');
+  }
+
+  // The shape of the ledger, not just its floor. A campaign teaches with its
+  // first boss and pays off with its last, so those two are not allowed to be
+  // pushovers no matter how the average looks — and the finale has to be the
+  // peak. The audit used to check only that no boss was *unbeatable*, which is
+  // how the game ended up with its hardest fight at level 46 and a final boss
+  // that cost less of the party's health than the mid-game did: every row
+  // passed, and the curve those rows drew was upside down.
+  const first = rows[0];
+  const finale = rows[rows.length - 1];
+  const anchors = bossFilter ? []
+    : rows.filter((r) => (r.level >= 60 || r === first) && r.plain.bite < 0.2);
+  if (anchors.length) {
+    flag('major', 'battles',
+      `${anchors.length} final-act (or first) bosses never take a fifth of an unprepared party's health`,
+      anchors.map((r) => `${r.name} lv${r.level} ${(r.plain.bite * 100).toFixed(0)}%`).join(', ')
+      + '. The first boss is where a player learns that bosses are a different grammar; the last '
+      + 'act is where the campaign pays its bill. A pushover in either place is not an average '
+      + 'problem, it is a broken promise, so these are named individually rather than pooled.');
+  }
+  const bites = rows.map((r) => r.plain.bite).sort((a, b) => b - a);
+  const topQuartile = bites[Math.floor(bites.length * 0.25)];
+  if (!bossFilter && (finale.plain.bite < 0.5 || finale.plain.bite < topQuartile)) {
+    flag('major', 'battles',
+      `The final boss is not the peak of the game`,
+      `${finale.name} (lv${finale.level}) takes ${(finale.plain.bite * 100).toFixed(0)}% of an `
+      + `unprepared party's health; the top quarter of the roster starts at `
+      + `${(topQuartile * 100).toFixed(0)}%. Forty hours point at this fight. It has to cost at `
+      + 'least half the party\'s health pool and sit in the top quarter of the ledger, or the '
+      + 'climax is easier than the road to it.');
+  }
+  // A wall is the other failure. Prepared means the right element, the best
+  // affordable gear and a full bag — a party that did everything the game
+  // asked. Losing more than one such fight in five is not difficulty, it is
+  // the tuning charging the player for the designer's mistake.
+  const walls = rows.filter((r) => r.magic.winRate < 0.8 && r.magic.winRate >= 0.34);
+  if (walls.length) {
+    flag('minor', 'battles', `${walls.length} bosses beat a fully prepared party more than once in five`,
+      walls.map((r) => `${r.name} lv${r.level} ${(r.magic.winRate * 100).toFixed(0)}%`).join(', '));
   }
   // A boss written `physical: resist` is meant to be a puzzle, and losing it
   // with swords is the puzzle working. What is not fine is a boss with no such
@@ -1699,7 +1837,7 @@ async function questChecks() {
 if (runAll || only('--data')) { dataChecks(); damageScaling(); economy(); }
 if (runAll || only('--reach')) reachChecks();
 if (runAll || only('--sim')) progression();
-if (runAll || only('--sim')) bossChecks();
+if (runAll || only('--sim') || only('--boss')) bossChecks();
 if (runAll || only('--quests')) await questChecks();
 
 head('Findings');

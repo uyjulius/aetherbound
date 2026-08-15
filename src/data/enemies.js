@@ -177,17 +177,28 @@ export const ENEMIES = {
   // ============================== bosses ==================================
   bogfather: {
     id: 'bogfather', name: 'The Bogfather', level: 12, boss: true,
+    // The first boss is a lesson, and a lesson that costs nothing teaches
+    // nothing. It should take a quarter of the party's health bar before it
+    // goes down — enough to make somebody open the item menu for the first
+    // time — while staying a fight a level-12 party wins every time.
     look: { plan: 'blob', scale: 1.9, color: '#3f4c2c', accent: '#1d2418', eyeColor: '#ffe45e', eyeCount: 3 },
-    stats: { hp: 1450, mp: 180, atk: 61, def: 78, mag: 40, mdef: 62, spd: 22, eva: 4, lck: 10 },
+    stats: { hp: 3000, mp: 180, atk: 85, def: 78, mag: 40, mdef: 62, spd: 22, eva: 4, lck: 10 },
     affinity: { fire: 'weak', ice: 'resist', water: 'absorb', poison: 'immune' },
     immune: ['ko', 'stone', 'sleep', 'stop', 'doom', 'confuse'],
     exp: 620, gold: 900, drops: [{ id: 'scalecoat', chance: 1.0 }],
     steal: [{ id: 'hipotion', chance: 0.4 }, { id: 'swiftband', chance: 0.08 }],
     intro: 'The water stands up.',
     ai: [
-      { if: 'hpBelow', v: 0.25, phase: 2, do: { kind: 'attack', name: 'Drowning Tide', power: 2.2, element: 'water', target: 'all' } },
-      { if: 'hpBelow', v: 0.5, do: { kind: 'spell', spell: 'blight', target: 'all' } },
-      { if: 'turnEvery', n: 4, do: { kind: 'attack', name: 'Engulf', power: 1.6, status: { sleep: 50 } } },
+      // The blight rule carries a phase on purpose. Without one it matched
+      // every turn below half health, so the whole second act of the game's
+      // first boss fight was a power-38 plink — the audit read 9% of the
+      // party's health taken, and it was right.
+      { if: 'hpBelow', v: 0.25, phase: 3, do: { kind: 'attack', name: 'Drowning Tide', power: 2.2, element: 'water', target: 'all' } },
+      { if: 'hpBelow', v: 0.55, phase: 2, do: { kind: 'spell', spell: 'blight', target: 'all' } },
+      // Every other turn, not every fourth. A boss the party kills in five
+      // turns has no fourth-turn move; the cadence has to fit the fight the
+      // damage curve actually allows, or the script is decoration.
+      { if: 'turnEvery', n: 2, do: { kind: 'attack', name: 'Engulf', power: 1.6, status: { sleep: 50 } } },
       { if: 'turnEvery', n: 3, do: { kind: 'spell', spell: 'brine' } },
       { if: 'always', do: { kind: 'attack' } },
     ],
@@ -213,7 +224,7 @@ export const ENEMIES = {
   vhaineshadow: {
     id: 'vhaineshadow', name: 'Vhaine, Unwound', level: 24, boss: true,
     look: { plan: 'humanoid', scale: 1.25, color: '#b8b6bd', accent: '#2c1b4d', metal: '#d8ac31', weapon: 'staff', horns: true, eyeColor: '#d63fb3', eyeCount: 2 },
-    stats: { hp: 5200, mp: 600, atk: 152, def: 128, mag: 115, mdef: 120, spd: 42, eva: 14, lck: 30 },
+    stats: { hp: 6000, mp: 600, atk: 152, def: 128, mag: 150, mdef: 120, spd: 42, eva: 14, lck: 30 },
     affinity: { holy: 'weak', shadow: 'absorb', aether: 'resist' },
     immune: ['ko', 'stone', 'sleep', 'stop', 'doom', 'confuse', 'charm', 'silence'],
     exp: 4200, gold: 6000, drops: [{ id: 'aetherweave', chance: 1.0 }],

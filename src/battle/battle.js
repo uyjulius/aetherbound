@@ -8,6 +8,7 @@ import { SPELLS, spellCost } from '../data/spells.js';
 import { ITEMS } from '../data/items.js';
 import { enemyById } from '../data/enemies.js';
 import { ELEMENT_COLOR } from '../engine/palette.js';
+import { PACING } from './pacing.js';
 import { audio } from '../audio/audio.js';
 import { analytics, EV } from '../engine/analytics.js';
 import { playSpellFX } from '../fx/spellfx.js';
@@ -1760,8 +1761,8 @@ export class BattleState {
         if (!c.isKO) { this.view.play(c.id, 'victory'); this.view.setActionT(c.id, 0); }
       }
       this.game.playMusic('victory', { fade: 0.15, restart: true });
-      this.ui.showBanner('Victory', 2.0, '#ffd76a');
-      yield wait(1.3);
+      this.ui.showBanner('Victory', PACING.victoryBanner, '#ffd76a');
+      yield wait(PACING.victoryBeat);
       yield* this.awardSpoils();
     } else if (result === 'flee') {
       this.ui.showBanner('Escaped', 1.2, '#9aa2b8');
@@ -1813,7 +1814,19 @@ export class BattleState {
       const names = drops.map((d) => ITEMS[d]?.name ?? d);
       lines.push(`Found: ${names.join(', ')}.`);
     }
-    yield* this.game.dialogue.speak(null, lines);
+    // Routine spoils are not worth a button press. Anything a player would
+    // actually stop for — a level, a learned spell, loot — arrives as an
+    // extra line, so "one line" is exactly the case with nothing to read.
+    // Those ride the banner and clear themselves; the rest, and every boss,
+    // still open the dialogue. `spoilsBlocking` keeps the old behaviour
+    // available and tells the balance audit which one it is pricing.
+    const routine = lines.length === 1 && !this.isBoss;
+    if (routine && !PACING.spoilsBlocking) {
+      this.ui.showBanner(lines[0], 1.4, '#ffd76a');
+      yield wait(0.9);
+    } else {
+      yield* this.game.dialogue.speak(null, lines);
+    }
   }
 }
 

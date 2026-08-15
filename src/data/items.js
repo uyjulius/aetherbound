@@ -13,9 +13,14 @@ export const ITEMS = {
   // --- consumables: healing ---------------------------------------------
   potion:      { id: 'potion', name: 'Potion', kind: 'consumable', price: 50, sell: 25, target: 'oneAlly', effect: { heal: 120 }, desc: 'Restores 120 HP.' },
   hipotion:    { id: 'hipotion', name: 'Hi-Potion', kind: 'consumable', price: 300, sell: 150, target: 'oneAlly', effect: { heal: 550 }, desc: 'Restores 550 HP.' },
-  xpotion:     { id: 'xpotion', name: 'X-Potion', kind: 'consumable', price: 1200, sell: 600, target: 'oneAlly', effect: { heal: 2200 }, desc: 'Restores 2200 HP.' },
+  // X-Potion and Hi-Tonic are priced as strategic purchases, not sundries.
+  // At 1200 and 600 the late-game gold surplus turned them into unlimited
+  // full heals and unlimited casting — the balance audit's boss table is run
+  // against the stock these prices allow, so the numbers here are load-
+  // bearing: cheapen them and bosses measurably stop threatening anybody.
+  xpotion:     { id: 'xpotion', name: 'X-Potion', kind: 'consumable', price: 3000, sell: 1500, target: 'oneAlly', effect: { heal: 2200 }, desc: 'Restores 2200 HP.' },
   tonic:       { id: 'tonic', name: 'Tonic', kind: 'consumable', price: 150, sell: 75, target: 'oneAlly', effect: { mp: 60 }, desc: 'Restores 60 MP.' },
-  hitonic:     { id: 'hitonic', name: 'Hi-Tonic', kind: 'consumable', price: 600, sell: 300, target: 'oneAlly', effect: { mp: 200 }, desc: 'Restores 200 MP.' },
+  hitonic:     { id: 'hitonic', name: 'Hi-Tonic', kind: 'consumable', price: 2400, sell: 1200, target: 'oneAlly', effect: { mp: 200 }, desc: 'Restores 200 MP.' },
   elixir:      { id: 'elixir', name: 'Elixir', kind: 'consumable', price: 0, sell: 2500, target: 'oneAlly', effect: { fullHeal: true, fullMP: true }, desc: 'Fully restores HP and MP.' },
   megalixir:   { id: 'megalixir', name: 'Megalixir', kind: 'consumable', price: 0, sell: 8000, target: 'allAllies', effect: { fullHeal: true, fullMP: true }, desc: 'Fully restores the whole party.' },
   balm:        { id: 'balm', name: 'Field Balm', kind: 'consumable', price: 220, sell: 110, target: 'allAllies', effect: { heal: 200 }, desc: 'Restores 200 HP to all allies.' },

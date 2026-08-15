@@ -1104,7 +1104,7 @@ export const VOL3_ENEMIES = {
   thegreatsump: {
     id: 'thegreatsump', name: 'The Great Sump', level: 35, boss: true,
     look: { plan: 'blob', scale: 2.0, color: '#37606f', accent: '#16241d', eyeColor: '#94bf55', eyeCount: 3 },
-    stats: { hp: 9200, mp: 320, atk: 298, def: 182, mag: 166, mdef: 162, spd: 24, eva: 4, lck: 10 },
+    stats: { hp: 16000, mp: 320, atk: 340, def: 182, mag: 210, mdef: 162, spd: 24, eva: 4, lck: 10 },
     affinity: { fire: 'weak', water: 'absorb', physical: 'resist', poison: 'immune' },
     immune: ['ko', 'stone', 'sleep', 'poison', 'venom', 'stop', 'doom'],
     exp: 3900, gold: 4800, drops: [{ id: 'hoardersglove', chance: 1.0 }],
@@ -1113,7 +1113,7 @@ export const VOL3_ENEMIES = {
     ai: [
       { if: 'hpBelow', v: 0.22, phase: 3, do: { kind: 'attack', name: 'Take It All Back', power: 2.5, target: 'all', drain: true } },
       { if: 'hpBelow', v: 0.55, phase: 2, do: { kind: 'attack', name: 'Sour Flood', power: 1.8, status: { venom: 70 }, target: 'all' } },
-      { if: 'turnEvery', n: 4, do: { kind: 'attack', name: 'Engulf', power: 1.6, status: { sleep: 55 } } },
+      { if: 'turnEvery', n: 2, do: { kind: 'attack', name: 'Engulf', power: 1.6, status: { sleep: 55 } } },
       { if: 'turnEvery', n: 3, do: { kind: 'spell', spell: 'sap' } },
       { if: 'always', do: { kind: 'attack' } },
     ],
@@ -1197,17 +1197,24 @@ export const VOL3_ENEMIES = {
   theeleventhhour: {
     id: 'theeleventhhour', name: 'The Eleventh Hour', level: 46, boss: true,
     look: { plan: 'construct', scale: 1.9, color: '#ab8018', accent: '#4a4324', eyeColor: '#fff3b8', cannons: true },
-    stats: { hp: 18000, mp: 700, atk: 413, def: 222, mag: 267, mdef: 206, spd: 38, eva: 6, lck: 10 },
-    affinity: { bolt: 'weak', aether: 'absorb', shadow: 'resist', poison: 'immune' },
+    // The mid-game's peak, not its wall. At atk 413 with The Hour at 3.4 it
+    // beat a fully prepared party three fights in ten, which is the tuning
+    // charging the player for the designer's ambition.
+    stats: { hp: 18000, mp: 700, atk: 385, def: 222, mag: 267, mdef: 206, spd: 38, eva: 6, lck: 10 },
+    // `physical: resist` is declared, not just emergent from def 222: The
+    // Hour at turn 11 is an enrage timer, and swords-only is the slow plan
+    // it exists to punish. Declaring it lets Annotate say so, and an
+    // elemental weapon — bolt, its weakness — bypasses it entirely.
+    affinity: { bolt: 'weak', aether: 'absorb', shadow: 'resist', poison: 'immune', physical: 'resist' },
     immune: ['ko', 'stone', 'sleep', 'stop', 'slow', 'doom', 'confuse', 'silence', 'poison'],
     exp: 7000, gold: 8800, drops: [{ id: 'lastlight', chance: 1.0 }],
     steal: [{ id: 'megalixir', chance: 0.2 }, { id: 'swiftband', chance: 0.4 }],
     intro: 'It shows the time. It has always shown the time. It is nearly the time.',
     ai: [
-      { if: 'turnIs', n: 11, phase: 4, do: { kind: 'attack', name: 'The Hour', power: 3.4, target: 'all' } },
+      { if: 'turnIs', n: 11, phase: 4, do: { kind: 'attack', name: 'The Hour', power: 3.0, target: 'all' } },
       { if: 'turnIs', n: 8, phase: 3, do: { kind: 'spell', spell: 'knell', target: 'all' } },
       { if: 'turnIs', n: 4, phase: 2, do: { kind: 'spell', spell: 'arrest', target: 'all' } },
-      { if: 'hpBelow', v: 0.3, do: { kind: 'attack', name: 'Wind Forward', power: 2.0, target: 'all' } },
+      { if: 'hpBelow', v: 0.3, do: { kind: 'attack', name: 'Wind Forward', power: 1.8, target: 'all' } },
       { if: 'turnEvery', n: 3, do: { kind: 'attack', name: 'Escapement', power: 1.6 } },
       { if: 'always', do: { kind: 'attack' } },
     ],
@@ -1216,7 +1223,11 @@ export const VOL3_ENEMIES = {
   thelonghand: {
     id: 'thelonghand', name: 'The Long Hand', level: 48, boss: true,
     look: { plan: 'humanoid', scale: 1.6, color: '#918f98', accent: '#4a4324', metal: '#d8ac31', weapon: 'spear', horns: true, eyeColor: '#f7d968' },
-    stats: { hp: 20000, mp: 800, atk: 403, def: 218, mag: 286, mdef: 212, spd: 52, eva: 18, lck: 26 },
+    // Thirty thousand, up from twenty, and spd 65: at the old numbers the
+    // party's damage output ended the fight in three of its turns, the third
+    // of which its own phase script spent on a status cast. Its halve and
+    // Sweep — the whole identity of the fight — fired on literally no turn.
+    stats: { hp: 30000, mp: 800, atk: 460, def: 218, mag: 286, mdef: 212, spd: 65, eva: 18, lck: 26 },
     affinity: { holy: 'weak', shadow: 'absorb', aether: 'resist' },
     immune: ['ko', 'stone', 'sleep', 'stop', 'doom', 'confuse', 'charm', 'silence'],
     exp: 7800, gold: 9600, drops: [{ id: 'quietstep', chance: 1.0 }],
@@ -1226,8 +1237,8 @@ export const VOL3_ENEMIES = {
       { if: 'hpBelow', v: 0.15, phase: 3, do: { kind: 'spell', spell: 'severance' } },
       { if: 'hpBelow', v: 0.45, phase: 2, do: { kind: 'spell', spell: 'knell', target: 'all' } },
       { if: 'hasStatus', status: 'slow', do: { kind: 'attack', name: 'Overwound', power: 2.2, target: 'all' } },
-      { if: 'turnEvery', n: 4, do: { kind: 'spell', spell: 'halve' } },
-      { if: 'turnEvery', n: 3, do: { kind: 'attack', name: 'Sweep The Face', power: 1.6, status: { stop: 45 }, target: 'all' } },
+      { if: 'turnEvery', n: 2, do: { kind: 'spell', spell: 'halve' } },
+      { if: 'turnEvery', n: 3, do: { kind: 'attack', name: 'Sweep The Face', power: 1.9, status: { stop: 45 }, target: 'all' } },
       { if: 'always', do: { kind: 'attack' } },
     ],
   },
@@ -1235,7 +1246,7 @@ export const VOL3_ENEMIES = {
   thelatebell: {
     id: 'thelatebell', name: 'The Late Bell', level: 50, boss: true,
     look: { plan: 'construct', scale: 2.0, color: '#8a6a23', accent: '#3b2c12', eyeColor: '#ffd76a', cannons: true, treads: true },
-    stats: { hp: 22500, mp: 760, atk: 431, def: 226, mag: 278, mdef: 214, spd: 40, eva: 6, lck: 10 },
+    stats: { hp: 22500, mp: 760, atk: 470, def: 226, mag: 300, mdef: 214, spd: 40, eva: 6, lck: 10 },
     affinity: { bolt: 'weak', water: 'weak', aether: 'absorb', poison: 'immune' },
     immune: ['ko', 'stone', 'sleep', 'stop', 'doom', 'confuse', 'silence', 'poison', 'blind'],
     exp: 8600, gold: 10800, drops: [{ id: 'aetherweave', chance: 1.0 }],
@@ -1254,17 +1265,17 @@ export const VOL3_ENEMIES = {
   thefirstrank: {
     id: 'thefirstrank', name: 'The First Rank', level: 52, boss: true,
     look: { plan: 'humanoid', scale: 1.65, color: '#ac744c', accent: '#1a3c48', metal: '#666c74', weapon: 'spear', armored: true, helmet: true, eyeColor: '#e0574f' },
-    stats: { hp: 24000, mp: 700, atk: 449, def: 224, mag: 259, mdef: 202, spd: 50, eva: 16, lck: 22 },
+    stats: { hp: 24000, mp: 700, atk: 430, def: 224, mag: 259, mdef: 202, spd: 50, eva: 16, lck: 22 },
     affinity: { bolt: 'weak', water: 'resist', earth: 'resist' },
     immune: ['ko', 'stone', 'sleep', 'stop', 'doom', 'confuse', 'charm'],
     exp: 9200, gold: 11500, drops: [{ id: 'longspear', chance: 1.0 }],
     steal: [{ id: 'wardenmail', chance: 0.12 }, { id: 'xpotion', chance: 0.5 }],
     intro: 'Hold the line. Nobody ever came to say otherwise.',
     ai: [
-      { if: 'hpBelow', v: 0.18, phase: 3, do: { kind: 'attack', name: 'Nobody Passes', power: 2.8, target: 'all' } },
+      { if: 'hpBelow', v: 0.18, phase: 3, do: { kind: 'attack', name: 'Nobody Passes', power: 2.5, target: 'all' } },
       { if: 'hpBelow', v: 0.5, phase: 2, do: { kind: 'attack', name: 'Second Rank', power: 2.0, target: 'all' } },
       { if: 'allyDown', do: { kind: 'attack', name: 'Close Up', power: 2.2 } },
-      { if: 'turnEvery', n: 4, do: { kind: 'attack', name: 'Set Pikes', power: 1.5, status: { paralysis: 45 }, target: 'all' } },
+      { if: 'turnEvery', n: 4, do: { kind: 'attack', name: 'Set Pikes', power: 1.3, status: { paralysis: 45 }, target: 'all' } },
       { if: 'turnEvery', n: 3, do: { kind: 'attack', name: 'Drive Through', power: 1.8 } },
       { if: 'always', do: { kind: 'attack' } },
     ],

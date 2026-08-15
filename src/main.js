@@ -9,6 +9,7 @@ import { loadCharacterModels } from './world/charmodels.js';
 import { loadMonsterModels } from './battle/monstermodels.js';
 import { resolveMap } from './world/map.js';
 import { BattleState } from './battle/battle.js';
+import { PACING } from './battle/pacing.js';
 import { DialogueBox } from './ui/dialogue.js';
 import { ControlBar } from './ui/controls.js';
 import { Party } from './game/party.js';
@@ -647,7 +648,7 @@ class Game {
     if (!group) return;
 
     if (field) field.paused = true;
-    await this.fade(1, 0.28);
+    await this.fade(1, PACING.fadeToBattle);
 
     const battle = new BattleState(this, {
       encounter: group,
@@ -674,11 +675,11 @@ class Game {
     });
     this.setState(battle, { suspend: true });
     this._applyPendingState();
-    await this.fade(0, 0.45);
+    await this.fade(0, PACING.fadeIntoBattle);
   }
 
   async _endBattle(result, field, opts) {
-    await this.fade(1, 0.4);
+    await this.fade(1, PACING.fadeOutOfBattle);
     const wiped = result === 'defeat' && !opts.allowDefeat;
     analytics.track(EV.BATTLE_ENDED, {
       result,
@@ -726,7 +727,7 @@ class Game {
       this.renderer.autofocus = true;
     }
     opts.onComplete?.(result);
-    await this.fade(0, 0.5);
+    await this.fade(0, PACING.fadeBackToField);
   }
 
   loop = () => {
