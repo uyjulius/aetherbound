@@ -1265,8 +1265,14 @@ export const VOL3_ENEMIES = {
   thefirstrank: {
     id: 'thefirstrank', name: 'The First Rank', level: 52, boss: true,
     look: { plan: 'humanoid', scale: 1.65, color: '#ac744c', accent: '#1a3c48', metal: '#666c74', weapon: 'spear', armored: true, helmet: true, eyeColor: '#e0574f' },
-    stats: { hp: 24000, mp: 700, atk: 430, def: 224, mag: 259, mdef: 202, spd: 50, eva: 16, lck: 22 },
-    affinity: { bolt: 'weak', water: 'resist', earth: 'resist' },
+    stats: { hp: 24000, mp: 700, atk: 385, def: 224, mag: 232, mdef: 202, spd: 50, eva: 16, lck: 22 },
+    // `physical: resist` is declared rather than emergent. A set rank of pikes
+    // is a thing you do not walk a sword into, which is the fight's whole
+    // idea — but it was only ever expressed through Set Pikes and a high
+    // defence, so steel lost and nothing told the player why. Declaring it
+    // puts the answer in Annotate, where the player can read it and reach for
+    // the bolt line it is weak to instead.
+    affinity: { bolt: 'weak', water: 'resist', earth: 'resist', physical: 'resist' },
     immune: ['ko', 'stone', 'sleep', 'stop', 'doom', 'confuse', 'charm'],
     exp: 9200, gold: 11500, drops: [{ id: 'longspear', chance: 1.0 }],
     steal: [{ id: 'wardenmail', chance: 0.12 }, { id: 'xpotion', chance: 0.5 }],
@@ -1323,7 +1329,7 @@ export const VOL3_ENEMIES = {
   thelongdrift: {
     id: 'thelongdrift', name: 'The Long Drift', level: 58, boss: true,
     look: { plan: 'blob', scale: 1.95, color: '#332c1c', accent: '#16241d', eyeColor: '#ffe45e', eyeCount: 3 },
-    stats: { hp: 31000, mp: 600, atk: 505, def: 196, mag: 300, mdef: 200, spd: 40, eva: 26, lck: 14 },
+    stats: { hp: 31000, mp: 600, atk: 460, def: 196, mag: 272, mdef: 200, spd: 40, eva: 26, lck: 14 },
     affinity: { earth: 'absorb', wind: 'weak', physical: 'resist', poison: 'immune' },
     immune: ['ko', 'stone', 'sleep', 'stop', 'doom', 'poison', 'venom'],
     exp: 12200, gold: 15000, drops: [{ id: 'twinfang', chance: 1.0 }],
@@ -1616,7 +1622,10 @@ export const VOL3_ENCOUNTERS = {
     groups: [
       { weight: 26, enemies: ['vergeknight', 'hollowherald'] },
       { weight: 24, enemies: ['keelworm', 'deepcantor'] },
-      { weight: 20, enemies: ['vergeknight', 'bulwarkshell', 'vergepike'] },
+      // The three-body formation is the one that wiped parties here — every
+      // member of it is a heavy hitter, so it is the region's rare hard roll
+      // rather than one draw in five.
+      { weight: 8, enemies: ['vergeknight', 'bulwarkshell', 'vergepike'] },
       { weight: 18, enemies: ['rimhound', 'hollowherald'] },
       { weight: 12, enemies: ['keelworm', 'stonelayer'] },
     ],

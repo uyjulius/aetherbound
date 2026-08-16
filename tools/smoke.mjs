@@ -198,9 +198,21 @@ const loot = await page.evaluate(async () => {
   s._updateInteraction();
   if (s.interactTarget) s._interact(s.interactTarget);
   await new Promise((r) => setTimeout(r, 900));
-  return { before, opened: chest.def.opened === true };
+  // Asserted against the *save*, not against a flag on the map definition.
+  // This used to read `chest.def.opened`, which is exactly the bug that was
+  // there: that flag lives on a module-level object shared by every save and
+  // every new campaign, and is never serialised, so a chest recorded that way
+  // reopened on reload and leaked into the next New Game. Checking the party
+  // is checking the thing that has to survive.
+  const mapId = s.mapDef?.id;
+  return {
+    before,
+    opened: g.party.chestOpened(mapId, chest.def.id) === true,
+    persists: (g.party.serialize().openedChests || []).includes(`${mapId}:${chest.def.id}`),
+  };
 });
 check('chest opens', loot.opened === true);
+check('an opened chest is recorded in the save', loot.persists === true);
 for (let i = 0; i < 4; i++) await tap('Enter', 260);
 
 // --- menu -------------------------------------------------------------------
@@ -1524,6 +1536,17 @@ const statuses = await page.evaluate(async () => {
   const hero = bt.party[0], foe = bt.enemies[0];
   const out = {};
 
+  // Measured with the relics off.
+  //
+  // Elemental affinity comes entirely from equipment, and by the time this
+  // runs the party is wearing whatever the playthrough bought it — the Stone
+  // Heart *absorbs* earth, so the baseline swing healed Vesna and the check
+  // reported "earth did not land at all", which reads as Float being broken
+  // when Float is fine. A test whose premise can be defeated by a relic is
+  // measuring the loadout, not the mechanic.
+  const savedEquipment = { ...hero.member.equipment };
+  for (const slot of Object.keys(hero.member.equipment)) hero.member.equipment[slot] = null;
+
   // Several rolls, not one: a single swing can simply miss, and this check is
   // about the element, not the accuracy table.
   out.earthLands = false;
@@ -1535,6 +1558,7 @@ const statuses = await page.evaluate(async () => {
   drive(bt.resolvePhysical(foe, hero, { power: 1, element: 'earth' }));
   out.floatBlocks = hero.hp === hp0;
   hero.removeStatus('float');
+  Object.assign(hero.member.equipment, savedEquipment);
 
   const avg = () => { let t = 0; for (let i = 0; i < 8; i++) t += drive(bt.resolvePhysical(foe, hero, { power: 1 })); return t / 8; };
   const normal = avg();

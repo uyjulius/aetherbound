@@ -118,6 +118,11 @@ const codeFiles = [
   'src/data/events-bosses.js',
   'src/main.js', 'src/battle/battle.js', 'src/world/field.js', 'src/ui/menu.js',
   'src/ui/shop.js', 'src/game/party.js',
+  // The title screen plays the Prelude, and leaving it off this list reported
+  // that track as stranded for the life of the project. A reachability audit
+  // that is permanently one-red is an audit people learn to skip, so the
+  // false positive matters more than the one asset it was about.
+  'src/ui/title.js',
 ];
 const eventSrc = codeFiles
   .map((f) => path.join(root, f))

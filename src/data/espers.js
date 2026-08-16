@@ -13,6 +13,22 @@
  *   summon:  the once-per-battle attack
  */
 
+/**
+ * How much faster magic is learned than the per-battle rates below say.
+ *
+ * The rates are written as proficiency per battle, and they were authored
+ * against a campaign of about eight hundred forced encounters. Spacing the
+ * encounters out (see `ENCOUNTER_SPACING`) cut that to a little over three
+ * hundred, which would have made every one of these 2.6× slower to learn for
+ * no design reason at all — a rate-1 spell needs a hundred battles, so the top
+ * of the spell list would have been unreachable in a whole playthrough, and
+ * the main line only has about forty fights in it either way.
+ *
+ * One multiplier, so the relative pace the espers were authored with is
+ * preserved: Emberwake still teaches Ember far faster than Conflagrate.
+ */
+export const TEACH_RATE = 2.6;
+
 export const ESPERS = {
   emberwake: {
     id: 'emberwake', name: 'Emberwake', title: 'The First Forge',

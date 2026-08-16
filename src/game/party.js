@@ -21,6 +21,15 @@ export class Member {
     this.equipment = { weapon: null, offhand: null, head: null, body: null, relic1: null, relic2: null };
     this.spells = {};              // spellId → proficiency 0..100
     this.esper = null;             // equipped magicite
+    // Permanent stat gains banked from levelling up while a magicite was
+    // equipped. Every esper declares a `growth` and the Espers screen has
+    // always printed it — "On level-up: MAG +2" — but nothing anywhere read
+    // it, so the promise was decoration: two playthroughs produced identical
+    // characters and which magicite you carried while levelling meant
+    // nothing. This is the accumulator that makes it true, and it is
+    // serialised, because a permanent gain the save forgets is worse than
+    // none at all.
+    this.esperGrowth = {};
     this.statuses = {};            // persistent statuses (e.g. 'zombie')
     this.hp = this.maxHP;
     this.mp = this.maxMP;
@@ -30,8 +39,8 @@ export class Member {
 
   get name() { return this.def.name; }
 
-  /** Base stat before equipment. */
-  baseStat(stat) { return statAt(this.id, stat, this.level); }
+  /** Base stat before equipment, including anything magicite has banked. */
+  baseStat(stat) { return statAt(this.id, stat, this.level) + (this.esperGrowth[stat] ?? 0); }
 
   /** Stat including equipment bonuses. */
   stat(stat) {
@@ -90,6 +99,10 @@ export class Member {
         character: this.id, character_name: this.name,
         level: this.level, levels_gained: gained, from_level: before,
       });
+      // Bank the equipped magicite's growth, once per level gained.
+      for (const [stat, amount] of Object.entries(this.esper?.growth ?? {})) {
+        this.esperGrowth[stat] = (this.esperGrowth[stat] ?? 0) + amount * gained;
+      }
       // Level-ups top up the *gained* HP/MP rather than fully healing, which
       // would make levelling a free rest.
       const hpGain = statAt(this.id, 'hp', this.level) - statAt(this.id, 'hp', before);
@@ -121,6 +134,7 @@ export class Member {
       id: this.id, exp: this.exp, hp: this.hp, mp: this.mp, limit: this.limit,
       equipment: Object.fromEntries(Object.entries(this.equipment).map(([k, v]) => [k, v?.id ?? null])),
       spells: this.spells, esper: this.esper?.id ?? null, statuses: this.statuses,
+      esperGrowth: this.esperGrowth,
     };
   }
 }
@@ -139,6 +153,16 @@ export class Party {
     this.quests = new Map();
     this.bestiary = new Map();
     this.row = new Map();          // charId → 'front' | 'back'
+    // Chests already looted, as `mapId:chestId`.
+    //
+    // This lives on the party — which is to say, in the save file — because
+    // the alternative is where it used to live: a mutated `opened` flag on the
+    // module-level map definition. That object is shared by every save and
+    // every new campaign in the page's lifetime and is never serialised, so
+    // all 383 chests in the game reopened on reload and a fresh New Game
+    // inherited whatever the previous run had emptied. The entire reward
+    // layer for exploring was the one thing the save did not record.
+    this.openedChests = new Set();
     // 'whole' before the cataclysm, 'ruin' after. Map definitions resolve
     // against this, so the same geography reads as a different world.
     this.worldState = 'whole';
@@ -226,6 +250,17 @@ export class Party {
   }
   hasFlag(name) { return this.flags.has(name); }
 
+  /** A chest is identified by the map it stands in and its own id. */
+  static chestKey(mapId, chestId) { return `${mapId ?? '?'}:${chestId ?? '?'}`; }
+
+  chestOpened(mapId, chestId) {
+    return this.openedChests.has(Party.chestKey(mapId, chestId));
+  }
+
+  openChest(mapId, chestId) {
+    this.openedChests.add(Party.chestKey(mapId, chestId));
+  }
+
   startQuest(id, stage = 0) {
     if (!this.quests.has(id)) analytics.track(EV.QUEST_STARTED, this._questProps(id));
     this.quests.set(id, { stage, done: false });
@@ -281,6 +316,7 @@ export class Party {
       quests: [...this.quests.entries()],
       bestiary: [...this.bestiary.entries()],
       row: [...this.row.entries()],
+      openedChests: [...this.openedChests],
       playTime: this.playTime,
       steps: this.steps,
       worldState: this.worldState,

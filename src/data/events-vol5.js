@@ -543,8 +543,13 @@ export const VOL5_EVENTS = {
       yield* say(game, null, ['She shuts the case, and cleans the glass again, which it did not need.']);
       p.addGold(1200);
       yield* say(game, null, ['The parish presses 1200 gil on the party for the walk down, and will not hear a word about it.']);
-      p.setFlag('hand_done');
-      p.completeQuest('relic');
+      // Deliberately no `hand_done` and no `completeQuest`. The scene has just
+      // told the player to come back with somebody who reads stone; setting
+      // those marked the quest Settled in the journal and left the re-entry
+      // guard at the top of this event pointing at the closed-case dialogue,
+      // so returning with Kestrel got a shrug and the good branch — the one
+      // this whole scene exists for — could never be reached. `lastlantern_office`
+      // has the same shape and gets it right by returning bare, like this.
       return;
     }
 

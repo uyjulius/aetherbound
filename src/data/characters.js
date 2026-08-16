@@ -314,9 +314,22 @@ export function statAt(charId, stat, level) {
  * keep going, and eased off once they were committed. Reaching level 20 from
  * the level the game starts you on took 399 fights.
  */
+/**
+ * The coefficient dropped from 0.128 to 0.049 when `ENCOUNTER_SPACING` went
+ * in. Those two numbers are one decision: encounters are 2.6× further apart
+ * and a level costs 2.6× less, so a level still takes the same amount of
+ * *walking* — about eleven fights' worth of ground — and what changed is only
+ * that it is four fights instead of eleven. The exponent is untouched, because
+ * it is fitted to how encounter payouts grow and payouts did not move.
+ *
+ * Changing either number alone breaks the game in a way that is easy to miss:
+ * rarer encounters at the old price silently under-levels the party by a third
+ * before the mandatory bosses, which is the exact defect `criticalPath` in
+ * tools/balance.mjs exists to catch.
+ */
 export function expForLevel(level) {
   if (level <= 1) return 0;
-  return Math.round(0.128 * Math.pow(level, 3.55));
+  return Math.round(0.049 * Math.pow(level, 3.55));
 }
 
 export function levelForExp(exp) {

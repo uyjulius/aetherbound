@@ -205,9 +205,9 @@ export const ENEMIES = {
   },
 
   ferranwarden: {
-    id: 'ferranwarden', name: 'Ferran Warden', level: 16, boss: true,
+    id: 'ferranwarden', name: 'Ferran Warden', level: 14, boss: true,
     look: { plan: 'construct', scale: 1.5, color: '#414954', accent: '#1a1a22', eyeColor: '#d63fb3', cannons: true, treads: true },
-    stats: { hp: 2600, mp: 240, atk: 87, def: 118, mag: 52, mdef: 88, spd: 26, eva: 4, lck: 6 },
+    stats: { hp: 2300, mp: 240, atk: 80, def: 108, mag: 52, mdef: 82, spd: 26, eva: 4, lck: 6 },
     affinity: { bolt: 'weak', water: 'weak', poison: 'immune', shadow: 'resist' },
     immune: ['poison', 'sleep', 'confuse', 'silence', 'blind', 'ko', 'stone', 'doom'],
     exp: 1400, gold: 2200, drops: [{ id: 'guardplate', chance: 1.0 }],
@@ -223,11 +223,21 @@ export const ENEMIES = {
 
   vhaineshadow: {
     id: 'vhaineshadow', name: 'Vhaine, Unwound', level: 24, boss: true,
+    // The end of the main line, and it has to be its peak. The level did not
+    // move — what moved is everything around it. Written at 24 it was eight
+    // levels *below* the Warden the player fights one map earlier and paid
+    // less experience than it, so whatever the party ground out to pass the
+    // Warden made the villain a victory lap. The ladder now only climbs
+    // (12 → 14 → 18 → 21 → 24) and this is its last rung: three levels above
+    // a party that beelines, twice the Warden's health, and the biggest
+    // purse in the story. Three and not six, because the finale sits twenty
+    // five tiles inside the door — it has to be winnable by somebody who
+    // fought well rather than by somebody who went away and farmed.
     look: { plan: 'humanoid', scale: 1.25, color: '#b8b6bd', accent: '#2c1b4d', metal: '#d8ac31', weapon: 'staff', horns: true, eyeColor: '#d63fb3', eyeCount: 2 },
-    stats: { hp: 6000, mp: 600, atk: 152, def: 128, mag: 150, mdef: 120, spd: 42, eva: 14, lck: 30 },
+    stats: { hp: 8800, mp: 600, atk: 168, def: 148, mag: 165, mdef: 142, spd: 52, eva: 14, lck: 30 },
     affinity: { holy: 'weak', shadow: 'absorb', aether: 'resist' },
     immune: ['ko', 'stone', 'sleep', 'stop', 'doom', 'confuse', 'charm', 'silence'],
-    exp: 4200, gold: 6000, drops: [{ id: 'aetherweave', chance: 1.0 }],
+    exp: 7200, gold: 6000, drops: [{ id: 'aetherweave', chance: 1.0 }],
     steal: [{ id: 'elixir', chance: 0.3 }],
     intro: 'You brought a *sword* to the end of the world?',
     ai: [

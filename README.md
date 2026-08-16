@@ -36,9 +36,10 @@ Standing Oak and the Toll Baron's barricade are off the road and optional.
 ## What this is
 
 The engine is finished and verified, and the game is **completable start to
-finish** — five chapters, eight bosses, an ending. It is roughly a two-to-three
-hour game, not a forty hour one. See [Honest state](#honest-state) at the bottom
-before reading anything else as a claim of completeness.
+finish** — five chapters, five mandatory bosses, an ending. The main line is
+about ninety minutes; the optional content either side of it is worth many
+times that. See [Honest state](#honest-state) at the bottom before reading
+anything else as a claim of completeness.
 
 ### Rendering
 
@@ -261,9 +262,23 @@ anything like forty hours of content.
 | Automated checks | **102/102**, including a playthrough to the ending | |
 | Reachability audit | **0 stranded** — `npm run audit` | |
 
-Playtime is roughly 40 hours. That is an estimate rather than a measurement:
-it counts the main line, 100-odd sidequests, the optional bosses, both
-continents and a normal amount of exploration, and it does not count grinding.
+Playtime, stated honestly, is two numbers rather than one — this section used
+to give the larger of them here and the smaller one twice elsewhere, which is
+not an estimate, it is a contradiction:
+
+- **The main line is about ninety minutes.** Measured, not guessed: breadth-
+  first search over the real terrain grids gives the walking distance between
+  the story beats, and at the encounter tables' own rates that is on the order
+  of forty random battles and five bosses.
+- **Seeing everything is on the order of forty hours.** That counts both
+  continents, the hundred-odd sidequests, all 45 bosses and the encounter
+  regions that carry the level curve from 24 to 85.
+
+The gap between those two numbers was the game's central design problem, and
+`node tools/balance.mjs` now measures the join rather than each side
+separately: the main line's five mandatory bosses are checked against the
+level the road actually delivers, because they used to be written eleven
+levels above it and the game was unwinnable without grinding at one corridor.
 
 ### `npm run audit`
 
@@ -309,8 +324,9 @@ The continent is divided into six encounter regions — snowfield, forest, fen,
 coast, plains and the road — each rolling its own bestiary, so difficulty rises
 as the road pushes north and east.
 
-A full run is on the order of two to three hours, not forty. Everything past
-that is content against finished systems.
+Walking the main line is on the order of ninety minutes. Everything past that
+is content against finished systems, and there is a great deal of it — see
+[Honest state](#honest-state) for both numbers and how they were measured.
 
 **Two things did not go as briefed.**
 

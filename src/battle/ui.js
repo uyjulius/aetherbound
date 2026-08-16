@@ -43,8 +43,15 @@ export class BattleUI {
       const mp = el('span', { class: 'num dim' });
       const atbBar = bar('atb', 0, 100);
       const hpBar = bar('hp', c.hp, c.maxHP);
+      // The Desperation gauge. It has always filled — from damage taken and
+      // from allies going down — persisted between battles, and unlocked a
+      // command at 100, and it has never been drawn anywhere in the game.
+      // A resource the player cannot see is a resource they cannot plan
+      // around, and the risk/reward loop it is built on ("take a beating, get
+      // your best move") is unreadable without it.
+      const limitBar = bar('limit', c.limit ?? 0, 100);
       const row = el('div', { class: 'party-row' }, [
-        el('div', {}, [name, el('div', { style: { marginTop: '3px' } }, [hpBar])]),
+        el('div', {}, [name, el('div', { style: { marginTop: '3px' } }, [hpBar, limitBar])]),
         el('div', { class: 'pnums', style: { textAlign: 'right' } }, [
           hp, el('span', { class: 'slash', text: '/' }), el('span', { class: 'dim', text: String(c.maxHP) }),
           el('div', { class: 'dim', style: { fontSize: '0.82em' } }, [mp]),
@@ -52,7 +59,7 @@ export class BattleUI {
         el('div', { class: 'patb' }, [atbBar]),
       ]);
       this.partyPanel.appendChild(row);
-      this.rows.set(c.id, { row, name, hp, mp, atbBar, hpBar });
+      this.rows.set(c.id, { row, name, hp, mp, atbBar, hpBar, limitBar });
     }
   }
 
@@ -68,6 +75,9 @@ export class BattleUI {
       const atb = Math.max(0, Math.min(1, c.atb / 100));
       r.atbBar.firstChild.style.width = `${atb * 100}%`;
       r.atbBar.className = `bar atb${atb >= 1 ? ' full' : ''}`;
+      const limit = Math.max(0, Math.min(1, (c.limit ?? 0) / 100));
+      r.limitBar.firstChild.style.width = `${limit * 100}%`;
+      r.limitBar.className = `bar limit${limit >= 1 ? ' full' : ''}`;
       r.row.className = `party-row${c.isKO ? ' dead' : ''}${c.id === activeId ? ' acting' : ''}`;
       // Status glyphs after the name keep ailments visible without a tooltip.
       const badges = Object.keys(c.statuses || {}).filter((s) => STATUSES[s]).slice(0, 4);

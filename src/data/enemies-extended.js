@@ -380,28 +380,60 @@ export const EXTRA_ENEMIES = {
   },
 
   eighthlantern: {
-    id: 'eighthlantern', name: 'The Eighth Lantern', level: 30, boss: true,
+    id: 'eighthlantern', name: 'The Eighth Lantern', level: 18, boss: true,
+    // Levelled to the road, not to the bestiary. This was written at 30 while
+    // the critical path delivers a level-15 party to its door — an eleven
+    // level gap, and the fight was not hard but arithmetically unwinnable.
+    // The optional ladder is correctly tuned and is left alone; it is the
+    // five mandatory fights that had drifted away from the only route the
+    // game actually asks a player to walk. See MAIN_LINE in tools/balance.mjs.
     look: { plan: 'floater', scale: 1.7, color: '#ddccab', eyeColor: '#fff3b8', eyeCount: 2, tendrils: true },
-    stats: { hp: 5600, mp: 400, atk: 187, def: 154, mag: 166, mdef: 172, spd: 46, eva: 22, lck: 24 },
-    affinity: { shadow: 'weak', holy: 'absorb', fire: 'resist', physical: 'resist' },
+    // 2,300 rather than 3,000 because `physical: resist` is already a health
+    // multiplier against half the party: the same pool takes twice as many
+    // turns to chew through, and every one of those turns is another swing
+    // taken. A resistance and a big HP bar price the same thing twice.
+    stats: { hp: 2300, mp: 400, atk: 92, def: 118, mag: 90, mdef: 126, spd: 46, eva: 22, lck: 24 },
+    // Fire is no longer resisted, and that is the difference between a puzzle
+    // and a wall. A party arriving here owns exactly two offensive tools —
+    // swords and the fire line — and this table resisted both while offering
+    // `shadow: weak` as the answer, which is a tier-three school nobody can
+    // have learned by the third chapter. Every run timed out: 0% across
+    // thirty. Physical resistance stays, because "your swords are half use
+    // here, lead with the mage" is a lesson the player can act on with what
+    // they are actually carrying; absorbing holy stays as the trap for anyone
+    // who brings a lantern to a lantern.
+    affinity: { shadow: 'weak', holy: 'absorb', physical: 'resist' },
     immune: ['ko', 'stone', 'sleep', 'stop', 'doom', 'confuse', 'silence', 'blind'],
     exp: 4600, gold: 6200, drops: [{ id: 'lastlight', chance: 1.0 }],
     steal: [{ id: 'megalixir', chance: 0.3 }, { id: 'scholarhood', chance: 0.2 }],
     intro: 'Eight of us went out. I did not go out. I went looking.',
+    // The script came down with the level. It was still casting Benediction —
+    // a tier-four, power-185, whole-party holy spell — at a level-17 party
+    // with four hundred hit points each, which is a scripted wipe rather than
+    // a fight: 0% across thirty runs. Re-levelling a boss means re-levelling
+    // what it *does*, not only what it is made of, and the register here is
+    // now the Toll Baron's: plain swings with multipliers, one status, and
+    // the holy flavour carried by elements rather than by tier-four spells.
     ai: [
-      { if: 'hpBelow', v: 0.18, phase: 3, do: { kind: 'spell', spell: 'benediction' } },
-      { if: 'hpBelow', v: 0.45, phase: 2, do: { kind: 'attack', name: 'Long Vigil', power: 2.2, element: 'holy', target: 'all' } },
+      { if: 'hpBelow', v: 0.18, phase: 3, do: { kind: 'attack', name: 'Last Light', power: 2.3, element: 'holy', target: 'all' } },
+      { if: 'hpBelow', v: 0.45, phase: 2, do: { kind: 'attack', name: 'Long Vigil', power: 1.8, element: 'holy', target: 'all' } },
       { if: 'turnEvery', n: 4, do: { kind: 'spell', spell: 'ossify' } },
-      { if: 'turnEvery', n: 3, do: { kind: 'spell', spell: 'sanctus' } },
+      { if: 'turnEvery', n: 3, do: { kind: 'attack', name: 'Trimmed Wick', power: 1.5, element: 'holy' } },
       { if: 'random', p: 0.2, do: { kind: 'spell', spell: 'dispel' } },
-      { if: 'always', do: { kind: 'attack', name: 'Lamplight', power: 1.4, element: 'holy' } },
+      { if: 'always', do: { kind: 'attack', name: 'Lamplight', power: 1.2, element: 'holy' } },
     ],
   },
 
   enginewarden: {
-    id: 'enginewarden', name: 'Warden of the Ninth Well', level: 32, boss: true,
+    id: 'enginewarden', name: 'Warden of the Ninth Well', level: 21, boss: true,
+    // The wall that stopped the game. Written at 32 against a level-18 party
+    // that cannot avoid it — the cataclysm trigger and the finale both sit
+    // behind this fight, so there is no route past and no story gate to skip.
     look: { plan: 'construct', scale: 2.0, color: '#5b6674', accent: '#12566b', eyeColor: '#d63fb3', cannons: true },
-    stats: { hp: 7200, mp: 480, atk: 260, def: 206, mag: 180, mdef: 176, spd: 40, eva: 8, lck: 12 },
+    // Calibrated against the Standing Oak, the correctly-tuned optional boss
+    // one level below it: a mandatory fight should sit a step above its
+    // neighbours, not seventy per cent above them.
+    stats: { hp: 4400, mp: 480, atk: 116, def: 150, mag: 108, mdef: 130, spd: 40, eva: 8, lck: 12 },
     affinity: { bolt: 'weak', water: 'weak', aether: 'absorb', poison: 'immune' },
     immune: ['ko', 'stone', 'sleep', 'stop', 'doom', 'confuse', 'silence', 'poison', 'blind'],
     exp: 6400, gold: 9000, drops: [{ id: 'aetherglass', chance: 1.0 }],

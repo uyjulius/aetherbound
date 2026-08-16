@@ -16,6 +16,18 @@ import { serializeRng, deserializeRng } from '../engine/rng.js';
 const PREFIX = 'aetherbound.save.';
 const CONFIG_KEY = 'aetherbound.config';
 const SLOTS = 3;
+/**
+ * The autosave, kept beside the three manual slots rather than inside them.
+ *
+ * Saving used to be entirely manual — two call sites, a save point and the
+ * menu — while the only failure state in the game silently rolled the player
+ * back to whatever they last chose to write. The simulator records about one
+ * wipe in three hundred battles, so the game never trains the habit of
+ * saving, and the one time it takes something away the player has almost
+ * certainly not saved recently. It is a separate key so an autosave can never
+ * overwrite a slot the player was curating.
+ */
+export const AUTOSAVE_SLOT = 'auto';
 const VERSION = 1;
 
 export const DEFAULT_CONFIG = {
@@ -133,6 +145,7 @@ export class SaveManager {
     party.quests = new Map(data.quests || []);
     party.bestiary = new Map(data.bestiary || []);
     party.row = new Map(data.row || []);
+    party.openedChests = new Set(data.openedChests || []);
     party.worldState = data.worldState || 'whole';
     party.airship = data.airship || null;
 
@@ -143,6 +156,7 @@ export class SaveManager {
       member.spells = m.spells || {};
       member.statuses = m.statuses || {};
       member.limit = m.limit ?? 0;
+      member.esperGrowth = m.esperGrowth || {};
       for (const [slot, id] of Object.entries(m.equipment || {})) {
         member.equipment[slot] = id ? (ITEMS[id] ?? null) : null;
       }

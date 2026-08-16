@@ -172,11 +172,17 @@ function hipRoof(w, d, rise, overhang, roofMat) {
     -hw, 0, -hd, hw, 0, -hd, hw, 0, hd, -hw, 0, hd,
     -rl, rise, 0, rl, rise, 0,
   ];
+  // Counter-clockwise seen from outside, so the faces point out and the roof
+  // is not inside-out. Every triangle here was wound the other way, which put
+  // all four normals underground: the roof was invisible from above, lit from
+  // beneath, and you could see into the building through it. No map currently
+  // asks for `roof: 'hip'`, so nothing shipped broken — but the next town
+  // that wanted one would have inherited it.
   const idx = [
-    0, 1, 5, 0, 5, 4,   // back slope
-    2, 3, 4, 2, 4, 5,   // front slope
-    1, 2, 5,            // right hip
-    3, 0, 4,            // left hip
+    0, 5, 1, 0, 4, 5,   // back slope
+    2, 4, 3, 2, 5, 4,   // front slope
+    1, 5, 2,            // right hip
+    3, 4, 0,            // left hip
   ];
   shape.setAttribute('position', new THREE.Float32BufferAttribute(v, 3));
   shape.setIndex(idx);

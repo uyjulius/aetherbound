@@ -75,7 +75,27 @@ const GLYPHS = {
   walk: '<circle cx="12.5" cy="4.6" r="1.9" /><path d="M12 8.2v5m0 0-2.6 5.4M12 13.2l2.4 5.4M12 9.6 9.2 12M12 9.6l3 1.8" />',
   run: '<circle cx="14" cy="4.6" r="1.9" /><path d="M13.2 8.2 10.6 13l3.2 1.4-1.2 4.6M10.6 13 7 14.2M13.8 10.4l3.4.8M4 8.5h3M3 12h2.6" />',
   flee: '<path d="M14 5h6v6" /><path d="M20 5 12 13" /><path d="M11 6H5.5A1.5 1.5 0 0 0 4 7.5V19h11v-5" />',
+  'arrow-up': '<polyline points="6 14 12 8 18 14" />',
+  'arrow-down': '<polyline points="6 10 12 16 18 10" />',
+  'arrow-left': '<polyline points="14 6 8 12 14 18" />',
+  'arrow-right': '<polyline points="10 6 16 12 10 18" />',
 };
+
+/**
+ * The movement pad, held to walk.
+ *
+ * These drive the same four input *actions* the keyboard does, through the
+ * same virtual press/release path as the camera buttons, so a rebound key
+ * changes nothing here and nothing about movement becomes exclusive to the
+ * pointer. Field only — the battle is a menu, and a d-pad over it would
+ * suggest the party can be walked around mid-fight.
+ */
+const DPAD = [
+  { id: 'move-up', action: 'up', label: 'Up', hint: 'W', glyph: 'arrow-up', cls: 'dpad-up' },
+  { id: 'move-left', action: 'left', label: 'Left', hint: 'A', glyph: 'arrow-left', cls: 'dpad-left' },
+  { id: 'move-right', action: 'right', label: 'Right', hint: 'D', glyph: 'arrow-right', cls: 'dpad-right' },
+  { id: 'move-down', action: 'down', label: 'Down', hint: 'S', glyph: 'arrow-down', cls: 'dpad-down' },
+];
 
 function svg(glyph) {
   return `<svg viewBox="0 0 24 24" aria-hidden="true">${GLYPHS[glyph] ?? ''}</svg>`;
@@ -105,6 +125,28 @@ export class ControlBar {
 
     this.el = bar;
     game.uiRoot.appendChild(bar);
+
+    const pad = document.createElement('div');
+    pad.className = 'dpad';
+    pad.setAttribute('data-clickable', '');
+    for (const spec of DPAD) {
+      const b = document.createElement('button');
+      b.className = `control-btn ${spec.cls}`;
+      b.type = 'button';
+      b.dataset.id = spec.id;
+      b.setAttribute('data-clickable', '');
+      b.setAttribute('aria-label', `${spec.label} (${spec.hint})`);
+      b.innerHTML = svg(spec.glyph);
+      this._wire(b, { ...spec, hold: true });
+      pad.appendChild(b);
+      this.buttons.set(spec.id, { el: b, spec: { ...spec, fieldOnly: true } });
+    }
+    const centre = document.createElement('div');
+    centre.className = 'dpad-label';
+    centre.textContent = 'MOVE';
+    pad.appendChild(centre);
+    this.pad = pad;
+    game.uiRoot.appendChild(pad);
 
     // Keyboard pause has to live outside the simulation: `input.poll` only
     // runs while unpaused, so a paused game cannot see its own unpause key.
@@ -220,10 +262,12 @@ export class ControlBar {
     // offering Menu, Pause and Flee in front of a logo is noise.
     const onTitle = this.game.state?.isTitle === true;
     this.el.classList.toggle('hidden', onTitle);
+    this.pad.classList.toggle('hidden', onTitle);
     if (onTitle) return;
 
     const onField = !!this.game.state?.player;
     const inBattle = !!this.game.state?.enemies;
+    this.pad.classList.toggle('hidden', !onField);
     for (const [, { el, spec }] of this.buttons) {
       // Buttons that do not apply here are hidden outright rather than
       // disabled: a permanently greyed Flee on every town street is clutter,
@@ -256,5 +300,6 @@ export class ControlBar {
   dispose() {
     window.removeEventListener('keydown', this._onKey);
     this.el.remove();
+    this.pad.remove();
   }
 }

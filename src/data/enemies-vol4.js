@@ -920,7 +920,10 @@ export const VOL4_ENEMIES = {
   theyardmaster: {
     id: 'theyardmaster', name: 'The Yardmaster', level: 46, boss: true,
     look: { plan: 'humanoid', scale: 1.7, color: '#96603f', accent: '#3a2226', metal: '#8a6a23', weapon: 'axe', armored: true, helmet: true, eyeColor: '#e0574f' },
-    stats: { hp: 16000, mp: 600, atk: 385, def: 198, mag: 231, mdef: 190, spd: 44, eva: 12, lck: 18 },
+    // Defence 170, not 198. It declares no physical resistance, so steel has
+    // to be able to win here — and at 198 the saturation curve was quietly
+    // halving every swing, which is the same wall without the sign on it.
+    stats: { hp: 12500, mp: 600, atk: 330, def: 170, mag: 198, mdef: 190, spd: 44, eva: 12, lck: 18 },
     affinity: { bolt: 'weak', fire: 'resist' },
     immune: ['ko', 'stone', 'sleep', 'stop', 'doom', 'confuse', 'charm', 'berserk'],
     exp: 7500, gold: 9000, drops: [{ id: 'bloodinghelm', chance: 1.0 }],
@@ -1066,7 +1069,7 @@ export const VOL4_ENEMIES = {
   thelastlitter: {
     id: 'thelastlitter', name: 'The Last Litter', level: 71, boss: true,
     look: { plan: 'blob', scale: 1.9, color: '#4b382d', accent: '#d5766a', eyeColor: '#ffe45e', eyeCount: 3 },
-    stats: { hp: 43000, mp: 900, atk: 533, def: 196, mag: 326, mdef: 192, spd: 48, eva: 14, lck: 12 },
+    stats: { hp: 43000, mp: 900, atk: 620, def: 196, mag: 380, mdef: 192, spd: 56, eva: 14, lck: 12 },
     affinity: { fire: 'weak', earth: 'absorb', poison: 'immune' },
     immune: ['ko', 'stone', 'sleep', 'stop', 'doom', 'poison', 'venom', 'confuse'],
     exp: 19500, gold: 23000, drops: [{ id: 'broodleathers', chance: 1.0 }],
@@ -1222,7 +1225,7 @@ export const VOL4_ENEMIES = {
     // was shipped at atk 661 costing 40% of a party's bar — easier than six
     // mid-game bosses — which is the difficulty curve ending upside down.
     look: { plan: 'humanoid', scale: 2.0, color: '#dedbe0', accent: '#241636', metal: '#d63fb3', weapon: 'staff', horns: true, eyeColor: '#8a5ce0', eyeCount: 3 },
-    stats: { hp: 92000, mp: 1800, atk: 740, def: 200, mag: 430, mdef: 200, spd: 120, eva: 30, lck: 32 },
+    stats: { hp: 92000, mp: 1800, atk: 810, def: 200, mag: 470, mdef: 200, spd: 120, eva: 30, lck: 32 },
     affinity: { wind: 'absorb', aether: 'absorb', shadow: 'absorb', holy: 'weak', earth: 'weak' },
     immune: ['ko', 'stone', 'sleep', 'stop', 'slow', 'doom', 'confuse', 'charm', 'poison', 'blind', 'berserk', 'paralysis', 'freeze'],
     exp: 36000, gold: 46000, drops: [{ id: 'overwindband', chance: 1.0 }, { id: 'megalixir', chance: 1.0 }],
@@ -1337,10 +1340,14 @@ export const VOL4_ENCOUNTERS = {
   brood_acre_hives: {
     rate: 32, terrain: 'dirt', scenery: 'field',
     groups: [
-      { weight: 26, enemies: ['huskbrood', 'huskbrood', 'huskbrood', 'broodnurse'] },
+      // The hives field four bodies at a time, which is the region's whole
+      // character and worth keeping — but every one of the four was a heavy
+      // hitter, and the region wiped the party at its own level. The swarms
+      // now carry their swarm: one or two things that hurt, backed by chaff.
+      { weight: 26, enemies: ['huskbrood', 'chaffmidge', 'chaffmidge', 'broodnurse'] },
       { weight: 24, enemies: ['acrewidow', 'brooddrone', 'brooddrone', 'brooddrone'] },
       { weight: 20, enemies: ['wasteweevil', 'chaffmidge', 'chaffmidge', 'chaffmidge'] },
-      { weight: 18, enemies: ['spawnbriar', 'litterhound', 'litterhound', 'acrecrow'] },
+      { weight: 18, enemies: ['spawnbriar', 'litterhound', 'acrecrow', 'chaffmidge'] },
       { weight: 12, enemies: ['wellspinner', 'acrewidow'] },
     ],
   },

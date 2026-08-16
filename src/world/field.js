@@ -23,6 +23,28 @@ const SIGNPOST_RANGE = 6.5;
 const WALK_SPEED = 4.4;
 const RUN_SPEED = 7.6;
 
+/**
+ * How much further apart random encounters sit than the tables ask for.
+ *
+ * The bestiary's per-table `rate` is a distance in world units, and the
+ * numbers in it are 15–34. The overworld runs at 13.3 units a second, so at
+ * face value the tables were asking for a fight **every one to three seconds
+ * of running** — the whole continent is 9.6 seconds wide, and a player could
+ * not cross a field without being interrupted three times. Measured against
+ * the game's own simulator that came to 800 forced battles, about 53 minutes
+ * of actual movement across the entire campaign, and a ratio of four minutes
+ * fighting to one minute in the world the game spent 95 hand-authored maps on.
+ *
+ * One multiplier here rather than 36 edits in the bestiary, so the relative
+ * density of every region is preserved — the Glasswaste is still thicker than
+ * the Silt Road — and the pacing is a single number somebody can argue with.
+ *
+ * It is paired with the coefficient in `expForLevel`: encounters are this much
+ * rarer and a level costs this much less, so the *distance* a player walks per
+ * level is unchanged and only the number of interruptions falls.
+ */
+const ENCOUNTER_SPACING = 2.6;
+
 // Airship. Cruise is a little over twice a run, and boost twice that again —
 // fast enough that crossing the continent is a short flight rather than a
 // chore, slow enough that the player can still read the landscape going past.
@@ -205,7 +227,9 @@ export class FieldState {
     initKitMaterials();
     const r = game.renderer;
 
-    this.map = buildMap(this.mapDef);
+    this.map = buildMap(this.mapDef, {
+      isOpened: (chestId) => this.game.party.chestOpened(this.mapDef?.id, chestId),
+    });
     r.scene.add(this.map.group);
     applyAtmosphere(r, this.mapDef);
 
@@ -818,7 +842,7 @@ export class FieldState {
       }
     }
     for (const c of this.map.chests) {
-      if (c.def.opened) continue;
+      if (this.game.party.chestOpened(this.mapDef?.id, c.def.id)) continue;
       const d = Math.hypot(ax - c.obj.position.x, az - c.obj.position.z);
       if (d < 1.7 && d < bestDist) { best = { kind: 'chest', chest: c, label: 'Open' }; bestDist = d; }
     }
@@ -976,9 +1000,13 @@ export class FieldState {
   }
 
   *openChest(chest) {
+    // Record it first, then play the lid. The chest is opened the moment the
+    // player opens it; the animation is presentation, and anything that
+    // interrupts the coroutine between the two — a quit, a reload, a scene
+    // change — should not leave the contents granted and the chest shut.
+    this.game.party.openChest(this.mapDef?.id, chest.def.id);
     const lid = chest.obj.userData.lid;
     if (lid) yield* tween(0, -2.1, 0.35, (v) => { lid.rotation.x = v; }, EASE.backOut);
-    chest.def.opened = true;
     const contents = chest.def.contains;
     analytics.track(EV.CHEST_OPENED, {
       chest: chest.def.id ?? null, map: this.mapDef?.id ?? null,
@@ -1093,7 +1121,7 @@ export class FieldState {
     if (!enc) return Infinity;
     // Distance-based rather than time-based, so standing still is safe and
     // running doesn't inflate the rate.
-    const base = enc.rate ?? 26;
+    const base = (enc.rate ?? 26) * ENCOUNTER_SPACING;
     return base * (0.55 + Math.random() * 0.9);
   }
 

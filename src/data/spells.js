@@ -79,7 +79,12 @@ export const SPELLS = {
   benediction:{ id: 'benediction', name: 'Benediction', kind: 'attack', school: 'white', element: 'holy', power: 185, mp: 80, target: 'allEnemies', tier: 4 },
 
   // --- grey: utility -----------------------------------------------------
-  siphon:   { id: 'siphon', name: 'Siphon', kind: 'special', school: 'grey', effect: 'drainMP', power: 30, mp: 1, target: 'oneEnemy', tier: 1 },
+  // 14 MP, not 1. Draining 18 for a cost of 1 was a net gain of seventeen
+  // every cast, from a tier-1 spell any caster learns in a handful of fights —
+  // so MP stopped being a resource, and with it the question of which spell
+  // you can afford, which is the only thing rationing magic at all. At 14 it
+  // is still worth casting on a full-MP target and it is no longer a battery.
+  siphon:   { id: 'siphon', name: 'Siphon', kind: 'special', school: 'grey', effect: 'drainMP', power: 30, mp: 14, target: 'oneEnemy', tier: 1 },
   leech:    { id: 'leech', name: 'Leech', kind: 'special', school: 'grey', effect: 'drainHP', power: 48, mp: 16, target: 'oneEnemy', tier: 2 },
   sap:      { id: 'sap', name: 'Sap', kind: 'special', school: 'grey', effect: 'drainHP', power: 100, mp: 38, target: 'oneEnemy', tier: 3 },
   quicksilver:{ id: 'quicksilver', name: 'Quicksilver', kind: 'special', school: 'grey', effect: 'extraTurn', mp: 80, target: 'self', tier: 5 },

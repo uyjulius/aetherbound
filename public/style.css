@@ -235,7 +235,12 @@ html, body {
 .bar.mp > i { background-color: var(--mp); }
 .bar.atb > i { background-color: var(--atb); transition: none; }
 .bar.atb.full > i { animation: atb-ready .55s ease-in-out infinite; }
+/* The Desperation gauge sits under the HP bar, thinner, so it reads as a
+   secondary track rather than competing with health. It glows when it is
+   ready, because that is the moment it is asking to be spent. */
+.bar.limit { height: calc(3 * var(--u)); margin-top: calc(2 * var(--u)); }
 .bar.limit > i { background-color: var(--limit); }
+.bar.limit.full > i { animation: atb-ready .55s ease-in-out infinite; }
 @keyframes crit-pulse { 0%,100% { filter: brightness(1) } 50% { filter: brightness(1.5) } }
 @keyframes atb-ready { 0%,100% { filter: brightness(1) } 50% { filter: brightness(1.7) } }
 
@@ -487,6 +492,58 @@ html, body {
 .control-bar:hover,
 .control-bar:focus-within,
 .control-bar.is-paused { opacity: 1; }
+
+/*
+ * The movement pad.
+ *
+ * The control bar carried Turn, Run, Menu, Pause, Back and Talk and no way to
+ * walk, while the README called it "the game's statement of what the controls
+ * are" — so a player on a trackpad, a touchscreen or any pointer-only setup
+ * booted into a world they could look at and could not move in. It sits in the
+ * bottom-left rather than in the bar because that is where a thumb goes, and
+ * because the bar is already close to overlapping the battle party panel on a
+ * narrow window.
+ */
+.dpad {
+  position: absolute;
+  left: calc(18 * var(--u));
+  bottom: calc(14 * var(--u));
+  display: grid;
+  grid-template-columns: repeat(3, calc(46 * var(--u)));
+  grid-template-rows: repeat(3, calc(42 * var(--u)));
+  gap: calc(3 * var(--u));
+  padding: calc(6 * var(--u));
+  border-radius: calc(14 * var(--u));
+  background: linear-gradient(180deg, rgba(20,30,66,.72), rgba(7,11,30,.82));
+  box-shadow:
+    inset 0 0 0 calc(1 * var(--u)) rgba(143,166,232,.30),
+    0 calc(6 * var(--u)) calc(20 * var(--u)) rgba(0,0,0,.42);
+  backdrop-filter: blur(calc(6 * var(--u)));
+  opacity: .5;
+  transition: opacity .22s ease;
+  z-index: 40;
+}
+.dpad:hover,
+.dpad:focus-within { opacity: 1; }
+.dpad .control-btn { min-width: 0; padding: 0; justify-content: center; }
+.dpad .control-btn svg { width: calc(22 * var(--u)); height: calc(22 * var(--u)); }
+.dpad-up    { grid-area: 1 / 2; }
+.dpad-left  { grid-area: 2 / 1; }
+.dpad-right { grid-area: 2 / 3; }
+.dpad-down  { grid-area: 3 / 2; }
+/* The centre cell names the cluster so its purpose is readable at a glance. */
+.dpad-label {
+  grid-area: 2 / 2;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-family: var(--font-ui);
+  font-size: calc(9 * var(--u));
+  letter-spacing: .1em;
+  color: var(--text-dim);
+  text-shadow: var(--shadow-text);
+  pointer-events: none;
+}
 
 .control-btn {
   appearance: none;

@@ -21,7 +21,7 @@ import { ITEMS, isEquippable } from './data/items.js';
 import { rng } from './engine/rng.js';
 import { audio } from './audio/audio.js';
 import { TRACKS } from './data/music.js';
-import { saves, SaveManager } from './game/saves.js';
+import { saves, SaveManager, AUTOSAVE_SLOT } from './game/saves.js';
 import { MenuSystem, applyWindowTheme } from './ui/menu.js';
 import { ShopScreen } from './ui/shop.js';
 import { ESPERS } from './data/espers.js';
@@ -428,11 +428,29 @@ class Game {
   /** The most recently written slot, or null if the player has never saved. */
   latestSave() {
     let best = null;
-    for (let i = 0; i < this.saves.slots; i++) {
-      const data = this.saves.load(i);
+    // The autosave counts, and usually wins — it is the whole point of it.
+    for (const slot of [...Array(this.saves.slots).keys(), AUTOSAVE_SLOT]) {
+      const data = this.saves.load(slot);
       if (data && (!best || (data.savedAt ?? 0) > (best.savedAt ?? 0))) best = data;
     }
     return best;
+  }
+
+  /**
+   * Write the autosave, if there is a world to write.
+   *
+   * Called on arriving somewhere new and immediately before a boss — the two
+   * moments a player is about to lose progress and the two they are least
+   * likely to have saved at. Failures are swallowed deliberately: a full
+   * localStorage should never be the reason somebody cannot walk through a
+   * door.
+   */
+  autosave(reason) {
+    if (!this.party || !this.currentMapId) return;
+    try {
+      this.saves.save(AUTOSAVE_SLOT, this);
+      analytics.track(EV.GAME_SAVED, { slot: 'auto', reason, map: this.currentMapId });
+    } catch { /* never block play on a storage error */ }
   }
 
   async gotoMap(mapId, spawn = null, opts = {}) {
@@ -477,6 +495,7 @@ class Game {
     // the far shore would be standing in the sea, so the flight continues.
     if (opts.byAir && this.party.hasFlag('airship')) next.board(this);
     await this.fade(0, 0.55);
+    this.autosave('map');
   }
 
   // --- events & cutscenes -------------------------------------------------
@@ -646,6 +665,20 @@ class Game {
     const field = this.state instanceof FieldState ? this.state : null;
     const group = opts.group || pickEncounterGroup(encounters);
     if (!group) return;
+    // Boss framing follows the creature, not the caller. Fourteen encounter
+    // tables can roll a `boss: true` creature as an ordinary random battle —
+    // The Overwind, ninety-two thousand hit points, turns up in the Last
+    // Lantern at better than one encounter in ten — and because this flag was
+    // only ever set by the event that placed a boss behind a door, those
+    // fights arrived with field music, no name banner, no grade, and a flee
+    // option. The player had no way to know it was not a Fen Rat until three
+    // minutes in.
+    const isBoss = (opts.boss ?? false)
+      || group.enemies.some((id) => ENEMIES[id]?.boss);
+
+    // A boss is the one fight worth writing before, and the one a player is
+    // least likely to have saved in front of.
+    if (isBoss) this.autosave('boss');
 
     if (field) field.paused = true;
     await this.fade(1, PACING.fadeToBattle);
@@ -654,8 +687,8 @@ class Game {
       encounter: group,
       terrain: encounters?.terrain || opts.terrain || 'grass',
       scenery: encounters?.scenery || opts.scenery || 'field',
-      boss: opts.boss ?? false,
-      canFlee: opts.canFlee ?? true,
+      boss: isBoss,
+      canFlee: opts.canFlee ?? !isBoss,
       onEnd: (result) => this._endBattle(result, field, opts),
     });
     this._suspendedField = field;
@@ -664,8 +697,8 @@ class Game {
       enemies: group.enemies,
       enemy_count: group.enemies.length,
       formation: group.enemies.join('+'),
-      boss: opts.boss ?? false,
-      can_flee: opts.canFlee ?? true,
+      boss: isBoss,
+      can_flee: opts.canFlee ?? !isBoss,
       terrain: encounters?.terrain || opts.terrain || 'grass',
       party_level: Math.round(this.party.averageLevel()),
       party: this.party.active,
@@ -705,8 +738,24 @@ class Game {
       // Back to the last save. Standing the dead party up on the spot where
       // they were killed costs the defeat all its meaning — and drops them in
       // the middle of whatever killed them.
+      //
+      // Say so, though. This used to happen in silence: the screen faded, the
+      // party was somewhere else, and nothing anywhere told the player they
+      // had been rolled back, to when, or how much they had lost. Being
+      // returned to an earlier point without being told is indistinguishable
+      // from the game losing your progress by accident.
       const last = this.latestSave();
       if (last) {
+        const where = last.locationName || 'an earlier point';
+        const when = last.party?.playTime
+          ? `${Math.floor(last.party.playTime / 3600)}:${String(Math.floor((last.party.playTime % 3600) / 60)).padStart(2, '0')}`
+          : null;
+        const self = this;
+        await this.run(function* () {
+          yield* self.dialogue.speak(null, [
+            `The party falls.\n\nReturning to ${where}${when ? ` — ${when} played` : ''}.`,
+          ]);
+        }, 'defeat').promise;
         await this.loadFrom(last);
         this.party.restAll();
         this.playMusic(this.currentMapName && MAPS[this.currentMapId]?.music, { fade: 1.4 });

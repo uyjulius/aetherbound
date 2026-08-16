@@ -33,6 +33,7 @@ import {
 } from '../src/battle/formulas.js';
 import { RNG } from '../src/engine/rng.js';
 import { PACING } from '../src/battle/pacing.js';
+import { PHASE_REPEAT } from '../src/battle/battle.js';
 import * as legendModule from '../src/world/map.js';
 import { dangerNote, dangerOf } from '../src/world/danger.js';
 import fs from 'node:fs';
@@ -590,8 +591,14 @@ function simulateBattle(party, enemyIds, {
         default: match = false;
       }
       if (!match) continue;
-      if (rule.phase && f.phase >= rule.phase) continue;
-      if (rule.phase) f.phase = rule.phase;
+      // Mirrors `_evaluateAI`: a phase is a state, superseded only by a
+      // higher one, not a one-shot gate that locks its own rule out — and
+      // its signature recurs on PHASE_REPEAT rather than every turn.
+      if (rule.phase) {
+        if (f.phase > rule.phase) continue;
+        if (f.phase < rule.phase) f.phase = rule.phase;
+        else if (f.aiTurn % PHASE_REPEAT !== 0) continue;
+      }
       return rule.do;
     }
     return { kind: 'attack' };
@@ -1444,6 +1451,92 @@ function progression() {
 // 4. Bosses
 // ---------------------------------------------------------------------------
 
+/**
+ * The five fights the game actually makes a player have, in order.
+ *
+ * Everything else in the bestiary is optional, and the optional ladder is
+ * correctly tuned — this is the route that has to work.
+ */
+const MAIN_LINE = ['bogfather', 'ferranwarden', 'eighthlantern', 'enginewarden', 'vhaineshadow'];
+
+/**
+ * Experience the critical path pays, per party member, before each boss.
+ *
+ * Measured by breadth-first search over the real terrain grids: the walking
+ * distance between each pair of story beats, divided by the encounter table's
+ * own `rate` times `ENCOUNTER_SPACING`, at twice the shortest route to allow
+ * for chests, wrong turns and backtracking. It is deliberately a fixed table
+ * rather than a live simulation — the simulation walks every region in the
+ * game, which is the thing this check exists to *not* assume anybody does.
+ *
+ * These are absolute experience totals, so they move whenever the encounter
+ * spacing or the `expForLevel` coefficient moves. Both changed together when
+ * encounters were spaced out; the levels they resolve to did not.
+ */
+const MAIN_LINE_EXP = {
+  bogfather: 146, ferranwarden: 519, eighthlantern: 1192,
+  enginewarden: 2154, vhaineshadow: 2869,
+};
+
+/**
+ * Does the road deliver the party the bosses on it are written for?
+ *
+ * This is the join the rest of the audit never looked at. `bossChecks` builds
+ * its test party at *the boss's own level* and asks whether the fight is fair;
+ * the smoke test grants millions of experience before each story fight so it
+ * can reach the ending. Both are correct about what they measure and neither
+ * asks whether a player arrives at that level. They did not: the Eighth
+ * Lantern was written at 30 and met at 15, and the Warden of the Ninth Well at
+ * 32 and met at 18 — with no route past it — so the main line was arithmetically
+ * unwinnable without roughly 128 battles of grinding at one corridor.
+ */
+function criticalPath() {
+  head('5b. The road the game actually asks you to walk');
+  const rows = [];
+  for (const id of MAIN_LINE) {
+    const b = ENEMIES[id];
+    if (!b) { flag('major', 'scaling', `Main-line boss '${id}' is missing from the bestiary`, ''); continue; }
+    const party = levelForExp(MAIN_LINE_EXP[id]);
+    rows.push({ id, name: b.name, boss: b.level, party, gap: b.level - party });
+  }
+  say('boss                        written for   party arrives at   gap');
+  for (const r of rows) {
+    const colour = Math.abs(r.gap) > 3 ? '\x1b[31m' : '';
+    say(`${colour}${r.name.padEnd(28)} ${String(r.boss).padStart(11)} ${String(r.party).padStart(18)} `
+      + `${(r.gap > 0 ? '+' : '') + r.gap}\x1b[0m`);
+  }
+
+  const unfair = rows.filter((r) => r.gap > 3);
+  if (unfair.length) {
+    flag('major', 'scaling', `${unfair.length} mandatory bosses are written above the level the road delivers`,
+      unfair.map((r) => `${r.name} lv${r.boss} vs party ${r.party} (+${r.gap})`).join(', ')
+      + '. These fights cannot be avoided, so the gap is not difficulty — it is a grind wall, and '
+      + 'the player has to farm it off at the one corridor that stops them.');
+  }
+  const trivial = rows.filter((r) => r.gap < -4);
+  if (trivial.length) {
+    flag('minor', 'scaling', `${trivial.length} mandatory bosses are far below the party that reaches them`,
+      trivial.map((r) => `${r.name} lv${r.boss} vs party ${r.party}`).join(', '));
+  }
+  // The ladder may only climb. A story whose fights get easier as it goes has
+  // its climax in the middle.
+  for (let i = 1; i < rows.length; i++) {
+    if (rows[i].boss < rows[i - 1].boss) {
+      flag('major', 'scaling', 'The main line gets easier as it goes',
+        `${rows[i].name} (lv${rows[i].boss}) comes after ${rows[i - 1].name} (lv${rows[i - 1].boss}). `
+        + 'Every fight the story makes mandatory should be at least as hard as the one before it, '
+        + 'or the player meets the peak of the game somewhere in the middle and finishes downhill.');
+      break;
+    }
+  }
+  const last = rows[rows.length - 1];
+  if (last && rows.some((r) => r.boss > last.boss)) {
+    flag('major', 'scaling', 'The final boss is not the hardest fight on the main line',
+      `${last.name} is lv${last.boss}; the main line peaks at lv${Math.max(...rows.map((r) => r.boss))}.`);
+  }
+  return rows;
+}
+
 function bossChecks() {
   head('5. Bosses');
   // `--boss id[,id]` narrows the table to the bosses being tuned. The shape
@@ -1620,16 +1713,20 @@ function bossChecks() {
       + 'act is where the campaign pays its bill. A pushover in either place is not an average '
       + 'problem, it is a broken promise, so these are named individually rather than pooled.');
   }
-  const bites = rows.map((r) => r.plain.bite).sort((a, b) => b - a);
-  const topQuartile = bites[Math.floor(bites.length * 0.25)];
-  if (!bossFilter && (finale.plain.bite < 0.5 || finale.plain.bite < topQuartile)) {
+  // The last boss on the *level ladder* has to be a real fight. It is
+  // deliberately not measured against the whole roster: sixteen of these are
+  // optional post-game superbosses written to be harder than the ending, which
+  // is the genre working as intended rather than a defect. An earlier version
+  // of this check asked the finale to sit in the top quarter of all 45, and
+  // the only way to satisfy it was to keep inflating the last boss past
+  // content the player never has to touch. The main line's own ladder is
+  // checked separately, in `criticalPath`.
+  if (!bossFilter && finale.plain.bite < 0.5) {
     flag('major', 'battles',
-      `The final boss is not the peak of the game`,
-      `${finale.name} (lv${finale.level}) takes ${(finale.plain.bite * 100).toFixed(0)}% of an `
-      + `unprepared party's health; the top quarter of the roster starts at `
-      + `${(topQuartile * 100).toFixed(0)}%. Forty hours point at this fight. It has to cost at `
-      + 'least half the party\'s health pool and sit in the top quarter of the ledger, or the '
-      + 'climax is easier than the road to it.');
+      'The last boss on the ladder is not a real fight',
+      `${finale.name} (lv${finale.level}) takes only ${(finale.plain.bite * 100).toFixed(0)}% of an `
+      + 'unprepared party\'s health. Whatever else is optional, the top of the level curve has to '
+      + 'cost at least half the party\'s health pool.');
   }
   // A wall is the other failure. Prepared means the right element, the best
   // affordable gear and a full bag — a party that did everything the game
@@ -1837,6 +1934,7 @@ async function questChecks() {
 if (runAll || only('--data')) { dataChecks(); damageScaling(); economy(); }
 if (runAll || only('--reach')) reachChecks();
 if (runAll || only('--sim')) progression();
+if (runAll || only('--data') || only('--sim')) criticalPath();
 if (runAll || only('--sim') || only('--boss')) bossChecks();
 if (runAll || only('--quests')) await questChecks();
 

@@ -6,6 +6,7 @@ import { BattleView } from './view.js';
 import { BattleUI } from './ui.js';
 import { SPELLS, spellCost } from '../data/spells.js';
 import { ITEMS } from '../data/items.js';
+import { TEACH_RATE } from '../data/espers.js';
 import { enemyById } from '../data/enemies.js';
 import { ELEMENT_COLOR } from '../engine/palette.js';
 import { PACING } from './pacing.js';
@@ -29,6 +30,16 @@ import {
  */
 
 let nextCombatantId = 1;
+
+/**
+ * How often a creature repeats the signature move of the phase it is in.
+ *
+ * Every third turn. Once, on entering, is too little — that was the old
+ * behaviour and it made bosses get *weaker* as their health fell. Every turn
+ * is too much: it turns the end of every fight into one move on a loop and
+ * pushed six bosses under a 50% win rate against a party at their own level.
+ */
+export const PHASE_REPEAT = 3;
 
 // ---------------------------------------------------------------------------
 // Combatants
@@ -310,7 +321,8 @@ export class BattleState {
 
   _tickATB(dt) {
     for (const c of [...this.party, ...this.enemies]) {
-      if (c.isKO || !c.canAct) continue;
+      if (c.isKO) continue;
+      if (!c.canAct) { this._serveSentence(c, dt); continue; }
       const rate = atbRate(c.stat('spd'), {
         haste: c.hasStatus('haste'),
         slow: c.hasStatus('slow'),
@@ -318,6 +330,34 @@ export class BattleState {
         battleSpeed: this.battleSpeed,
       });
       c.atb = Math.min(100, c.atb + rate * dt * 100 * 0.16);
+    }
+  }
+
+  /**
+   * Count down a turn-blocking status on somebody who cannot take turns.
+   *
+   * Durations are counted in the victim's own turns and decremented in
+   * `endOfTurn`, which only runs when a combatant acts. Stop, Paralysis and
+   * Freeze all set `blocksTurn`, so the victim never acted, so `endOfTurn`
+   * never ran, so the counter never moved: every one of them was permanent
+   * for the rest of the fight. The Ferran Warden's Grapnel is a 40% roll to
+   * remove a party member from the game, and Arrest did the same to an enemy.
+   *
+   * So a blocked combatant serves its sentence on the clock it would have
+   * acted on — the gauge still fills, it simply buys a tick of the status
+   * instead of a turn. Only `blocksTurn` statuses are counted here; poison
+   * and the other per-turn effects keep their existing meaning, because those
+   * do fire on turns their victim actually takes.
+   */
+  _serveSentence(c, dt) {
+    const rate = atbRate(c.stat('spd'), { battleSpeed: this.battleSpeed });
+    c._blockedFill = (c._blockedFill ?? 0) + rate * dt * 100 * 0.16;
+    if (c._blockedFill < 100) return;
+    c._blockedFill = 0;
+    for (const [id, state] of Object.entries(c.statuses)) {
+      if (!STATUSES[id]?.blocksTurn || !(state.turns > 0)) continue;
+      state.turns--;
+      if (state.turns <= 0) c.removeStatus(id);
     }
   }
 
@@ -347,6 +387,9 @@ export class BattleState {
     this.activeActor = actor;
     this.phase = 'menu';
     this.view.play(actor.id, 'battleIdle');
+    // A guard raised last turn lasts until this one — that is the whole trade
+    // Defend offers, and it is spent now that the character is acting again.
+    if (actor._defending) { actor._defending = false; actor.removeStatus('protect'); }
 
     if (actor.hasStatus('berserk')) {
       this._commitAction({ actor, kind: 'attack', targets: [this._randomEnemy()] });
@@ -396,7 +439,13 @@ export class BattleState {
         disabled: actor._summoned || actor.mp < esper.mp,
       });
     }
-    if (actor.limit >= 100) items.unshift({ label: '★ Desperation', cmd: 'limit' });
+    // Appended, not unshifted. Putting it first meant that on the exact turn
+    // the gauge filled, the top item silently stopped being Attack — and a
+    // player confirming out of habit spent a once-a-fight resource on
+    // whatever the default target happened to be. Menu positions have to be
+    // stable turn to turn; a new option arrives at the bottom, where nothing
+    // else moves under the cursor.
+    if (actor.limit >= 100) items.push({ label: '★ Desperation', cmd: 'limit' });
 
     this.ui.showCommands(items, {
       title: actor.name,
@@ -442,15 +491,22 @@ export class BattleState {
         const spells = this._spellsFor(actor);
         const items = spells.map((s) => {
           const cost = spellCost(s, actor.member);
+          // The element goes on the row. This is the one screen where the
+          // choice of element decides the fight, and it was the one screen
+          // that hid it: the field menu shows school, element, power and
+          // target, while this showed a name and a bare number, so a player
+          // had to have memorised which of forty spell names is the ice one.
           return {
-            label: s.name, right: String(cost), spell: s,
+            label: s.element ? `${s.name} · ${s.element}` : s.name,
+            right: `${cost} MP`, spell: s,
             disabled: actor.mp < cost,
           };
         });
         this.ui.showCommands(items, {
           title: 'Magic',
           onSelect: (item) => this._beginTargeting(actor, item.spell.target, (targets) =>
-            this._commitAction({ actor, kind: 'spell', spell: item.spell, targets })),
+            this._commitAction({ actor, kind: 'spell', spell: item.spell, targets }),
+          { targetsKO: !!item.spell.targetsKO }),
           onCancel: () => this.ui.popMenu(),
         });
         break;
@@ -465,7 +521,8 @@ export class BattleState {
         this.ui.showCommands(items, {
           title: 'Item',
           onSelect: (entry) => this._beginTargeting(actor, entry.item.target, (targets) =>
-            this._commitAction({ actor, kind: 'item', item: entry.item, targets })),
+            this._commitAction({ actor, kind: 'item', item: entry.item, targets }),
+          { targetsKO: !!entry.item.targetsKO }),
           onCancel: () => this.ui.popMenu(),
         });
         break;
@@ -669,9 +726,16 @@ export class BattleState {
           { label: 'Half', cost: 0.5, power: 4.0 },
           { label: 'Everything', cost: 0.9, power: 7.5 },
         ];
+        // Priced off max HP, not current. Off current it was a fraction of a
+        // shrinking number floored at 1, so at 1 HP "Everything" cost one
+        // point and left him on one point — a free power-7.5 strike every
+        // turn, for ever, roughly four times the strongest spell in the game.
+        // Off max HP the trade is the one the command is supposed to be: a
+        // real slice of the health bar, and the biggest tier is a commitment
+        // Rusk cannot make twice.
         this.ui.showCommands(tiers.map((t) => ({
-          label: t.label, right: `${Math.floor(actor.hp * t.cost)} HP`, tier: t,
-          disabled: actor.hp <= Math.floor(actor.hp * t.cost),
+          label: t.label, right: `${Math.floor(actor.maxHP * t.cost)} HP`, tier: t,
+          disabled: actor.hp <= Math.floor(actor.maxHP * t.cost),
         })), {
           title: 'Overclock',
           onSelect: ({ tier }) => this._beginTargeting(actor, 'oneEnemy', (targets) =>
@@ -717,19 +781,36 @@ export class BattleState {
 
   // --- targeting ----------------------------------------------------------
 
-  _beginTargeting(actor, targetKind, done) {
-    const all = targetKind.startsWith('all') && targetKind !== 'allAllies' && targetKind !== 'allEnemies';
+  /**
+   * Choose who an action lands on.
+   *
+   * `targetsKO` is the flag every revive in the game carries — Reprise,
+   * Reprise+, the Phoenix Tear and the Phoenix Ember — and it has to be
+   * consulted *here*, when the list of candidates is built, not only when the
+   * effect resolves. It used to be read against `this._allowsKOTargets`, a
+   * property nothing ever assigned, so the filter was always a plain
+   * `!isKO`: a fallen character never appeared in the target list and every
+   * revive in the game could only be pointed at somebody who did not need it.
+   * Losing a character was therefore permanent for the rest of the fight, with
+   * the player holding a Phoenix Tear the menu would not let them use. The
+   * resolution path was right all along (see `_commitAction` and
+   * `applySpell`); only the pool was wrong.
+   */
+  _beginTargeting(actor, targetKind, done, { targetsKO = false } = {}) {
+    const reachable = (p) => !p.isKO || targetsKO;
     if (targetKind === 'self') { done([actor]); return; }
     if (targetKind === 'allEnemies') { done(this.enemies.filter((e) => !e.isKO)); return; }
-    if (targetKind === 'allAllies') { done(this.party.filter((p) => !p.isKO)); return; }
+    if (targetKind === 'allAllies') { done(this.party.filter(reachable)); return; }
 
     const pool = targetKind === 'oneAlly'
-      ? this.party.filter((p) => !p.isKO || this._allowsKOTargets)
+      ? this.party.filter(reachable)
       : this.enemies.filter((e) => !e.isKO);
     if (!pool.length) { done([]); return; }
 
     this._targeting = { pool, index: 0, done, actor };
-    this.ui.showCommands(pool.map((c) => ({ label: c.name })), {
+    // Mark the fallen. A revive's target list is mostly people who do not need
+    // it, and the one who does is the only unlabelled thing on screen.
+    this.ui.showCommands(pool.map((c) => ({ label: c.name, right: c.isKO ? 'KO' : '' })), {
       title: 'Target',
       onSelect: (_, i) => {
         const t = this._targeting;
@@ -812,11 +893,36 @@ export class BattleState {
         default: match = false;
       }
       if (!match) continue;
-      // A phase rule fires once, then announces itself.
-      if (rule.phase && enemy.phase >= rule.phase) continue;
+      // A phase is a state the creature enters, not a move it spends.
+      //
+      // This used to read `enemy.phase >= rule.phase → skip`, which locked a
+      // phase rule out the moment it fired — including itself. A boss would
+      // reach 35% health, announce "Phase 3", use its signature move exactly
+      // once, and then fall through to its filler rules for the rest of the
+      // fight. Every boss in the game got *weaker* as its health dropped,
+      // which is precisely backwards, and it is why so many phase scripts
+      // read as decoration: they ran for one turn each.
+      //
+      // Now a lower-numbered phase is superseded by a higher one, entering a
+      // phase announces it once and swings, and the signature then recurs on
+      // a beat while the creature stays in that phase.
+      //
+      // The beat matters as much as the stickiness. Letting the phase rule
+      // match every turn — the obvious fix — is what a boss's rule list asks
+      // for once it is past the threshold, and it turned the back half of
+      // every fight into the same party-wide move on repeat: the Eighth
+      // Lantern went to a 0% win rate against a party at its own level, and
+      // five other bosses fell below half. Escalation is the goal; a loop is
+      // not. Between beats the creature drops through to its ordinary rules,
+      // so a phase reads as pressure rather than as a metronome.
       if (rule.phase) {
-        enemy.phase = rule.phase;
-        this.ui.showBanner(`${enemy.name} — Phase ${rule.phase}`, 1.4, '#e0574f');
+        if (enemy.phase > rule.phase) continue;
+        if (enemy.phase < rule.phase) {
+          enemy.phase = rule.phase;
+          this.ui.showBanner(`${enemy.name} — Phase ${rule.phase}`, 1.4, '#e0574f');
+        } else if (enemy.aiTurn % PHASE_REPEAT !== 0) {
+          continue;                      // in the phase, but not its beat
+        }
       }
       return this._buildEnemyAction(enemy, rule.do);
     }
@@ -1026,6 +1132,12 @@ export class BattleState {
         weaponPower: actor.attack,
         defence,
         rows: { attacker: actor.row, target: target.row },
+        // A weapon with reach does not lose damage for standing at the back.
+        // That is the entire reason to own a bow or a spear, and `reachBack`
+        // — the largest single effect group in the item tables, 21 weapons —
+        // had exactly one reader in the codebase, which skipped the walk-up
+        // animation. The property was sold in shop text and did nothing.
+        reachBack: !!actor.weapon?.effects?.includes('reachBack'),
         critical: crit,
         multiplier,
         ignoreDefence,
@@ -1051,7 +1163,7 @@ export class BattleState {
       this.ui.popup(pos, 'Null', 'miss');
       dmg = 0;
     } else {
-      yield* this.applyDamage(actor, target, dmg, { crit, element, weak: mult > 1 });
+      yield* this.applyDamage(actor, target, dmg, { crit, element, weak: mult > 1, resisted: mult > 0 && mult < 1 });
       if (drain) {
         const gain = Math.floor(dmg * 0.5);
         actor.hp = Math.min(actor.maxHP, actor.hp + gain);
@@ -1071,7 +1183,9 @@ export class BattleState {
   }
 
   /** Apply damage with all the feedback: flash, shake, popup, death check. */
-  *applyDamage(source, target, amount, { crit = false, element = null, weak = false, magic = false } = {}) {
+  *applyDamage(source, target, amount, {
+    crit = false, element = null, weak = false, resisted = false, magic = false,
+  } = {}) {
     const before = target.hp;
     target.hp = Math.max(0, target.hp - amount);
     const dealt = before - target.hp;
@@ -1079,6 +1193,12 @@ export class BattleState {
     const pos = this.view.project(this.view.anchor(target.id, 1.5));
     this.ui.popup(pos, dealt, crit ? 'crit' : 'damage');
     if (weak) this.ui.showAction('Weakness!');
+    // The other half of the affinity table. Weakness has always announced
+    // itself and resistance never did, so a half-damage hit was indistinguishable
+    // from an unlucky damage roll — the player got no signal that the element
+    // they chose was the wrong one, which is the entire lesson the bestiary's
+    // affinities exist to teach.
+    else if (resisted) this.ui.showAction('Resisted');
 
     this.view.play(target.id, 'hurt');
     if (target.kind === 'party') this.view.setActionT(target.id, 0);
@@ -1270,7 +1390,7 @@ export class BattleState {
       } else if (mult === 0) {
         this.ui.popup(pos, 'Null', 'miss');
       } else {
-        yield* this.applyDamage(actor, target, dmg, { element: spell.element, weak: mult > 1, magic: true });
+        yield* this.applyDamage(actor, target, dmg, { element: spell.element, weak: mult > 1, resisted: mult > 0 && mult < 1, magic: true });
       }
       if (spell.status) {
         for (const [id, chance] of Object.entries(spell.status)) {
@@ -1370,6 +1490,49 @@ export class BattleState {
       case 'flee':
         this._flee();
         break;
+      // The three below had no case at all and fell through to "No effect" —
+      // including Quicksilver, an 80 MP tier-five capstone taught by Osric's
+      // signature magicite, which spent the turn and the MP and printed a
+      // miss. `audit.mjs` passed them because they are learnable, and the
+      // balance audit passed them because it only cross-checks status names.
+      // `tools/spells.mjs` now holds every declared effect against this
+      // switch, so the next one cannot ship silent.
+      case 'levelMultiple': {
+        // The classic level-N roulette: it lands only on a target whose level
+        // divides evenly, which is why it reads the bestiary's levels rather
+        // than a damage curve.
+        if (target.level % spell.of !== 0) { this.ui.popup(pos, 'No effect', 'miss'); break; }
+        const dmg = actor.kind === 'party'
+          ? magicDamage({
+            casterLevel: actor.level, magic: actor.stat('mag'),
+            spellPower: 90, magicDefence: target.magicDefence,
+          })
+          : monsterDamage({
+            level: actor.level, power: actor.stat('mag'), defence: target.magicDefence,
+            multiplier: 90 / MONSTER_SPELL_REFERENCE,
+          });
+        yield* this.applyDamage(actor, target, dmg, { magic: true });
+        break;
+      }
+      case 'extraTurn': {
+        // Refill the gauge rather than granting a turn directly: the ATB is
+        // the only clock in the fight, so handing back a full bar is the same
+        // thing said in the system's own terms, and it cannot double-book the
+        // actor the way a re-entrant turn would.
+        target.atb = 100;
+        this.ui.popup(pos, 'Again', 'heal');
+        break;
+      }
+      case 'swapHPMP': {
+        // Both clamped, because the two pools are not the same size and the
+        // spell should never be a free full heal or a way to mint MP.
+        const hp = Math.min(target.hp, target.maxMP);
+        const mp = Math.min(target.mp, target.maxHP);
+        target.hp = Math.max(1, mp);
+        target.mp = hp;
+        this.ui.popup(pos, 'Reversed', 'heal');
+        break;
+      }
       default:
         this.ui.popup(pos, 'No effect', 'miss');
         break;
@@ -1412,7 +1575,7 @@ export class BattleState {
       if (e.status) for (const [id] of Object.entries(e.status)) target.addStatus(id);
       if (e.damage) {
         const mult = elementalMultiplier(e.element, target.affinity);
-        yield* this.applyDamage(actor, target, Math.round(e.damage * Math.abs(mult) || 1), { element: e.element, weak: mult > 1 });
+        yield* this.applyDamage(actor, target, Math.round(e.damage * Math.abs(mult) || 1), { element: e.element, weak: mult > 1, resisted: mult > 0 && mult < 1 });
       }
       yield wait(0.1);
     }
@@ -1421,6 +1584,13 @@ export class BattleState {
 
   *doDefend(actor) {
     actor.addStatus('protect', 2);
+    // Defend has to survive its own turn. `endOfTurn` runs in the `finally` of
+    // this same action, and it used to clear `_defending` and strip the
+    // Protect there — so the guard went up and came down before a single
+    // enemy could swing, and the most-pressed non-attack button in the game
+    // bought nothing at all. Stamping the turn it was raised on lets the
+    // teardown tell "the turn I defended" from "the turn after", which is the
+    // one that should end it.
     actor._defending = true;
     this.ui.showAction('Defending');
     yield wait(0.3);
@@ -1472,7 +1642,7 @@ export class BattleState {
     if (actor.kind === 'party') yield* this.view.driveAction(actor.id, 0.5);
     // Overclock pays first, so the cost lands even if the blow misses.
     if (move.overclock) {
-      const spent = Math.max(1, Math.floor(actor.hp * move.overclock));
+      const spent = Math.max(1, Math.floor(actor.maxHP * move.overclock));
       actor.hp = Math.max(1, actor.hp - spent);
       this.ui.popup(this.view.project(this.view.anchor(actor.id, 1.5)), spent, 'damage');
       yield wait(0.15);
@@ -1520,9 +1690,23 @@ export class BattleState {
         target.hp = Math.min(target.maxHP, target.hp + amount);
         this.ui.popup(pos, target.hp - before, 'heal');
       }
-      if (move.status) for (const [id] of Object.entries(move.status)) target.addStatus(id);
+      // Statuses ride the blow and roll like any other. They used to be
+      // applied here *as well*, unconditionally, before `resolvePhysical` got
+      // a look at them — so every one landed twice and the first time was a
+      // certainty. The numbers the bestiary writes are chances: the
+      // Yardmaster's `{ berserk: 70 }` is meant to be seven turns in ten, and
+      // arrived as ten, on the whole party, skipping the immunity list and the
+      // level term in `rollStatus` on the way past.
       if (move.power) {
         yield* this.resolvePhysical(actor, target, { power: move.power, element: move.element, status: move.status });
+      } else if (move.status) {
+        // A pure status move has no blow to ride, so it rolls on its own.
+        for (const [id, chance] of Object.entries(move.status)) {
+          if (rollStatus({
+            chance, targetRes: target.magicDefence, immune: target.immune,
+            status: id, level: actor.level, targetLevel: target.level,
+          })) target.addStatus(id);
+        }
       }
       yield wait(0.08);
     }
@@ -1649,7 +1833,7 @@ export class BattleState {
           this.ui.popup(this.view.project(this.view.anchor(target.id, 1.5)), mult < 0 ? `+${dmg}` : 'Null', mult < 0 ? 'heal' : 'miss');
           if (mult < 0) target.hp = Math.min(target.maxHP, target.hp + dmg);
         } else {
-          yield* this.applyDamage(actor, target, Math.round(dmg * mult), { element: esper.summon.element, weak: mult > 1, magic: true });
+          yield* this.applyDamage(actor, target, Math.round(dmg * mult), { element: esper.summon.element, weak: mult > 1, resisted: mult > 0 && mult < 1, magic: true });
         }
       }
       yield wait(0.10);
@@ -1727,7 +1911,6 @@ export class BattleState {
         }
       }
     }
-    if (actor._defending) { actor._defending = false; actor.removeStatus('protect'); }
   }
 
   // --- resolution ---------------------------------------------------------
@@ -1794,6 +1977,22 @@ export class BattleState {
     for (const id of drops) this.game.party.addItem(id, 1);
 
     const lines = [`Gained ${each} EXP and ${gold} gil.`];
+
+    // The bench learns too, at half rate.
+    //
+    // There are fourteen playable characters and four slots, and a benched
+    // member used to gain nothing at all — `awardSpoils` only ever walked the
+    // combatants. New recruits arrive at the party average, so the moment a
+    // character was swapped out they froze there for the rest of the game and
+    // swapping them back in was a punishment. That makes the Formation screen
+    // a commitment rather than a choice, which is the opposite of what a cast
+    // this size is for. Half, not full, so who actually fights still matters.
+    const fighting = new Set(this.party.map((c) => c.member));
+    for (const m of this.game.party.roster.values()) {
+      if (fighting.has(m) || m.isKO) continue;
+      m.gainExp(Math.max(1, Math.floor(each * 0.5)));
+    }
+
     for (const c of this.party) {
       if (c.isKO) continue;
       const levels = c.member.gainExp(each);
@@ -1804,7 +2003,7 @@ export class BattleState {
       const esper = c.member.esper;
       if (esper) {
         for (const [spellId, rate] of Object.entries(esper.teaches || {})) {
-          if (!c.member.knowsSpell(spellId) && c.member.learnSpell(spellId, rate)) {
+          if (!c.member.knowsSpell(spellId) && c.member.learnSpell(spellId, rate * TEACH_RATE)) {
             lines.push(`${c.name} learned ${SPELLS[spellId]?.name ?? spellId}!`);
           }
         }

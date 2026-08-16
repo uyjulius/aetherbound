@@ -82,6 +82,28 @@ export const LEGEND = {
   'w': { g: 'swamp', walk: true, prop: 'reeds' },
 };
 
+/**
+ * Which neighbours make a wall cell visible, and therefore worth building.
+ *
+ * A wall cell buried inside a rock mass is never seen from the play area, and
+ * building it would multiply the draw calls for nothing — so `buildTerrain`
+ * skips any cell with no walkable neighbour. The subtlety is what counts as a
+ * neighbour. This list used to hold only the four orthogonal directions, and
+ * the corner of a rectangular room touches its floor *only on the diagonal*:
+ * every room in the game was built with its four corners missing, and the
+ * player could see through the notch into the void behind the map. In the
+ * twenty interiors there is no sky behind the hole to hide it. That was 1,107
+ * holes across 92 of the 95 maps, all of them from these four missing entries.
+ *
+ * `tools/geometry.mjs` re-derives the visible set from the terrain and fails
+ * if this list would skip any of it, so narrowing it again is a caught error
+ * rather than a rendering bug somebody notices a month later.
+ */
+export const WALL_EXPOSURE = [
+  [1, 0], [-1, 0], [0, 1], [0, -1],
+  [1, 1], [1, -1], [-1, 1], [-1, -1],
+];
+
 /** Kit builders used by glyph-props, and their collision radius. */
 const GLYPH_PROPS = {
   forest:   { make: (seed) => tree({ kind: 'dark', scale: 1.25, seed }), radius: 0 },
@@ -458,12 +480,12 @@ function buildGround(def, grid, group) {
       : (def.kind === 'dungeon' || def.kind === 'cave' ? mats.caveRock : mats.rock);
     const wallH = def.wallHeight ?? 4.5;
     for (const [x, z, c] of wallCells) {
-      // Only build faces that border something walkable — interior fill is
-      // never seen and would multiply the draw call count for nothing.
-      const exposed = [[1, 0], [-1, 0], [0, 1], [0, -1]].some(([dx, dz]) => {
-        const n = cellOf(x + dx, z + dz);
-        return n.walk;
-      });
+      // Only build cells the player can actually see — interior fill buried
+      // inside a rock mass is never visible and would multiply the draw call
+      // count for nothing.
+      //
+      // Eight-way — see WALL_EXPOSURE.
+      const exposed = WALL_EXPOSURE.some(([dx, dz]) => cellOf(x + dx, z + dz).walk);
       if (!exposed) continue;
       const h = wallH * (0.85 + ((x * 7 + z * 13) % 5) * 0.06);
       const m = new THREE.Mesh(new THREE.BoxGeometry(TILE, h, TILE), wallMat);
@@ -557,7 +579,7 @@ function placeProps(def, grid, group, ctx) {
       case 'rock': obj = rock(p); break;
       case 'sign': obj = signboard(p.text, p.icon); break;
       default:
-        if (PROPS[p.kit]) obj = PROPS[p.kit](p.arg);
+        if (PROPS[p.kit]) obj = PROPS[p.kit](p.kit === 'chest' ? ctx.isOpened(p.id) : p.arg);
         break;
     }
     if (!obj) {
@@ -663,8 +685,17 @@ export class BuiltMap {
 }
 
 /** Construct a map definition into a live scene graph plus collision. */
-export function buildMap(def) {
+/**
+ * `isOpened(chestId)` lets a looted chest be drawn with its lid up.
+ *
+ * Without it a chest the player has already emptied is rebuilt shut on every
+ * revisit, and since the interact prompt correctly skips looted chests the
+ * result is a closed chest that cannot be opened — which reads as a bug in
+ * the chest rather than as one you already took.
+ */
+export function buildMap(def, { isOpened = () => false } = {}) {
   const built = new BuiltMap(def);
+  built.isOpened = isOpened;
   const rows = def.terrain;
   const H = rows.length;
   const W = Math.max(...rows.map((r) => r.length));

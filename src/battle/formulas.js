@@ -32,7 +32,14 @@ export const STATUSES = {
   freeze:    { name: 'Frozen', kind: 'bad', blocksTurn: true, wakesOnHit: true, duration: 10 },
   // --- behavioural -------------------------------------------------------
   confuse:   { name: 'Confused', kind: 'bad', duration: 10, wakesOnHit: true },
-  berserk:   { name: 'Berserk', kind: 'bad', duration: 0 },
+  // Eight turns, not zero. `duration: 0` means "until something removes it",
+  // which is right for the good statuses a player chooses to keep up and
+  // wrong for the one bad status that takes the controller away: berserked
+  // characters attack on their own and cannot heal or cast, and the
+  // Yardmaster applies it to the whole party. Permanent party-wide berserk
+  // is not a hard fight, it is the end of the fight. Its siblings are all
+  // timed — confuse 10, muddle 9, charm 12 — and this was the outlier.
+  berserk:   { name: 'Berserk', kind: 'bad', duration: 8 },
   charm:     { name: 'Charmed', kind: 'bad', duration: 12 },
   muddle:    { name: 'Muddled', kind: 'bad', duration: 9 },
   // --- damage over time --------------------------------------------------
@@ -133,6 +140,7 @@ export function physicalDamage({
   attackerLevel, vigour, weaponPower, defence,
   rows = { attacker: 'front', target: 'front' },
   critical = false, multiplier = 1, ignoreDefence = 0, variance = true,
+  reachBack = false,
 }) {
   const vig = Math.max(1, vigour);
   const power = Math.max(1, weaponPower) + vig * 2;
@@ -147,8 +155,11 @@ export function physicalDamage({
   if (critical) dmg = Math.floor(dmg * 2);
   dmg = Math.floor(dmg * multiplier);
 
-  // Back row halves damage dealt *and* received.
-  if (rows.attacker === 'back') dmg = Math.floor(dmg / 2);
+  // Back row halves damage dealt *and* received — unless the weapon reaches.
+  // A spear or a bow is the row system's whole trade: give up nothing on
+  // offence to take half damage on defence, at the price of carrying a weapon
+  // whose raw numbers are lower than a sword's.
+  if (rows.attacker === 'back' && !reachBack) dmg = Math.floor(dmg / 2);
   dmg = throughDefence(dmg, defence, ignoreDefence);
   if (rows.target === 'back') dmg = Math.floor(dmg / 2);
 
