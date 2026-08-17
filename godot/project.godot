@@ -1,0 +1,47 @@
+; Aetherbound — Godot 4.7 port.
+;
+; The web build in ../src stays the reference implementation: it is playable,
+; its audits pass, and the combat maths there is the spec this project is
+; verified against (see ../tools/parity.mjs). Nothing here is allowed to
+; disagree with it silently.
+;
+; Renderer settings are chosen for the photoreal target rather than Godot's
+; defaults: Forward+ for clustered lighting and proper shadows, HDR 2D off,
+; and an environment that tonemaps with AgX. The stylised toon chain in the
+; web build is deliberately *not* carried over — that identity was built for
+; primitive geometry, and this port exists to replace the geometry.
+
+config_version=5
+
+[application]
+
+config/name="Aetherbound"
+config/description="A 3D turn-based RPG in the Final Fantasy VI tradition."
+config/features=PackedStringArray("4.7", "Forward Plus")
+
+[display]
+
+window/size/viewport_width=1920
+window/size/viewport_height=1080
+window/stretch/mode="canvas_items"
+window/stretch/aspect="expand"
+
+[rendering]
+
+renderer/rendering_method="forward_plus"
+; Photoreal wants real light transport. SDFGI gives dynamic bounce without a
+; bake step, which matters while the world is still being generated asset by
+; asset; static levels get lightmaps later.
+global_illumination/gi/use_half_resolution=false
+lights_and_shadows/directional_shadow/size=8192
+lights_and_shadows/directional_shadow/soft_shadow_filter_quality=3
+anti_aliasing/quality/msaa_3d=2
+anti_aliasing/quality/screen_space_aa=1
+scaling_3d/mode=1
+environment/ssao/quality=3
+environment/ssil/quality=2
+textures/default_filters/anisotropic_filtering_level=4
+
+[physics]
+
+3d/default_gravity=9.8

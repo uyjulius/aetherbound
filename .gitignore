@@ -23,3 +23,10 @@ shot-*.png
 # Playwright MCP scratch output — screenshots and console logs from driving
 # the game in a browser during development. Never part of a build.
 .playwright-mcp/
+
+# Asset preview renders — regenerable from the GLBs via
+# godot --path godot --script res://tools/render_asset.gd -- <subject>
+.renders/
+
+# Godot import cache
+godot/.godot/
