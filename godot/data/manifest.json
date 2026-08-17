@@ -1,0 +1,13 @@
+{
+ "enemies": 200,
+ "encounters": 36,
+ "items": 275,
+ "shops": 19,
+ "spells": 58,
+ "espers": 26,
+ "quests": 81,
+ "tracks": 36,
+ "characters": 14,
+ "cast_order": 14,
+ "maps": 95
+}

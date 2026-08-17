@@ -17,6 +17,8 @@
     "spells": "node tools/spells.mjs",
     "quests": "node tools/quests.mjs",
     "checks": "node tools/audit.mjs && node tools/geometry.mjs && node tools/spells.mjs && node tools/quests.mjs && node tools/events.mjs",
+    "export:godot": "node tools/to-godot.mjs",
+    "port": "node tools/parity.mjs && node tools/data-parity.mjs",
     "start": "npm run textures && npm run build && npm run serve",
     "balance": "node tools/balance.mjs"
   },
