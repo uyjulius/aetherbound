@@ -57,6 +57,39 @@ def load_env(path: Path) -> None:
 # plane or base — the mesh generator will happily build a diorama plinth into
 # the geometry if the concept implies one, and that plinth then has to be cut
 # out by hand in Blender.
+## A character has to arrive in a T-pose or the rig cannot be fitted.
+##
+## `build_humanoid_rig` measures the mesh rather than assuming proportions, and
+## the way it finds the shoulder line is to take the mean height of the
+## far-lateral vertices — the outstretched hands are the only geometry way out
+## at the sides. An A-pose or a relaxed stance puts those vertices near the
+## hips, the shoulder line lands in the pelvis, and the arms deform from the
+## wrong pivot. So the pose is stated four different ways, because image models
+## drift back to a natural stance given any latitude at all.
+T_POSE = (
+    "standing in a strict symmetrical T-pose, both arms stretched straight out "
+    "horizontally to the sides at exactly shoulder height, palms down, fingers "
+    "together, legs straight and slightly apart, feet flat and parallel, "
+    "facing camera directly, full body visible head to feet, no props, "
+    "no weapon, arms not lowered, arms not bent"
+)
+
+CHARACTERS = {
+    # Vesna's palette is taken from her entry in src/data/characters.js so the
+    # generated model and the reference build agree on who she is.
+    "vesna": (
+        "photorealistic full-body character reference of a slim young woman, "
+        "1.66m tall, a travelling mage-duelist in a worn fantasy world; "
+        "long olive-green hair, warm light-tan skin; deep red belted tunic with "
+        "gold trim and a gold buckle, indigo blue trousers, scuffed brown "
+        "leather boots and tan leather gloves, a dark crimson half-cape over "
+        "one shoulder; practical hard-wearing cloth with visible weave, "
+        "leather with real grain and wear; " + T_POSE + "; "
+        "even soft studio lighting, neutral light grey seamless background, "
+        "sharp focus, physically based materials, photogrammetry reference, 8k"
+    ),
+}
+
 SUBJECTS = {
     "well": (
         "photorealistic product photograph of a weathered medieval village "
@@ -85,8 +118,10 @@ REAR_SUFFIX = (
 
 def main() -> int:
     subject = sys.argv[1] if len(sys.argv) > 1 else "well"
-    if subject not in SUBJECTS:
-        raise SystemExit(f"unknown subject {subject!r}; try: {', '.join(SUBJECTS)}")
+    catalogue = {**SUBJECTS, **CHARACTERS}
+    if subject not in catalogue:
+        raise SystemExit(f"unknown subject {subject!r}; try: {', '.join(catalogue)}")
+    SUBJECTS.update(CHARACTERS)
 
     load_env(KH / ".env")
     if not os.environ.get("HF_TOKEN"):
