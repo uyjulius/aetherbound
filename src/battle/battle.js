@@ -10,6 +10,7 @@ import { TEACH_RATE } from '../data/espers.js';
 import { enemyById } from '../data/enemies.js';
 import { ELEMENT_COLOR } from '../engine/palette.js';
 import { PACING } from './pacing.js';
+import { chooseAction } from './ai.js';
 import { audio } from '../audio/audio.js';
 import { analytics, EV } from '../engine/analytics.js';
 import { playSpellFX } from '../fx/spellfx.js';
@@ -31,15 +32,6 @@ import {
 
 let nextCombatantId = 1;
 
-/**
- * How often a creature repeats the signature move of the phase it is in.
- *
- * Every third turn. Once, on entering, is too little — that was the old
- * behaviour and it made bosses get *weaker* as their health fell. Every turn
- * is too much: it turns the end of every fight into one move on a loop and
- * pushed six bosses under a 50% win rate against a party at their own level.
- */
-export const PHASE_REPEAT = 3;
 
 // ---------------------------------------------------------------------------
 // Combatants
@@ -871,62 +863,31 @@ export class BattleState {
     this._commitAction(action);
   }
 
+  /**
+   * Which move this creature reaches for.
+   *
+   * The rule walk itself lives in `ai.js`, with no renderer and no combatant
+   * objects, so the same decision can be reproduced by a headless simulation
+   * and by the Godot port and checked against this one (`tools/ai-parity.mjs`).
+   * What stays here is everything that needs the live battle: reading the
+   * creature's state, rolling the die, announcing a phase, and turning the
+   * chosen rule into a targeted action.
+   */
   _evaluateAI(enemy) {
-    const rules = enemy.def.ai || [{ if: 'always', do: { kind: 'attack' } }];
-    const hpFrac = enemy.hp / enemy.maxHP;
-    for (const rule of rules) {
-      let match = false;
-      switch (rule.if) {
-        case 'always': match = true; break;
-        case 'hpBelow': match = hpFrac < rule.v; break;
-        case 'selfHpBelow': match = hpFrac < rule.v; break;
-        case 'turnEvery': match = enemy.aiTurn % rule.n === 0; break;
-        case 'turnIs': match = enemy.aiTurn === rule.n; break;
-        case 'random': match = rng.battle.next() < rule.p; break;
-        case 'allyDown': match = this.enemies.some((e) => e.isKO); break;
-        case 'hasStatus': match = enemy.hasStatus(rule.status); break;
-        // Documented in the bestiary header and never implemented, so any
-        // rule keyed to it silently never fired.
-        case 'partyHasStatus':
-          match = this.party.some((c) => !c.isKO && c.hasStatus(rule.status));
-          break;
-        default: match = false;
-      }
-      if (!match) continue;
-      // A phase is a state the creature enters, not a move it spends.
-      //
-      // This used to read `enemy.phase >= rule.phase → skip`, which locked a
-      // phase rule out the moment it fired — including itself. A boss would
-      // reach 35% health, announce "Phase 3", use its signature move exactly
-      // once, and then fall through to its filler rules for the rest of the
-      // fight. Every boss in the game got *weaker* as its health dropped,
-      // which is precisely backwards, and it is why so many phase scripts
-      // read as decoration: they ran for one turn each.
-      //
-      // Now a lower-numbered phase is superseded by a higher one, entering a
-      // phase announces it once and swings, and the signature then recurs on
-      // a beat while the creature stays in that phase.
-      //
-      // The beat matters as much as the stickiness. Letting the phase rule
-      // match every turn — the obvious fix — is what a boss's rule list asks
-      // for once it is past the threshold, and it turned the back half of
-      // every fight into the same party-wide move on repeat: the Eighth
-      // Lantern went to a 0% win rate against a party at its own level, and
-      // five other bosses fell below half. Escalation is the goal; a loop is
-      // not. Between beats the creature drops through to its ordinary rules,
-      // so a phase reads as pressure rather than as a metronome.
-      if (rule.phase) {
-        if (enemy.phase > rule.phase) continue;
-        if (enemy.phase < rule.phase) {
-          enemy.phase = rule.phase;
-          this.ui.showBanner(`${enemy.name} — Phase ${rule.phase}`, 1.4, '#e0574f');
-        } else if (enemy.aiTurn % PHASE_REPEAT !== 0) {
-          continue;                      // in the phase, but not its beat
-        }
-      }
-      return this._buildEnemyAction(enemy, rule.do);
+    const decision = chooseAction(enemy.def.ai, {
+      hpFraction: enemy.hp / enemy.maxHP,
+      aiTurn: enemy.aiTurn,
+      phase: enemy.phase,
+      roll: () => rng.battle.next(),
+      allyDown: this.enemies.some((e) => e.isKO),
+      hasStatus: (id) => enemy.hasStatus(id),
+      partyHasStatus: (id) => this.party.some((c) => !c.isKO && c.hasStatus(id)),
+    });
+    if (decision.entered) {
+      enemy.phase = decision.phase;
+      this.ui.showBanner(`${enemy.name} — Phase ${decision.phase}`, 1.4, '#e0574f');
     }
-    return { actor: enemy, kind: 'attack', targets: [this._randomAlly()].filter(Boolean) };
+    return this._buildEnemyAction(enemy, decision.action);
   }
 
   _buildEnemyAction(enemy, spec) {

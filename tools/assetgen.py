@@ -117,14 +117,27 @@ REAR_SUFFIX = (
 
 
 def main() -> int:
-    subject = sys.argv[1] if len(sys.argv) > 1 else "well"
+    args = [a for a in sys.argv[1:] if not a.startswith("--")]
+    flags = {a for a in sys.argv[1:] if a.startswith("--")}
+    subject = args[0] if args else "well"
     catalogue = {**SUBJECTS, **CHARACTERS}
     if subject not in catalogue:
         raise SystemExit(f"unknown subject {subject!r}; try: {', '.join(catalogue)}")
     SUBJECTS.update(CHARACTERS)
 
+    # `--shape` asks for geometry only via `/shape_generation`, which reserves
+    # 90s of GPU instead of the textured endpoint's 270s. `--anon` drops the
+    # token so the call lands on the anonymous ZeroGPU pool, which is metered
+    # separately from the Pro one — the way to keep working when the account's
+    # daily allowance is spent. Colour then comes from projecting the concept
+    # views in Blender rather than from the model.
+    shape_only = "--shape" in flags
+    anonymous = "--anon" in flags
+
     load_env(KH / ".env")
-    if not os.environ.get("HF_TOKEN"):
+    if anonymous:
+        os.environ.pop("HF_TOKEN", None)
+    elif not os.environ.get("HF_TOKEN"):
         raise SystemExit("HF_TOKEN missing — the textured endpoint needs it")
 
     from kh import imagegen, meshgen  # noqa: E402  (path set above)
@@ -142,9 +155,13 @@ def main() -> int:
     imagegen.generate(prompt + REAR_SUFFIX, back)
     print(f"      back  -> {back.relative_to(FF)}")
 
-    print("[2/3] textured mesh via Hunyuan3D-2.1 /generation_all (PBR, ~270s GPU)")
-    glb = MODELS / f"{subject}.glb"
-    meshgen.generate(front, glb, back=back, octree=256, steps=30, textured=True)
+    endpoint = "/shape_generation (geometry only, ~90s GPU)" if shape_only \
+        else "/generation_all (PBR, ~270s GPU)"
+    pool = "anonymous pool" if anonymous else "Pro quota"
+    print(f"[2/3] mesh via Hunyuan3D-2.1 {endpoint} on the {pool}")
+    glb = MODELS / (f"{subject}-shape.glb" if shape_only else f"{subject}.glb")
+    meshgen.generate(front, glb, back=back, octree=256, steps=30,
+                     textured=not shape_only)
     size_mb = glb.stat().st_size / 1e6
     print(f"      mesh  -> {glb.relative_to(FF)}  ({size_mb:.1f} MB)")
 

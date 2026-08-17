@@ -33,7 +33,7 @@ import {
 } from '../src/battle/formulas.js';
 import { RNG } from '../src/engine/rng.js';
 import { PACING } from '../src/battle/pacing.js';
-import { PHASE_REPEAT } from '../src/battle/battle.js';
+import { chooseAction } from '../src/battle/ai.js';
 import * as legendModule from '../src/world/map.js';
 import { dangerNote, dangerOf } from '../src/world/danger.js';
 import fs from 'node:fs';
@@ -575,33 +575,27 @@ function simulateBattle(party, enemyIds, {
     if (h.hp <= 0) { h.hp = 0; h.ko = true; }
   }
 
-  /** The engine's own rule walk, minus the statuses this model does not carry. */
+  /**
+   * Which move a creature reaches for — the engine's own walk, imported.
+   *
+   * This used to be a hand-copy of `_evaluateAI`, and the copy is exactly why
+   * the phase bug had to be found and fixed twice: a simulator that mirrors the
+   * game approximately reports on a game nobody plays. Now both call
+   * `chooseAction`, so the sim cannot drift from the thing it is measuring.
+   *
+   * Statuses this model does not carry simply answer false, which is honest —
+   * it means a `hasStatus` rule is under-counted here rather than invented.
+   */
   function pickAI(f) {
-    const rules = f.def.ai ?? [{ if: 'always', do: { kind: 'attack' } }];
-    const frac = f.hp / f.maxHP;
-    for (const rule of rules) {
-      let match = false;
-      switch (rule.if) {
-        case 'always': match = true; break;
-        case 'hpBelow': case 'selfHpBelow': match = frac < rule.v; break;
-        case 'turnEvery': match = f.aiTurn % rule.n === 0; break;
-        case 'turnIs': match = f.aiTurn === rule.n; break;
-        case 'random': match = rng.next() < rule.p; break;
-        case 'allyDown': match = foes.some((x) => x.hp <= 0); break;
-        default: match = false;
-      }
-      if (!match) continue;
-      // Mirrors `_evaluateAI`: a phase is a state, superseded only by a
-      // higher one, not a one-shot gate that locks its own rule out — and
-      // its signature recurs on PHASE_REPEAT rather than every turn.
-      if (rule.phase) {
-        if (f.phase > rule.phase) continue;
-        if (f.phase < rule.phase) f.phase = rule.phase;
-        else if (f.aiTurn % PHASE_REPEAT !== 0) continue;
-      }
-      return rule.do;
-    }
-    return { kind: 'attack' };
+    const decision = chooseAction(f.def.ai, {
+      hpFraction: f.hp / f.maxHP,
+      aiTurn: f.aiTurn,
+      phase: f.phase,
+      roll: () => rng.next(),
+      allyDown: foes.some((x) => x.hp <= 0),
+    });
+    f.phase = decision.phase;
+    return decision.action;
   }
 }
 
