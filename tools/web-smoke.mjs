@@ -2,6 +2,13 @@
  * Load the exported Godot build in a real browser and prove it started.
  *
  *   node tools/web-smoke.mjs [--dir build/web] [--headed] [--port 5178] [--timeout 180]
+ *   node tools/web-smoke.mjs --url https://aetherbound.uy.sg/godot/
+ *
+ * With `--url` it checks a deployed build instead of a local export, which is
+ * the only way to catch what only production gets wrong: a missing content type
+ * on the wasm, a path that works from a directory and not from a subpath, a
+ * stale cache. The counts are still compared against the local
+ * `godot/data/manifest.json`, so run it against a URL built from this commit.
  *
  * A Godot web build that cannot find its resources still serves HTML, still
  * paints a canvas and still returns 200 for everything — so "the page loaded"
@@ -32,6 +39,7 @@ const flag = (name, fallback) => {
 };
 
 const dir = path.resolve(root, flag('dir', 'build/web'));
+const remote = flag('url', null);
 const port = Number(flag('port', 5178));
 const headed = args.includes('--headed');
 // Generous, and adjustable: compiling 40 MB of wasm under a software rasteriser
@@ -60,14 +68,14 @@ const check = (name, ok, detail = '') => {
   console.log(`[${ok ? '  ok  ' : ' FAIL '}] ${name}${detail ? `  — ${detail}` : ''}`);
 };
 
-if (!fs.existsSync(path.join(dir, 'index.html'))) {
+if (!remote && !fs.existsSync(path.join(dir, 'index.html'))) {
   console.log(`[ FAIL ] no export in ${path.relative(root, dir)} — run node tools/export-web.mjs`);
   process.exit(1);
 }
 
 const manifest = JSON.parse(fs.readFileSync(path.join(root, 'godot', 'data', 'manifest.json'), 'utf8'));
 
-const server = http.createServer(async (req, res) => {
+const server = remote ? null : http.createServer(async (req, res) => {
   const rel = decodeURIComponent((req.url || '/').split('?')[0]).replace(/^\/+/, '') || 'index.html';
   const file = path.join(dir, rel);
   if (!file.startsWith(dir)) {
@@ -86,7 +94,8 @@ const server = http.createServer(async (req, res) => {
   });
   fs.createReadStream(file).pipe(res);
 });
-await new Promise((resolve) => server.listen(port, resolve));
+if (server) await new Promise((resolve) => server.listen(port, resolve));
+const target = remote ?? `http://localhost:${port}/`;
 
 const browser = await chromium.launch({
   headless: !headed,
@@ -126,12 +135,12 @@ page.on('response', (response) => {
   if (response.status() >= 400) badResponses.push(`${response.status()} ${response.url()}`);
 });
 
-console.log(`\x1b[1mSmoke-testing the exported build\x1b[0m`);
-console.log(`  dir       ${path.relative(root, dir)}`);
-console.log(`  url       http://localhost:${port}/`);
+console.log(`\x1b[1mSmoke-testing the ${remote ? 'deployed' : 'exported'} build\x1b[0m`);
+if (!remote) console.log(`  dir       ${path.relative(root, dir)}`);
+console.log(`  url       ${target}`);
 console.log();
 
-await page.goto(`http://localhost:${port}/`, { waitUntil: 'domcontentloaded' });
+await page.goto(target, { waitUntil: 'domcontentloaded' });
 
 const started = Date.now();
 try {
@@ -165,13 +174,14 @@ check('no console errors', errors.length === 0, errors.slice(0, 3).join(' | '));
 check('no engine warnings', warnings.length === 0,
   warnings.slice(0, 3).map((w) => w.replace(/^WARNING:\s*/, '')).join(' | '));
 
-const shot = path.join(root, '.renders', 'godot-web-title.png');
+const shot = path.join(root, '.renders',
+  remote ? 'godot-web-title-live.png' : 'godot-web-title.png');
 fs.mkdirSync(path.dirname(shot), { recursive: true });
 await page.screenshot({ path: shot });
 console.log(`\n  screenshot ${path.relative(root, shot)}`);
 
 await browser.close();
-server.close();
+server?.close();
 
 console.log();
 if (failures) {

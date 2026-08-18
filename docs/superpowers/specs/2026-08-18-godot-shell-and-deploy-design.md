@@ -85,6 +85,19 @@ Each of those is its own sub-project with its own spec.
 ```bash
 npm run export:web     # export, with artefact checks
 npm run smoke:web      # load the exported build in a real browser
+
+# and against what is actually deployed
+node tools/web-smoke.mjs --url https://aetherbound.uy.sg/godot/
 ```
 
-CI runs both before publishing. A build that does not boot does not deploy.
+CI runs the first two before publishing: a build that does not boot does not
+deploy. The `--url` form catches what only production gets wrong — a missing
+content type on the wasm, a path that resolves from a directory but not from a
+subpath, a stale cache.
+
+## Result
+
+Live at `https://aetherbound.uy.sg/godot/` from commit `e41c2da`: 62.7 MB
+exported (10.1 MB of wasm over the wire), boots in Chromium with no console
+errors and no engine warnings, and reports `cast=14 tables=11
+renderer=gl_compatibility`. The JS game still holds the root.
