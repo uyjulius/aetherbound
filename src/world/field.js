@@ -1,5 +1,6 @@
 import * as THREE from 'three';
 import { input } from '../engine/input.js';
+import { rng } from '../engine/rng.js';
 import { scheduler, wait, until, tween, EASE } from '../engine/scheduler.js';
 import { buildMap, applyAtmosphere, TILE } from './map.js';
 import { buildCharacter, CharacterAnimator } from './character.js';
@@ -1122,7 +1123,12 @@ export class FieldState {
     // Distance-based rather than time-based, so standing still is safe and
     // running doesn't inflate the rate.
     const base = (enc.rate ?? 26) * ENCOUNTER_SPACING;
-    return base * (0.55 + Math.random() * 0.9);
+    // From the seeded `encounter` stream, not `Math.random`. `rng.js` states that
+    // encounters replay exactly from a save, and until this line they did not:
+    // the table roll was seeded and the *spacing* between rolls was not, so
+    // reloading and walking the same path met different monsters in different
+    // places. The spread is unchanged — uniform 0.55 to 1.45.
+    return base * rng.encounter.float(0.55, 1.45);
   }
 
   _accumulateSteps(distance) {

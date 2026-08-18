@@ -151,10 +151,14 @@ static func just_released(action: String) -> bool:
 	return Input.is_action_just_released(action)
 
 
-## Movement on screen, before the camera rotates it. Y is forward-positive, which
-## is what the field expects; the screen's up is -Z once the camera is applied.
+## Movement on screen, before the camera rotates it.
+##
+## Y is *down*-positive, matching the reference's `moveVector`, because the field's
+## `transform_input` is written for `iy = -1` meaning screen-up. Flipping this sign
+## inverts forward and back at every camera bearing — and it inverts them
+## consistently, which is the kind of wrong that looks like a deliberate choice.
 static func move_vector() -> Vector2:
-	return Input.get_vector("left", "right", "down", "up")
+	return Input.get_vector("left", "right", "up", "down")
 
 
 ## For the on-screen control bar: a tap the rest of the game cannot tell from a

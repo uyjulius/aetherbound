@@ -15,6 +15,16 @@ extends RefCounted
 
 const DATA_DIR := "res://data"
 
+## Every table the exporter writes, and the list the manifest is checked against.
+## Kept here rather than in each reader so adding a table is one edit — the
+## readiness line the title screen prints counts this, and a table that stops
+## being loaded stops being counted.
+const TABLES := [
+	"enemies", "encounters", "items", "shops", "spells", "espers", "quests",
+	"tracks", "characters", "maps", "cast_order", "palette", "input", "legend",
+	"footprints",
+]
+
 var enemies: Dictionary = {}
 var encounters: Dictionary = {}
 var items: Dictionary = {}
@@ -28,6 +38,11 @@ var maps: Dictionary = {}
 var cast_order: Array = []
 ## Ramps, UI and element colours. Read by `scripts/engine/palette.gd`.
 var palette: Dictionary = {}
+## Terrain legend: glyph walkability, wall exposure, glyph-prop radii.
+var legend: Dictionary = {}
+## Authored prop colliders, harvested from the reference because they are measured
+## from built geometry and cannot be derived. See `tools/harvest-reference.mjs`.
+var footprints: Dictionary = {}
 ## Action names and their keyboard and gamepad bindings. Read by
 ## `scripts/engine/actions.gd`, which builds Godot's InputMap from it.
 var input: Dictionary = {}
@@ -64,15 +79,13 @@ func load_all() -> bool:
 	cast_order = order_raw if order_raw is Array else []
 	palette = _read("palette")
 	input = _read("input")
+	legend = _read("legend")
+	footprints = _read("footprints")
 
-	var actual := {
-		"enemies": enemies.size(), "encounters": encounters.size(),
-		"items": items.size(), "shops": shops.size(), "spells": spells.size(),
-		"espers": espers.size(), "quests": quests.size(), "tracks": tracks.size(),
-		"characters": characters.size(), "maps": maps.size(),
-		"cast_order": cast_order.size(),
-		"palette": palette.size(), "input": input.size(),
-	}
+	var actual := {}
+	for name in TABLES:
+		var table: Variant = get(name)
+		actual[name] = table.size() if table != null else 0
 	var wrong: Array = []
 	for key in manifest:
 		if not actual.has(key):

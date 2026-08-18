@@ -12,18 +12,11 @@ extends Control
 ##
 ## When the tables are in hand it prints one line to the console:
 ##
-##     AETHERBOUND_READY cast=14 tables=13 actions=12 renderer=gl_compatibility
+##     AETHERBOUND_READY cast=14 tables=15 actions=12 renderer=gl_compatibility
 ##
 ## `tools/web-smoke.mjs` waits for exactly that and fails without it. A page that
 ## loads is not a game that runs — a Godot build which cannot find its resources
 ## still serves HTML and still paints a canvas.
-
-## Tables `Database` loads. Named here so the readiness line reports a number
-## that would visibly change if a table were dropped from the exporter.
-const TABLES := [
-	"enemies", "encounters", "items", "shops", "spells", "espers",
-	"quests", "tracks", "characters", "maps", "cast_order", "palette", "input",
-]
 
 # Colours come from the palette rather than from four numbers typed here. The
 # palette is the reason assets from different sources read as one hand, and a
@@ -65,13 +58,18 @@ func _ready() -> void:
 	# in it: a smoke test that only waits for "ready" cannot tell a full export
 	# from a hollow one.
 	print("AETHERBOUND_READY cast=%d tables=%d actions=%d renderer=%s" % [
-		cast.size(), TABLES.size(), bindings.size(),
+		cast.size(), Database.TABLES.size(), bindings.size(),
 		RenderingServer.get_current_rendering_method()])
 
 
 ## Build the screen. Written in code rather than laid out in the editor because
 ## the cast is data: the column has as many rows as the tables say it does, and
 ## a fifteenth character would appear here without anyone editing a scene.
+func _process(_delta: float) -> void:
+	if Actions.just_pressed("confirm"):
+		get_tree().change_scene_to_file("res://scenes/field_debug.tscn")
+
+
 func _build(database: Database, cast: Array) -> void:
 	var ground := ColorRect.new()
 	ground.color = _ink
@@ -112,7 +110,7 @@ func _build(database: Database, cast: Array) -> void:
 
 	column.add_child(_spacer(0, true))
 	column.add_child(_label(
-		"Godot port preview — the playable build is at aetherbound.uy.sg",
+		"Press confirm for the field diagnostic  ·  the playable build is at aetherbound.uy.sg",
 		22, _muted))
 
 

@@ -14,7 +14,7 @@
  * paints a canvas and still returns 200 for everything — so "the page loaded"
  * is not evidence. This waits for the readiness line the title screen prints:
  *
- *     AETHERBOUND_READY cast=14 tables=13 actions=12 renderer=gl_compatibility
+ *     AETHERBOUND_READY cast=14 tables=15 actions=12 renderer=gl_compatibility
  *
  * and checks the counts in it against `godot/data/manifest.json`. A hollow pack
  * boots to a screen that looks fine and reports cast=0.
@@ -74,9 +74,12 @@ if (!remote && !fs.existsSync(path.join(dir, 'index.html'))) {
 }
 
 const manifest = JSON.parse(fs.readFileSync(path.join(root, 'godot', 'data', 'manifest.json'), 'utf8'));
-// Taken from the manifest rather than written here: adding an exported table
-// should move this number, and a hand-kept copy would have to be remembered.
-const TABLE_COUNT = Object.keys(manifest).length;
+// Counted from the data directory rather than from the manifest: the manifest
+// lists what the *exporter* wrote, and `footprints.json` comes from the harvest
+// instead, so the manifest is one short of what the port actually loads. Counting
+// the files is the number the readiness line reports.
+const TABLE_COUNT = fs.readdirSync(path.join(root, 'godot', 'data'))
+  .filter((name) => name.endsWith('.json') && name !== 'manifest.json').length;
 // Likewise from the exported bindings: the deployed build reports how many
 // actions it installed, and an action that failed to resolve would show up here
 // rather than as a control that does nothing.
@@ -125,6 +128,7 @@ const errors = [];
 const warnings = [];
 const badResponses = [];
 let ready = null;
+let field = null;
 
 // Godot writes its own warnings to stderr, which the browser reports as
 // console.error — so the two have to be told apart by their text rather than by
@@ -134,6 +138,7 @@ let ready = null;
 page.on('console', (message) => {
   const text = message.text();
   if (text.includes('AETHERBOUND_READY')) ready = text.trim();
+  if (text.includes('FIELD_READY')) field = text.trim();
   if (message.type() !== 'error') return;
   if (/^\s*WARNING:/.test(text)) warnings.push(text.split('\n')[0].trim());
   else errors.push(text);
@@ -178,6 +183,25 @@ if (ready) {
   const renderer = ready.match(/renderer=(\S+)/)?.[1];
   check('the browser build runs Compatibility', renderer === 'gl_compatibility',
     `renderer=${renderer}`);
+}
+
+// Through the front door and into the field diagnostic. A scene change is where
+// a web build tends to fall over — a resource that resolved in the editor and not
+// in the pack — and it is invisible from the title screen alone.
+if (ready) {
+  await page.locator('canvas').click({ position: { x: 40, y: 40 } });
+  await page.keyboard.press('Enter');
+  const waitedFrom = Date.now();
+  while (!field && Date.now() - waitedFrom < 30_000) await page.waitForTimeout(250);
+  check('the field diagnostic opens', Boolean(field), field ?? 'no FIELD_READY line in 30s');
+  if (field) {
+    const colliders = Number(field.match(/colliders=(\d+)/)?.[1] ?? 0);
+    check('the field built a collision grid', colliders > 0, `${colliders} colliders`);
+  }
+  const shot = path.join(root, '.renders',
+    remote ? 'godot-web-field-live.png' : 'godot-web-field.png');
+  fs.mkdirSync(path.dirname(shot), { recursive: true });
+  await page.screenshot({ path: shot });
 }
 
 check('nothing 404s', badResponses.length === 0, badResponses.slice(0, 3).join('; '));

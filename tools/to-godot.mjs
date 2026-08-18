@@ -40,6 +40,7 @@ import { QUESTS } from '../src/data/quests.js';
 import { TRACKS } from '../src/data/music.js';
 import { CHARACTERS, CAST_ORDER } from '../src/data/characters.js';
 import { RAMPS, INK, PAPER, UI, ELEMENT_COLOR } from '../src/engine/palette.js';
+import { TILE, LEGEND, WALL_EXPOSURE, GLYPH_PROP_RADII } from '../src/world/map.js';
 import { ACTIONS, DEFAULT_BINDINGS, PAD_BUTTONS } from '../src/engine/input.js';
 
 const root = path.dirname(fileURLToPath(new URL('../package.json', import.meta.url)));
@@ -137,6 +138,14 @@ const written = [
   // could not do — a palette contains no numbers.
   write('palette', { ramps: RAMPS, ink: INK, paper: PAPER, ui: UI, element: ELEMENT_COLOR }),
   write('input', { actions: ACTIONS, keyboard: DEFAULT_BINDINGS, pad: PAD_BUTTONS }),
+
+  // The terrain legend, which is what turns 95 grids of characters into a world:
+  // which glyphs can be walked on, which are walls, and the collision radius of
+  // each glyph-prop. The port builds its collision grid from this and is compared
+  // against the reference's own grids cell by cell.
+  write('legend', {
+    tile: TILE, glyphs: LEGEND, wall_exposure: WALL_EXPOSURE, glyph_radii: GLYPH_PROP_RADII,
+  }),
 ];
 
 // A manifest so the Godot side can assert it loaded everything it was given,

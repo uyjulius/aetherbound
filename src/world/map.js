@@ -116,6 +116,17 @@ const GLYPH_PROPS = {
   reeds:    { make: (seed) => bush({ scale: 0.9, seed, kind: 'swampReed' }), radius: 0 },
 };
 
+/**
+ * Collision radius per glyph-prop, for the Godot port.
+ *
+ * Derived from `GLYPH_PROPS` rather than written out again, so it cannot drift
+ * from the table it describes. The *meshes* those entries build do not cross to
+ * the port — they are geometry computed in code, which this project does not
+ * ship as an asset — but the radii are game design and do.
+ */
+export const GLYPH_PROP_RADII = Object.fromEntries(
+  Object.entries(GLYPH_PROPS).map(([name, spec]) => [name, spec.radius]));
+
 const GROUND_TEX = {
   grass: 'grass', dirt: 'dirt_path', cobble: 'cobblestone', sand: 'sand',
   snow: 'snow', wood: 'wood_floor', marble: 'marble_floor',
