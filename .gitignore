@@ -33,3 +33,7 @@ godot/.godot/
 
 # Python bytecode from the Blender tools.
 __pycache__/
+
+# Godot web export output. Rebuilt by `npm run export:godot`, ~63MB, and the CI
+# job that publishes it to /godot/ builds it from scratch every time.
+build/

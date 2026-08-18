@@ -7,6 +7,12 @@
 # Textures and character models are committed, so this does not regenerate art:
 # `npm run textures:raw` needs network access and an image model, and the
 # quilted plates are deterministic given their sources anyway.
+#
+# Two builds ship from one commit. The JS game is the product and holds the root.
+# The Godot port is published to /godot/ by a separate job that must pass its own
+# browser check — and if it does not, the site still deploys without it. The live
+# game does not go down because a port-in-progress broke, and a preview that
+# failed its check is absent rather than quietly stale.
 name: Deploy to Pages
 
 on:
@@ -23,8 +29,106 @@ concurrency:
   group: pages
   cancel-in-progress: true
 
+env:
+  # The editor and its export templates have to be the same build, or the export
+  # fails with a version mismatch that reads like a corrupt download.
+  GODOT_VERSION: 4.7.1-stable
+  GODOT_TEMPLATES: 4.7.1.stable
+
 jobs:
+  # ---------------------------------------------------------------------------
+  # The Godot port: export for the browser, then prove the export boots. Neither
+  # step is optional — a Godot export succeeds and exits zero while producing a
+  # pack with no resources in it, and that failure only shows up as a black
+  # canvas in a browser.
+  # ---------------------------------------------------------------------------
+  godot:
+    name: Export and check the Godot build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: Install
+        run: npm ci
+
+      # The editor is 144MB and the official template bundle is 1.2GB, for a
+      # version that changes a few times a year. The cache holds the editor and
+      # only the web template extracted from that bundle — about 155MB — so a
+      # normal run downloads nothing.
+      - name: Cache Godot ${{ env.GODOT_VERSION }}
+        id: godot-cache
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/godot
+            ~/.local/share/godot/export_templates
+          key: godot-web-${{ env.GODOT_VERSION }}
+
+      - name: Fetch Godot and the web export template
+        if: steps.godot-cache.outputs.cache-hit != 'true'
+        run: |
+          set -euo pipefail
+          base="https://github.com/godotengine/godot/releases/download/${GODOT_VERSION}"
+          templates="$HOME/.local/share/godot/export_templates/${GODOT_TEMPLATES}"
+          mkdir -p ~/godot "$templates"
+
+          curl -fsSL -o /tmp/godot.zip "$base/Godot_v${GODOT_VERSION}_linux.x86_64.zip"
+          unzip -q -o /tmp/godot.zip -d ~/godot
+          mv ~/godot/Godot_v${GODOT_VERSION}_linux.x86_64 ~/godot/godot
+          chmod +x ~/godot/godot
+
+          # `.tpz` carries every platform — Android alone is 450MB — and the web
+          # export needs one 10MB file out of it. Only that and `version.txt`
+          # (which is how Godot recognises the directory as a template set) are
+          # kept, which is what keeps the cache small. A `--export-debug` run
+          # would want `web_nothreads_debug.zip` as well and will say so plainly.
+          curl -fsSL -o /tmp/templates.tpz "$base/Godot_v${GODOT_VERSION}_export_templates.tpz"
+          unzip -q -o /tmp/templates.tpz \
+            'templates/web_nothreads_release.zip' 'templates/version.txt' -d /tmp/templates
+          mv /tmp/templates/templates/* "$templates/"
+          rm -rf /tmp/templates.tpz /tmp/templates /tmp/godot.zip
+          du -sh ~/godot "$templates"
+
+      # Importing first, explicitly. The export triggers an import when the cache
+      # is missing — which it always is on a fresh checkout, since godot/.godot is
+      # not committed — and doing it in its own step means an import failure is
+      # reported as an import failure.
+      - name: Import the project
+        run: ~/godot/godot --headless --path godot --import
+
+      - name: Export for the browser
+        run: GODOT=~/godot/godot npm run export:web
+
+      - name: Install the browser for the check
+        run: npx playwright install --with-deps chromium
+
+      # Longer than the local default: compiling 40MB of wasm under a software
+      # rasteriser on a shared runner is slow, and a timeout failure here would
+      # be indistinguishable from a build that cannot start.
+      - name: Prove the export boots
+        run: npm run smoke:web -- --timeout 420
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: godot-web
+          path: build/web
+          retention-days: 7
+
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: godot-web-screenshot
+          path: .renders/godot-web-title.png
+          retention-days: 7
+
   build:
+    needs: [godot]
+    # The port must not be able to take the live game down with it.
+    if: always()
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -73,6 +177,24 @@ jobs:
             [ -f "_site/assets/models/$f" ] || { echo "::error::missing character model $f"; missing=1; }
           done
           exit $missing
+
+      - name: Add the Godot preview
+        if: needs.godot.result == 'success'
+        uses: actions/download-artifact@v4
+        with:
+          name: godot-web
+          path: _site/godot
+
+      # Said out loud either way. A preview that silently stops appearing is
+      # worse than one that is loudly missing.
+      - name: Report what is shipping
+        run: |
+          if [ -f _site/godot/index.html ]; then
+            echo "Godot preview: publishing $(du -sh _site/godot | cut -f1) to /godot/"
+          else
+            echo "::warning::Godot preview NOT shipping — the export or its browser check failed (job result: ${{ needs.godot.result }})"
+          fi
+          du -sh _site
 
       - uses: actions/upload-pages-artifact@v3
         with:

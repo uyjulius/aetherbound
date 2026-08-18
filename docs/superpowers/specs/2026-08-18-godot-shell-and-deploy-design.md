@@ -83,8 +83,8 @@ Each of those is its own sub-project with its own spec.
 ## Verification
 
 ```bash
-npm run export:godot     # export, with artefact checks
-npm run smoke:godot      # load the exported build in a real browser
+npm run export:web     # export, with artefact checks
+npm run smoke:web      # load the exported build in a real browser
 ```
 
 CI runs both before publishing. A build that does not boot does not deploy.
