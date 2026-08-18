@@ -1,10 +1,6 @@
 /**
  * A client for the Hunyuan3D-2.1 Space on Hugging Face, over plain HTTP.
  *
- * Destination: tools/hyspace.mjs in the ff repo. **This supersedes the file
- * already committed there**, which sends twelve arguments and therefore cannot
- * work — see the note on the argument array below.
- *
  * Everything else in this toolchain is Node. The only reason mesh generation
  * ever reached into a Python venv in a sibling repo was that `gradio_client`
  * lived there, and that dependency broke the moment a sandbox stopped allowing

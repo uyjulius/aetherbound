@@ -41,11 +41,19 @@ func _initialize() -> void:
 		quit(1)
 		return
 
-	var window := root
-	window.size = SIZE
+	# Everything is drawn into a SubViewport rather than into the window. The
+	# window's texture is whatever the compositor last presented, at whatever
+	# size the project declares — so capturing from it ignored SIZE completely
+	# (every "900x1200" shot came out 1920x1080) and, worse, could hand back a
+	# frame that had nothing to do with the pose just applied. A viewport this
+	# script owns has the size it is told and draws when it is asked to.
+	var frame := SubViewport.new()
+	frame.size = SIZE
+	frame.render_target_update_mode = SubViewport.UPDATE_ALWAYS
+	root.add_child(frame)
 
 	var world := Node3D.new()
-	window.add_child(world)
+	frame.add_child(world)
 	_light(world)
 	world.add_child(model)
 
@@ -102,18 +110,47 @@ func _initialize() -> void:
 	var out_dir := ProjectSettings.globalize_path("res://../.renders")
 	DirAccess.make_dir_recursive_absolute(out_dir)
 	var shots: Array = []
+	var digests: Array[int] = []
 	for i in 4:
 		var t: float = length * (float(i) / 4.0)
 		player.seek(t, true)
 		for f in SETTLE_FRAMES:
 			await process_frame
-		var image := window.get_texture().get_image()
+		# Read only after a draw has finished. `get_image()` returns the last
+		# frame the renderer actually produced, not the state of the scene, and
+		# waiting a few idle frames is not the same thing as waiting for a draw.
+		await RenderingServer.frame_post_draw
+		var image := frame.get_texture().get_image()
 		var file := "%s/pose-%s-%d.png" % [out_dir, clip, i]
 		image.save_png(file)
 		shots.append(file.get_file())
+		digests.append(_digest(image))
+
+	# Four samples of a moving clip cannot all be the same picture. When they
+	# are, either the skin is ignoring the skeleton or the capture is ignoring
+	# the renderer — and the first run of this tool against a correctly rigged
+	# character hit the second, wrote four identical PNGs and reported success.
+	# The bone probe above proves the skeleton moves; this proves the pixels do.
+	# Two of the four may legitimately match, because an idle loop is usually
+	# symmetric about its midpoint, so the test is "not all identical" rather
+	# than "all different".
+	if digests.min() == digests.max():
+		push_error("every capture of '%s' is the same image — nothing moved on screen" % clip)
+		quit(1)
+		return
 
 	print("RENDER_OK clip=%s length=%.2fs frames=%s" % [clip, length, ", ".join(shots)])
 	quit()
+
+
+## A cheap fingerprint: every 997th byte folded together. Enough to tell two
+## captures apart without walking three million bytes four times over.
+func _digest(image: Image) -> int:
+	var data := image.get_data()
+	var value := 0
+	for i in range(0, data.size(), 997):
+		value = (value * 31 + data[i]) & 0x3FFFFFFF
+	return value
 
 
 func _light(world: Node3D) -> void:

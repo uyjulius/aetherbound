@@ -1,17 +1,23 @@
 /**
  * Turn cached concept views into a mesh.
  *
- * Destination: tools/genmesh.mjs in the ff repo. **This supersedes the file
- * already committed there**, which calls the old twelve-argument client.
- *
  *   node tools/genmesh.mjs vesna --textured   # PBR maps, 270s of GPU
  *   node tools/genmesh.mjs vesna              # geometry only, 90s
  *   node tools/genmesh.mjs vesna --anon       # the anonymous pool, metered apart
+ *   node tools/genmesh.mjs vesna --front-only # ignore the other views
  *
  * The concept art step is deliberately not repeated here. Images are free and
  * GPU seconds are not, and a T-pose reference that came out right is worth
  * keeping — so views are read from `assets/concepts/` and only the mesh is
  * generated.
+ *
+ * Views isolated by `isolate.mjs` are preferred over the raw concepts when they
+ * exist, because a backdrop that reads as a floor becomes floor geometry.
+ *
+ * Multiple views only help when they are the same character: these concepts came
+ * from separate prompts and the pair disagrees about sleeves and hair colour, so
+ * `--front-only` exists for the common case where the extra view would be fed to
+ * the reconstruction as evidence and blend two outfits into one mesh.
  *
  * `HF_TOKEN` comes from the environment, falling back to the Kingdom Hearts
  * repo's `.env` where it currently lives. Without it the call lands on the
@@ -45,13 +51,14 @@ const args = process.argv.slice(2);
 const subject = args.find((a) => !a.startsWith('--')) ?? 'vesna';
 const textured = args.includes('--textured');
 const anonymous = args.includes('--anon');
+const frontOnly = args.includes('--front-only');
 
 const concepts = path.join(root, 'assets', 'concepts');
-const pick = (stem) => ['.png', '.jpg']
-  .map((ext) => path.join(concepts, stem + ext)).find((p) => fs.existsSync(p)) ?? null;
+const pick = (stem) => ['-clean.png', '.png', '.jpg']
+  .map((suffix) => path.join(concepts, stem + suffix)).find((p) => fs.existsSync(p)) ?? null;
 
 const front = pick(`${subject}-front`);
-const back = pick(`${subject}-back`);
+const back = frontOnly ? null : pick(`${subject}-back`);
 if (!front) {
   say(`\x1b[31mFAIL\x1b[0m — no concept views for ${subject} in ${path.relative(root, concepts)}.`);
   process.exit(1);
@@ -60,7 +67,12 @@ if (!front) {
 const source = anonymous ? null : loadToken();
 if (anonymous) delete process.env.HF_TOKEN;
 
-const out = path.join(root, 'godot', 'assets', 'models',
+// Raw output lands in `godot/assets/models/raw/`, which carries a `.gdignore`
+// so the engine never imports it. What comes off the Space is not a game asset:
+// it is unrigged, at arbitrary scale, 40,000 triangles, and for a character it
+// is only the input to `rig_character.py`. Everything Godot does import from
+// `models/` is something the game actually ships.
+const out = path.join(root, 'godot', 'assets', 'models', 'raw',
   `${subject}${textured ? '' : '-shape'}.glb`);
 
 say(`\x1b[1mGenerating ${subject}\x1b[0m`);
@@ -84,6 +96,10 @@ try {
   say();
   say(`Next: python3 tools/fix_glb.py ${path.relative(root, out)}`);
   say('      (Hunyuan3D labels its JPEG textures image/png; Godot believes the label)');
+  say('      then, for a character:');
+  say('      blender -b -noaudio --python tools/blender/rig_character.py -- \\');
+  say(`          --raw ${path.relative(root, out)} \\`);
+  say(`          --out godot/assets/models/${subject}.glb --height 1.66 --faces 12000`);
 } catch (err) {
   if (err instanceof QuotaError) {
     say();

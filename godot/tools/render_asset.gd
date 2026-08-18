@@ -29,12 +29,18 @@ func _initialize() -> void:
 		quit(1)
 		return
 
-	var window := root
-	window.size = SIZE
-	window.transparent_bg = false
+	# Drawn into a SubViewport, not into the window: the window's texture comes
+	# back at the project's size rather than SIZE, and it holds whatever was
+	# last presented rather than what is in the scene now. Both matter to a tool
+	# whose entire output is a picture.
+	var frame := SubViewport.new()
+	frame.size = SIZE
+	frame.render_target_update_mode = SubViewport.UPDATE_ALWAYS
+	frame.transparent_bg = false
+	root.add_child(frame)
 
 	var world := Node3D.new()
-	window.add_child(world)
+	frame.add_child(world)
 
 	# --- environment ---------------------------------------------------------
 	# A physical sky gives sane ambient and a horizon gradient for free, which
@@ -141,6 +147,7 @@ func _initialize() -> void:
 	var out_dir := ProjectSettings.globalize_path("res://../.renders")
 	DirAccess.make_dir_recursive_absolute(out_dir)
 	var written: Array = []
+	var digests: Array[int] = []
 
 	for suffix in angles:
 		var yaw: float = deg_to_rad(angles[suffix])
@@ -153,15 +160,37 @@ func _initialize() -> void:
 		for i in FRAMES_BEFORE_CAPTURE:
 			await process_frame
 
-		var image := window.get_texture().get_image()
+		# Wait for a completed draw before reading. Idle frames are not draws,
+		# and a capture taken without this can be the previous angle.
+		await RenderingServer.frame_post_draw
+		var image := frame.get_texture().get_image()
 		var path := "%s/%s%s.png" % [out_dir, subject, suffix]
 		image.save_png(path)
 		written.append(path.get_file())
+		digests.append(_digest(image))
+
+	# Three different yaws around one object cannot produce one image. If they
+	# do, the capture is not following the camera and the renders are worthless
+	# even though they exist.
+	if digests.min() == digests.max():
+		push_error("every angle of %s is the same image — the capture is not following the camera" % subject)
+		quit(1)
+		return
 
 	var tris := _triangle_count(model)
 	print("RENDER_OK subject=%s tris=%d aabb=%s scale=%.4f -> %s"
 		% [subject, tris, str(bounds.size), scale_factor, ", ".join(written)])
 	quit()
+
+
+## A cheap fingerprint: every 997th byte folded together, enough to tell two
+## captures apart without walking the whole buffer for each one.
+func _digest(image: Image) -> int:
+	var data := image.get_data()
+	var value := 0
+	for i in range(0, data.size(), 997):
+		value = (value * 31 + data[i]) & 0x3FFFFFFF
+	return value
 
 
 ## Combined world-space bounds of every mesh under a node.

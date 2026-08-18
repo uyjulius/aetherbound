@@ -1,7 +1,7 @@
 """Turn a generated humanoid mesh into a rigged, animated GLB for Godot.
 
     blender -b -noaudio --python tools/blender/rig_character.py -- \
-        --raw godot/assets/models/vesna-raw.glb \
+        --raw godot/assets/models/raw/vesna.glb \
         --out godot/assets/models/vesna.glb \
         --height 1.66 --faces 12000
 
