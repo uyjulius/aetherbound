@@ -100,6 +100,14 @@ jobs:
       - name: Import the project
         run: ~/godot/godot --headless --path godot --import
 
+      # The parity suite is the port's entire guarantee — 3,804 formula values,
+      # 40,855 table numbers, 24,000 AI decisions, 1,719 RNG draws and 897 glue
+      # values against the reference build. It runs before the export, because a
+      # build that disagrees with the game it is porting should not be published
+      # however well it boots.
+      - name: Check the port against the reference
+        run: GODOT=~/godot/godot npm run port
+
       - name: Export for the browser
         run: GODOT=~/godot/godot npm run export:web
 

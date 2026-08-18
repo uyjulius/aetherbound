@@ -9,5 +9,7 @@
  "tracks": 36,
  "characters": 14,
  "cast_order": 14,
- "maps": 95
+ "maps": 95,
+ "palette": 5,
+ "input": 3
 }

@@ -87,12 +87,62 @@ shape changes and the semantics do not:
 
 Cancellation is the one place the two engines genuinely differ. JS calls
 `gen.return()` and the coroutine stops where it stands; GDScript cannot unwind a
-suspended coroutine. The reference build only cancels three routines, all of them
-battle animations, so the port marks a routine cancelled and never resumes it —
-which stops it at its next await and leaves it suspended. The test for this
-asserts the routine stops changing state and that nothing is printed to the
-error log; if Godot objects to a coroutine that is never resumed, the fallback is
-a cancellation flag the routine checks, and that decision is recorded here.
+suspended coroutine.
+
+**Resolved:** cancelling disconnects the signal the body is parked on, which
+releases the suspended frame outright rather than leaving it waiting forever.
+Verified: a cancelled routine stops incrementing its counter, `--headless` exits
+with no leaked objects, and no error is printed. Parking it instead would also
+have kept a reference cycle alive — the signal holds the coroutine, the coroutine
+holds the routine — for the rest of the session.
+
+That has one consequence worth stating: **a routine's return value is not
+captured.** Awaiting the body's call is the only way to read it, and that
+suspension has no signal to disconnect, so cancelling would leak one frame per
+cancelled routine forever. The reference never reads a routine's result — only
+whether it finished — so `join` reports completion and nothing else.
+
+## Two more places the port had to bend to match
+
+**Routines start on the first tick, not when `run()` is called.** A JavaScript
+generator does nothing until it is first stepped, so in the reference the frame
+that starts a routine only gets as far as its first `yield`. Calling a GDScript
+lambda runs it immediately, which made every ported cutscene land one tick early
+— free divergence, and invisible. The body is now deferred by one tick, with the
+same drain rule applied so a routine opening with `wait(0)` is no further behind
+here than there.
+
+**Pausing sets the delta to zero rather than skipping the pass.** The reference
+has no pause flag; it sets `timeScale` to zero, which keeps stepping routines
+while no time passes. Skipping the pass entirely looked equivalent and was not:
+a routine started while paused never ran its first line, and an `until` gate that
+opened during the pause was noticed a tick late.
+
+## Result
+
+All five harnesses pass. `npm run port` is now `parity` + `data-parity` +
+`ai-parity` + `rng-parity` + `glue-parity`: 3,804 formula values, 40,855 table
+numbers, 24,000 AI decisions, 1,719 RNG draws across nine seeds, and 897 glue
+values.
+
+The harnesses earned their keep immediately by finding three real defects that
+review had passed over:
+
+1. **`elasticOut` used `TAU / 6` where the reference uses `(2 * PI) / 3`.** Half
+   the frequency. It still looked like a plausible elastic curve and undershot at
+   0.25 where the real one is still overshooting.
+2. **The reference's `getState()` returns *signed* words** — JavaScript's bitwise
+   operators produce int32, so three quarters of the xoshiro state comes back
+   negative. The bits are the same and the stream is unaffected, but the port now
+   masks on the way in, and the probe proves it can read a save written by the
+   browser build.
+3. **Pause skipped the scheduler pass**, as above.
+
+The palette check compares 687 values, including every ramp sampled at eight
+points — which is where a rounding disagreement would have hidden. Floats are
+compared as integer millionths with one unit of tolerance, because `backOut(0.5)`
+is exactly 1.0876975 and `toFixed` and `snappedf` round it opposite ways: a
+disagreement about a boundary, not about a curve.
 
 ## Verification
 

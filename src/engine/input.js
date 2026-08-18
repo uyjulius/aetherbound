@@ -27,8 +27,12 @@ export const DEFAULT_BINDINGS = {
   start: ['Enter'],
 };
 
-// Standard gamepad mapping (Xbox-ish layout).
-const PAD_BUTTONS = {
+// Standard gamepad mapping (Xbox-ish layout), by *W3C standard gamepad* index —
+// exported because the Godot port binds the same actions and must not re-derive
+// them. Note for anyone porting: these indices are the web spec's, and they are
+// not Godot's `JoyButton` values. The shoulders are 4 and 5 here and 9 and 10
+// there, where the web spec has Back and Guide.
+export const PAD_BUTTONS = {
   confirm: [0],       // A
   cancel: [1],        // B
   menu: [3, 9],       // Y / Start

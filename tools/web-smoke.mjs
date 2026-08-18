@@ -14,7 +14,7 @@
  * paints a canvas and still returns 200 for everything — so "the page loaded"
  * is not evidence. This waits for the readiness line the title screen prints:
  *
- *     AETHERBOUND_READY cast=14 tables=11 renderer=gl_compatibility
+ *     AETHERBOUND_READY cast=14 tables=13 actions=12 renderer=gl_compatibility
  *
  * and checks the counts in it against `godot/data/manifest.json`. A hollow pack
  * boots to a screen that looks fine and reports cast=0.
@@ -74,6 +74,14 @@ if (!remote && !fs.existsSync(path.join(dir, 'index.html'))) {
 }
 
 const manifest = JSON.parse(fs.readFileSync(path.join(root, 'godot', 'data', 'manifest.json'), 'utf8'));
+// Taken from the manifest rather than written here: adding an exported table
+// should move this number, and a hand-kept copy would have to be remembered.
+const TABLE_COUNT = Object.keys(manifest).length;
+// Likewise from the exported bindings: the deployed build reports how many
+// actions it installed, and an action that failed to resolve would show up here
+// rather than as a control that does nothing.
+const ACTION_COUNT = JSON.parse(
+  fs.readFileSync(path.join(root, 'godot', 'data', 'input.json'), 'utf8')).actions.length;
 
 const server = remote ? null : http.createServer(async (req, res) => {
   const rel = decodeURIComponent((req.url || '/').split('?')[0]).replace(/^\/+/, '') || 'index.html';
@@ -163,7 +171,10 @@ if (ready) {
   check('the cast came out of the exported tables',
     read('cast') === manifest.cast_order,
     `reported ${read('cast')}, manifest says ${manifest.cast_order}`);
-  check('every table is accounted for', read('tables') === 11, `reported ${read('tables')}`);
+  check('every table is accounted for', read('tables') === TABLE_COUNT,
+    `reported ${read('tables')}, expected ${TABLE_COUNT}`);
+  check('the input map was installed', read('actions') === ACTION_COUNT,
+    `reported ${read('actions')}, expected ${ACTION_COUNT}`);
   const renderer = ready.match(/renderer=(\S+)/)?.[1];
   check('the browser build runs Compatibility', renderer === 'gl_compatibility',
     `renderer=${renderer}`);

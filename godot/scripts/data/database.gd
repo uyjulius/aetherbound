@@ -26,6 +26,11 @@ var tracks: Dictionary = {}
 var characters: Dictionary = {}
 var maps: Dictionary = {}
 var cast_order: Array = []
+## Ramps, UI and element colours. Read by `scripts/engine/palette.gd`.
+var palette: Dictionary = {}
+## Action names and their keyboard and gamepad bindings. Read by
+## `scripts/engine/actions.gd`, which builds Godot's InputMap from it.
+var input: Dictionary = {}
 
 var _loaded := false
 
@@ -57,6 +62,8 @@ func load_all() -> bool:
 	maps = _read("maps")
 	var order_raw: Variant = _read_variant("cast_order")
 	cast_order = order_raw if order_raw is Array else []
+	palette = _read("palette")
+	input = _read("input")
 
 	var actual := {
 		"enemies": enemies.size(), "encounters": encounters.size(),
@@ -64,6 +71,7 @@ func load_all() -> bool:
 		"espers": espers.size(), "quests": quests.size(), "tracks": tracks.size(),
 		"characters": characters.size(), "maps": maps.size(),
 		"cast_order": cast_order.size(),
+		"palette": palette.size(), "input": input.size(),
 	}
 	var wrong: Array = []
 	for key in manifest:

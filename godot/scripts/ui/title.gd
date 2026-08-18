@@ -12,7 +12,7 @@ extends Control
 ##
 ## When the tables are in hand it prints one line to the console:
 ##
-##     AETHERBOUND_READY cast=14 tables=11 renderer=gl_compatibility
+##     AETHERBOUND_READY cast=14 tables=13 actions=12 renderer=gl_compatibility
 ##
 ## `tools/web-smoke.mjs` waits for exactly that and fails without it. A page that
 ## loads is not a game that runs — a Godot build which cannot find its resources
@@ -22,13 +22,17 @@ extends Control
 ## that would visibly change if a table were dropped from the exporter.
 const TABLES := [
 	"enemies", "encounters", "items", "shops", "spells", "espers",
-	"quests", "tracks", "characters", "maps", "cast_order",
+	"quests", "tracks", "characters", "maps", "cast_order", "palette", "input",
 ]
 
-const INK := Color(0.070, 0.071, 0.086)
-const PARCHMENT := Color(0.898, 0.878, 0.827)
-const GOLD := Color(0.847, 0.675, 0.192)
-const MUTED := Color(0.541, 0.541, 0.573)
+# Colours come from the palette rather than from four numbers typed here. The
+# palette is the reason assets from different sources read as one hand, and a
+# title screen that opts out of it is the first place the game stops being one
+# object.
+var _ink := Color(0.07, 0.07, 0.09)
+var _paper := Color.WHITE
+var _select := Color.YELLOW
+var _muted := Color.GRAY
 
 
 func _ready() -> void:
@@ -42,13 +46,27 @@ func _ready() -> void:
 		_fail("cast_order is empty, so the tables loaded but carry nothing")
 		return
 
+	if not Palette.adopt(database.palette):
+		_fail("the palette table is missing")
+		return
+	_ink = Color(Palette.ink)
+	_paper = Palette.ui_color("text")
+	_select = Palette.ui_color("select")
+	_muted = Palette.ui_color("textDim")
+
+	# Installed here rather than at first use: an action queried before the map is
+	# built reads as "not pressed" forever, which is indistinguishable from a
+	# player who is not touching the controls.
+	var bindings: Dictionary = Actions.build(database.input)
+
 	_build(database, cast)
 
 	# The readiness line. Deliberately one line, machine-first, with the counts
 	# in it: a smoke test that only waits for "ready" cannot tell a full export
 	# from a hollow one.
-	print("AETHERBOUND_READY cast=%d tables=%d renderer=%s" % [
-		cast.size(), TABLES.size(), RenderingServer.get_current_rendering_method()])
+	print("AETHERBOUND_READY cast=%d tables=%d actions=%d renderer=%s" % [
+		cast.size(), TABLES.size(), bindings.size(),
+		RenderingServer.get_current_rendering_method()])
 
 
 ## Build the screen. Written in code rather than laid out in the editor because
@@ -56,7 +74,7 @@ func _ready() -> void:
 ## a fifteenth character would appear here without anyone editing a scene.
 func _build(database: Database, cast: Array) -> void:
 	var ground := ColorRect.new()
-	ground.color = INK
+	ground.color = _ink
 	ground.set_anchors_preset(Control.PRESET_FULL_RECT)
 	add_child(ground)
 
@@ -72,11 +90,11 @@ func _build(database: Database, cast: Array) -> void:
 	column.add_theme_constant_override("separation", 4)
 	margin.add_child(column)
 
-	column.add_child(_label("AETHERBOUND", 96, PARCHMENT))
+	column.add_child(_label("AETHERBOUND", 96, _paper))
 	column.add_child(_label(
-		"A 3D turn-based RPG in the Final Fantasy VI tradition", 30, MUTED))
+		"A 3D turn-based RPG in the Final Fantasy VI tradition", 30, _muted))
 	column.add_child(_spacer(40))
-	column.add_child(_label("THE CAST", 22, GOLD))
+	column.add_child(_label("THE CAST", 22, _select))
 	column.add_child(_spacer(12))
 
 	# Two columns, because fourteen names in one list runs off the bottom of a
@@ -95,7 +113,7 @@ func _build(database: Database, cast: Array) -> void:
 	column.add_child(_spacer(0, true))
 	column.add_child(_label(
 		"Godot port preview — the playable build is at aetherbound.uy.sg",
-		22, MUTED))
+		22, _muted))
 
 
 ## One cast member: name in the character's own accent colour, role beside it.
@@ -106,7 +124,7 @@ func _cast_row(character: Dictionary) -> Control:
 	var row := HBoxContainer.new()
 	row.add_theme_constant_override("separation", 14)
 
-	var accent := PARCHMENT
+	var accent := _paper
 	var look: Dictionary = character.get("look", {})
 	var colors: Dictionary = look.get("colors", {}) if look is Dictionary else {}
 	if colors.has("accent"):
@@ -117,10 +135,10 @@ func _cast_row(character: Dictionary) -> Control:
 	swatch.custom_minimum_size = Vector2(6, 26)
 	row.add_child(swatch)
 
-	var name_label := _label(String(character.get("name", "?")), 28, PARCHMENT)
+	var name_label := _label(String(character.get("name", "?")), 28, _paper)
 	name_label.custom_minimum_size = Vector2(220, 0)
 	row.add_child(name_label)
-	row.add_child(_label(String(character.get("role", "")), 24, MUTED))
+	row.add_child(_label(String(character.get("role", "")), 24, _muted))
 	return row
 
 
@@ -146,7 +164,7 @@ func _spacer(height: int, expand: bool = false) -> Control:
 func _fail(reason: String) -> void:
 	push_error(reason)
 	var ground := ColorRect.new()
-	ground.color = INK
+	ground.color = _ink
 	ground.set_anchors_preset(Control.PRESET_FULL_RECT)
 	add_child(ground)
 	var label := _label("AETHERBOUND — %s" % reason, 28, Color(0.85, 0.35, 0.30))

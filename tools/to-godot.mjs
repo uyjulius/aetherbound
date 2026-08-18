@@ -39,6 +39,8 @@ import { ESPERS } from '../src/data/espers.js';
 import { QUESTS } from '../src/data/quests.js';
 import { TRACKS } from '../src/data/music.js';
 import { CHARACTERS, CAST_ORDER } from '../src/data/characters.js';
+import { RAMPS, INK, PAPER, UI, ELEMENT_COLOR } from '../src/engine/palette.js';
+import { ACTIONS, DEFAULT_BINDINGS, PAD_BUTTONS } from '../src/engine/input.js';
 
 const root = path.dirname(fileURLToPath(new URL('../package.json', import.meta.url)));
 const OUT = path.join(root, 'godot', 'data');
@@ -120,6 +122,21 @@ const written = [
   write('characters', CHARACTERS),
   write('cast_order', CAST_ORDER),
   write('maps', maps),
+
+  // Palette and input are data wearing a code costume, and they cross the same
+  // way the tables do rather than being retyped in GDScript. Two hundred hex
+  // values transcribed by hand is a typo farm, and the ramps are the reason
+  // assets from different sources read as one hand — a single wrong digit is a
+  // material that no longer belongs to the set. The bindings are worse: the
+  // control bar along the bottom of the screen *is* the game's statement of what
+  // the controls are, so a second copy of them drifts the first time a key moves.
+  //
+  // Row counts here are section counts rather than rows, so the manifest only
+  // asserts presence. The contents are compared value by value by
+  // `tools/glue-parity.mjs`, which the numeric fingerprint in `data-parity.mjs`
+  // could not do — a palette contains no numbers.
+  write('palette', { ramps: RAMPS, ink: INK, paper: PAPER, ui: UI, element: ELEMENT_COLOR }),
+  write('input', { actions: ACTIONS, keyboard: DEFAULT_BINDINGS, pad: PAD_BUTTONS }),
 ];
 
 // A manifest so the Godot side can assert it loaded everything it was given,
