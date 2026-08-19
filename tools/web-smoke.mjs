@@ -129,6 +129,7 @@ const warnings = [];
 const badResponses = [];
 let ready = null;
 let field = null;
+const opened = new Set();
 let sceneStarted = null;
 let sceneEnded = null;
 let dialogueOpened = null;
@@ -187,7 +188,11 @@ page.on('console', (message) => {
   // that is running but not doing what it should.
   if (process.env.WEB_SMOKE_VERBOSE) console.log(`    [page] ${text.split('\n')[0].slice(0, 160)}`);
   if (text.includes('AETHERBOUND_READY')) ready = text.trim();
-  if (text.includes('FIELD_READY')) field = text.trim();
+  if (text.includes('FIELD_READY')) {
+    field = text.trim();
+    const id = text.match(/map=(\S+)/)?.[1];
+    if (id) opened.add(id);
+  }
   if (text.includes('SCENE_START')) sceneStarted = text.trim();
   if (text.includes('DIALOGUE_OPEN')) { dialogueOpened = text.trim(); dialogues++; }
   if (text.includes('PARTY_READY')) partyReady = text.trim();
@@ -869,6 +874,32 @@ if (audioReady) {
   check('the shop and the inn have their own themes',
     asked.includes('shop') && asked.includes('inn'),
     asked.join(' → ').slice(0, 220));
+}
+
+// --- every map in the world --------------------------------------------------
+//
+// `M` walks the map list. Ninety-five maps, each of which builds a collision grid, paves its
+// ground, places its props and its people, and resolves its own sky — and any one of them
+// could be the one with a prop kit nothing has a model for, a terrain row shorter than its
+// width, or an NPC whose look breaks the model hash. Opening them all is a minute of clicking
+// and the only way to know the whole world loads rather than the four maps the checks above
+// happen to visit.
+if (field) {
+  const wanted = Object.keys(JSON.parse(
+    fs.readFileSync(path.join(root, 'godot', 'data', 'maps.json'), 'utf8'))).length;
+  const errorsBefore = errors.length;
+  const warningsBefore = warnings.length;
+  for (let i = 0; i < wanted + 4 && opened.size < wanted; i++) {
+    await page.keyboard.press('KeyM');
+    await page.waitForTimeout(260);
+  }
+  check('every map in the world opens', opened.size === wanted,
+    `${opened.size} of ${wanted} opened`);
+  check('opening every map raises nothing',
+    errors.length === errorsBefore && warnings.length === warningsBefore,
+    [...errors.slice(errorsBefore), ...warnings.slice(warningsBefore)].slice(0, 3).join(' | '));
+  await page.screenshot({ path: path.join(root, '.renders',
+    remote ? 'godot-web-lastmap-live.png' : 'godot-web-lastmap.png') });
 }
 
 check('nothing 404s', badResponses.length === 0, badResponses.slice(0, 3).join('; '));
