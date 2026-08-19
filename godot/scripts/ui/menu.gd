@@ -40,6 +40,16 @@ func open(for_party: Party, db) -> void:
 	_begin(for_party, db)
 
 
+## Open straight onto the slots, for a save point in the world.
+##
+## The root screen is still underneath, so cancel goes back to the menu rather than closing
+## outright — which is what a player who came to save and then wondered about their equipment
+## expects.
+func open_save(for_party: Party, db) -> void:
+	_begin(for_party, db)
+	_push(_save_slots())
+
+
 # ---------------------------------------------------------------------------
 # Screens
 # ---------------------------------------------------------------------------

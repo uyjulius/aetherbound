@@ -41,6 +41,9 @@ const STUCK_AFTER := 3.0
 const STUCK_EPISODES := 3
 
 ## How far ahead the party reaches, and how far that reach carries.
+## A chest is a thing on the ground rather than a person to face.
+const CHEST_REACH := 1.7
+
 const REACH_AHEAD := 0.9
 const REACH := 1.7
 
@@ -366,7 +369,37 @@ func interact_target() -> Dictionary:
 			best_distance = d
 			best = {"kind": "npc", "npc": npc,
 				"label": String(def.get("prompt", "Talk"))}
+
+	# Chests, and props that ask to be examined. A chest already opened is not offered — the
+	# reference records the opening on the *party*, which is to say in the save file, because
+	# it used to live on the shared map definition and all 383 of them reopened on reload.
+	for prop in _map_def.get("props", []):
+		var at: Array = prop.get("at", [0, 0])
+		var x := float(at[0]) * _tile
+		var z := float(at[1]) * _tile
+		var d := sqrt(pow(ax - x, 2.0) + pow(az - z, 2.0))
+		if String(prop.get("kit", "")) == "chest":
+			if opened_chests.has(String(prop.get("id", ""))):
+				continue
+			# A slightly longer reach than a person: a chest is a thing on the ground and
+			# lining up with it exactly is nobody's idea of fun.
+			if d < CHEST_REACH and d < best_distance:
+				best_distance = d
+				best = {"kind": "chest", "prop": prop, "label": "Open"}
+		elif prop.has("interact"):
+			var radius := float(prop.get("interactRadius", 1.8))
+			if d < radius and d < best_distance:
+				best_distance = d
+				best = {"kind": "object", "prop": prop,
+					"label": String(Dictionary(prop.get("interact", {})).get("prompt", "Examine"))}
 	return best
+
+
+## Chests this field has been told are already open, by prop id.
+##
+## Passed in rather than read from the party, so the field stays a simulation with no
+## opinion about save files — which is what lets `field-parity.mjs` drive it without one.
+var opened_chests: Dictionary = {}
 
 
 ## The flag that spends a `once` trigger.

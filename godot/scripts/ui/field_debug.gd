@@ -167,7 +167,7 @@ func _ready() -> void:
 	# diagnostic that can only reach a fight by walking until one happens is a
 	# diagnostic nobody uses.
 	for action in ["debug_battle", "debug_boss", "debug_map", "debug_shop", "debug_inn",
-			"debug_lose", "debug_grid"]:
+			"debug_lose", "debug_grid", "debug_chest"]:
 		if InputMap.has_action(action):
 			InputMap.erase_action(action)
 		InputMap.add_action(action)
@@ -202,6 +202,11 @@ func _ready() -> void:
 	var g := InputEventKey.new()
 	g.physical_keycode = KEY_G
 	InputMap.action_add_event("debug_grid", g)
+	# The nearest chest, without walking to it. There are 383 of them and their positions are
+	# authored; finding one on foot is a poor way to check that opening one works.
+	var t := InputEventKey.new()
+	t.physical_keycode = KEY_T
+	InputMap.action_add_event("debug_chest", t)
 
 	_ctx = Ctx.new("first", false)
 	_ctx.database = _db
@@ -269,6 +274,13 @@ func _open(index: int, spawn := "default") -> void:
 	var def := MapBuilder.resolve(_db.maps[id], _party.world_state)
 	_field = FieldSim.new(def, _db.legend, _db.footprints, spawn,
 		_db.encounters, RngStreams.encounter)
+	# Which chests here are already empty. The party carries that, which is to say the save
+	# file does: the reference kept it on the shared map definition once, and all 383 chests in
+	# the game reopened on reload.
+	for chest_key in _party.opened_chests:
+		var parts: PackedStringArray = String(chest_key).split(":")
+		if parts.size() == 2 and parts[0] == id:
+			_field.opened_chests[parts[1]] = true
 	_last_event = ""
 	if _scenery != null:
 		_scenery.build(def, _field.built, _db.legend.get("glyphs", {}))
@@ -570,6 +582,9 @@ func _process(delta: float) -> void:
 	if Input.is_action_just_pressed("debug_lose"):
 		_lose()
 		return
+	if Input.is_action_just_pressed("debug_chest"):
+		_open_nearest_chest()
+		return
 	if Input.is_action_just_pressed("debug_shop"):
 		_talk_to_keeper("shop")
 		return
@@ -580,8 +595,12 @@ func _process(delta: float) -> void:
 		# On demand, so the browser check can start a scene without walking to one.
 		_run_event("harrowmere_intro")
 		return
+	# Cancel does *not* leave the world. It used to jump straight back to the title screen —
+	# no confirmation, no save — so one stray press threw away wherever the party had walked
+	# to. The reference's Back button is for backing out of a screen, and on the field there is
+	# nothing to back out of.
 	if Actions.just_pressed("cancel"):
-		get_tree().change_scene_to_file("res://scenes/title.tscn")
+		_menu.open(_party, _db)
 		return
 	if Actions.just_pressed("menu"):
 		_menu.open(_party, _db)
@@ -610,10 +629,16 @@ func _process(delta: float) -> void:
 			if _fire_trigger(trigger):
 				return
 
-	# Talking. The prompt says who, and confirm starts whatever they have.
+	# Talking, opening, examining. The prompt says which, and confirm does it.
 	_interact = _field.interact_target()
 	if not _interact.is_empty() and Actions.just_pressed("confirm"):
-		_talk_to(_interact["npc"])
+		match String(_interact.get("kind", "")):
+			"npc":
+				_talk_to(_interact["npc"])
+			"chest":
+				_open_chest(_interact["prop"])
+			"object":
+				_examine(_interact["prop"])
 		return
 	_trigger = result["trigger"]
 	_follow_camera()
@@ -631,8 +656,11 @@ func _update_prompt() -> void:
 	if _prompt == null:
 		return
 	if not _interact.is_empty():
-		_prompt.text = "%s  %s" % [String(_interact["label"]),
-			String(_interact["npc"]["def"].get("name", ""))]
+		var who := ""
+		if String(_interact.get("kind", "")) == "npc":
+			who = String(_interact["npc"]["def"].get("name", ""))
+		_prompt.text = String(_interact["label"]) if who.is_empty() \
+			else "%s  %s" % [String(_interact["label"]), who]
 		return
 	# A door says where it goes. The reference offers the same thing at an exit, and a village
 	# whose gates are unmarked is a village nobody leaves on purpose.
@@ -752,6 +780,101 @@ func _talk_to(npc: Dictionary) -> void:
 	_scene_running = false
 
 
+## A chest.
+##
+## Recorded before the contents are granted, and on the party rather than on the map: the
+## chest is open the moment it is opened, and anything that interrupts what follows — a
+## conversation, a change of map — must not leave the contents granted and the chest shut.
+func _open_chest(prop: Dictionary) -> void:
+	var id := String(prop.get("id", ""))
+	var map_id := _ids[_index]
+	_party.open_chest(map_id, id)
+	_field.opened_chests[id] = true
+	_scene_running = true
+	Sound.sfx("chest")
+	print("CHEST %s:%s" % [map_id, id])
+	await _grant(prop.get("contains", {}))
+	_scene_running = false
+	# Said at the end rather than at the start: the contents are a conversation, and anything
+	# waiting to do something else has to know the box has closed.
+	print("CHEST_DONE %s" % id)
+
+
+## What was in it. The reference's four kinds, in its words, with its one flourish: magicite
+## gets its own cue, because finding one is the game's main progression beat and it should not
+## sound like finding a hat.
+func _grant(contents: Variant) -> void:
+	if not (contents is Dictionary) or Dictionary(contents).is_empty():
+		await _dialogue.speak(null, ["It is empty."])
+		return
+	var spec: Dictionary = contents
+	var label := String(spec.get("label", ""))
+	match String(spec.get("kind", "")):
+		"item", "key":
+			var item_id := String(spec.get("id", ""))
+			var count := int(spec.get("count", 1))
+			_party.add_item(item_id, count)
+			if label.is_empty():
+				label = String(_db.items.get(item_id, {}).get("name", "something"))
+			print("FOUND kind=item id=%s count=%d" % [item_id, count])
+			await _dialogue.speak(null, ["Found %s." % label])
+		"gold":
+			var amount := int(spec.get("amount", 0))
+			_party.add_gold(amount)
+			# Not `gold=` — anything watching this log for a party's balance would read an
+			# amount found as a balance, and the inn's bill was checked against 150.
+			print("FOUND kind=gold amount=%d" % amount)
+			await _dialogue.speak(null, ["Found %d gil." % amount])
+		"esper":
+			var esper_id := String(spec.get("id", ""))
+			var esper: Dictionary = _db.espers.get(esper_id, {})
+			_party.add_esper(esper_id)
+			print("FOUND kind=esper id=%s" % esper_id)
+			Sound.play_music("esper", 0.6)
+			var lines: Array = ["A shard of magicite — %s." % String(esper.get("name", esper_id))]
+			var flavour := String(esper.get("flavour", ""))
+			if not flavour.is_empty():
+				lines.append(flavour)
+			lines.append("Equip it from the Espers menu to begin learning its magic.")
+			await _dialogue.speak(null, lines)
+			_play_map_music(1.4)
+		_:
+			await _dialogue.speak(null, ["Nothing of use."])
+
+
+## A prop with something to say. Signposts, notice boards, the things the maps ask to be
+## examined rather than opened.
+func _examine(prop: Dictionary) -> void:
+	var data: Dictionary = prop.get("interact", {})
+	# A save point. The reference asks through its dialogue box; this opens the same slot list
+	# the menu uses, so there is one save screen rather than two.
+	if bool(data.get("save", false)):
+		print("SAVE_POINT %s" % String(prop.get("id", "?")))
+		Sound.sfx("confirm")
+		_menu.open_save(_party, _db)
+		return
+	# Some of them are scenes rather than signs: the marks on the well rim are a whole
+	# conversation, and it is authored as an event.
+	if data.has("event"):
+		_run_event(String(data["event"]))
+		return
+	var lines: Array = []
+	var text: Variant = data.get("text", data.get("lines", null))
+	if text is Array:
+		lines = text
+	elif text != null:
+		lines = [String(text)]
+	if lines.is_empty():
+		return
+	_scene_running = true
+	print("EXAMINED %s" % String(prop.get("id", "?")))
+	# The prop's own name as the speaker where it has one — "Village Well" over a paragraph
+	# about the water reads as a label rather than as somebody talking.
+	var speaker: Variant = data.get("name", data.get("speaker", null))
+	await _dialogue.speak(speaker, lines)
+	_scene_running = false
+
+
 ## A night at an inn: the price, the fade, the rest, the fade back.
 ##
 ## The beat is the reference's, waits and all. A rest that snapped the HP bars full
@@ -789,6 +912,28 @@ func _fade_to(alpha: float, seconds: float) -> void:
 	var tween := create_tween()
 	tween.tween_property(_fade, "color:a", alpha, seconds)
 	await tween.finished
+
+
+## Open the nearest chest on this map that still has something in it.
+func _open_nearest_chest() -> void:
+	var tile := float(_db.legend.get("tile", 2))
+	var best: Dictionary = {}
+	var best_distance := INF
+	for prop in _db.maps[_ids[_index]].get("props", []):
+		if String(prop.get("kit", "")) != "chest":
+			continue
+		if _field.opened_chests.has(String(prop.get("id", ""))):
+			continue
+		var at: Array = prop.get("at", [0, 0])
+		var d := sqrt(pow(_field.player.x - float(at[0]) * tile, 2.0)
+			+ pow(_field.player.z - float(at[1]) * tile, 2.0))
+		if d < best_distance:
+			best_distance = d
+			best = prop
+	if best.is_empty():
+		print("NO_CHEST_HERE %s" % _ids[_index])
+		return
+	_open_chest(best)
 
 
 ## Talk to whoever on this map keeps a shop or an inn.
@@ -912,7 +1057,7 @@ func _update_label() -> void:
 	if _battle != null and _battle.visible:
 		lines.append("in battle")
 	lines.append("move / run · Q,E orbit · C menu · M next map · V scene · B fight · N boss"
-		+ " · K shop · L inn · P wipe · G grid · Esc back")
+		+ " · K shop · L inn · T chest · P wipe · G grid · Esc back")
 	_label.text = "\n".join(lines)
 
 

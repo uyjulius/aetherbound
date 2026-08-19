@@ -132,6 +132,7 @@ let field = null;
 let sceneStarted = null;
 let sceneEnded = null;
 let dialogueOpened = null;
+let dialogues = 0;
 let battleStarted = null;
 let battleEnded = null;
 let partyReady = null;
@@ -139,6 +140,8 @@ let mapEntered = null;
 let talked = null;
 let menuOpened = null;
 let menuClosed = null;
+let menuOpens = 0;
+let menuCloses = 0;
 let shopOpened = null;
 let shopStock = null;
 let shopClosed = null;
@@ -153,6 +156,10 @@ const crowd = [];
 let stage = null;
 const turns = [];
 const actions = [];
+const found = [];
+let chest = null;
+let chestDone = null;
+let savePoint = null;
 let wiped = null;
 let rolledBack = null;
 const configured = [];
@@ -182,12 +189,12 @@ page.on('console', (message) => {
   if (text.includes('AETHERBOUND_READY')) ready = text.trim();
   if (text.includes('FIELD_READY')) field = text.trim();
   if (text.includes('SCENE_START')) sceneStarted = text.trim();
-  if (text.includes('DIALOGUE_OPEN')) dialogueOpened = text.trim();
+  if (text.includes('DIALOGUE_OPEN')) { dialogueOpened = text.trim(); dialogues++; }
   if (text.includes('PARTY_READY')) partyReady = text.trim();
   if (text.includes('MAP_ENTERED')) mapEntered = text.trim();
   if (text.includes('TALK ')) talked = text.trim();
-  if (text.includes('MENU_OPEN')) menuOpened = text.trim();
-  if (text.includes('MENU_CLOSED')) menuClosed = text.trim();
+  if (text.includes('MENU_OPEN')) { menuOpened = text.trim(); menuOpens++; }
+  if (text.includes('MENU_CLOSED')) { menuClosed = text.trim(); menuCloses++; }
   if (text.includes('SHOP_OPEN')) shopOpened = text.trim();
   if (/^SHOP \S+ stock=/.test(text.trim())) shopStock = text.trim();
   if (text.includes('SHOP_CLOSED')) shopClosed = text.trim();
@@ -202,6 +209,10 @@ page.on('console', (message) => {
   if (/^STAGE /.test(text.trim())) stage = text.trim();
   if (/^TURN /.test(text.trim())) turns.push(text.trim());
   if (/^ACTION /.test(text.trim())) actions.push(text.trim());
+  if (/^CHEST /.test(text.trim())) chest = text.trim();
+  if (/^CHEST_DONE /.test(text.trim())) chestDone = text.trim();
+  if (/^SAVE_POINT /.test(text.trim())) savePoint = text.trim();
+  if (/^FOUND /.test(text.trim())) found.push(text.trim());
   if (text.includes('PARTY_WIPED')) wiped = text.trim();
   if (text.includes('ROLLED_BACK')) rolledBack = text.trim();
   if (/^CONFIG /.test(text.trim())) configured.push(text.trim());
@@ -233,6 +244,42 @@ console.log(`  url       ${target}`);
 console.log();
 
 await page.goto(target, { waitUntil: 'domcontentloaded' });
+
+/**
+ * Close the menu, exactly.
+ *
+ * Counted rather than watched for a single line: cancel on the field opens the menu now
+ * (it used to throw the world away), so one press too many re-opens what the last press
+ * closed — and the presses after that walk somebody's equipment off.
+ */
+const closeMenu = async () => {
+  for (let i = 0; i < 8 && menuOpens > menuCloses; i++) {
+    await page.keyboard.press('Escape');
+    await page.waitForTimeout(280);
+  }
+  return menuOpens === menuCloses;
+};
+
+const clearField = async () => {
+  // Page through whatever is open until nothing new opens. `DIALOGUE_OPEN` is counted, so
+  // "quiet" is measurable rather than guessed: a confirm that opens a signpost shows up
+  // here and gets paged through on the next pass. A dialogue blocks walking as well as
+  // everything else, which is why this comes before stepping away rather than after.
+  for (let pass = 0; pass < 8; pass++) {
+    const before = dialogues;
+    await page.keyboard.press('Enter');
+    await page.waitForTimeout(420);
+    if (dialogues === before && pass > 0) break;
+  }
+  // Then out of reach of it, so the next confirm does not open it again.
+  for (let i = 0; i < 3; i++) {
+    await page.keyboard.down('ArrowUp');
+    await page.waitForTimeout(150);
+    await page.keyboard.up('ArrowUp');
+  }
+  await page.waitForTimeout(200);
+};
+
 
 const started = Date.now();
 try {
@@ -378,6 +425,61 @@ if (ready) {
       check('the fight resolves', Boolean(battleEnded), battleEnded ?? 'no BATTLE_END in 80 presses');
     }
 
+    /**
+     * Leave the field in a state the next check can start from.
+     *
+     * A village is full of things a confirm can open — a signpost, a well, a villager — and
+     * every loop here that presses confirm until something happens presses it once more
+     * afterwards. That last press opens whatever is in reach, and a dialogue box that nobody
+     * closes swallows every key that follows, including the ones that open a menu or start a
+     * fight. So: page through whatever opened, then step away from it.
+     */
+    // The save point, which stands a few paces from where the party spawns. Walked to rather
+    // than reached with a key: it is the one thing in the world a player has to *find*, and
+    // the prompt over it is the whole mechanism.
+    // North is `ArrowDown` at the default bearing: the camera looks down -Z, so screen-up
+    // walks *away* from the viewer and the crystal is behind the party as they spawn.
+    for (let i = 0; i < 10 && !savePoint; i++) {
+      await page.keyboard.down('ArrowDown');
+      await page.waitForTimeout(140);
+      await page.keyboard.up('ArrowDown');
+      await page.waitForTimeout(80);
+      await page.keyboard.press('Enter');
+      await page.waitForTimeout(160);
+    }
+    check('a save point opens the save screen', Boolean(savePoint) && Boolean(menuOpened),
+      savePoint ? `${savePoint} → ${menuOpened}` : 'never reached the crystal');
+    // Out of it again, so the checks below start from the field.
+    await closeMenu();
+    // And off the crystal, with no confirm anywhere near it: standing on it means every stray
+    // press re-opens the save screen, and a press meant to close a dialogue opens a menu
+    // instead. Walking is enough here because the escape loop above has already closed it.
+    // Sideways, not back: the party spawns three paces from the village's south bridge, so
+    // walking the way they came takes them out of Harrowmere entirely — and the shop and the
+    // inn below are Harrowmere's.
+    for (let i = 0; i < 4; i++) {
+      await page.keyboard.down('ArrowRight');
+      await page.waitForTimeout(160);
+      await page.keyboard.up('ArrowRight');
+    }
+    await page.waitForTimeout(250);
+    savePoint = null;
+
+    // A chest. Reached with a key rather than on foot: Harrowmere's three are scattered and
+    // the reward layer for exploring is 383 of them, so what matters is that opening one works
+    // and that it stays open.
+    await page.keyboard.press('KeyT');
+    // Until the box has closed, not until the contents arrive: what is in a chest is a
+    // conversation, and leaving it open swallows every key that comes after.
+    for (let i = 0; i < 10 && !chestDone; i++) {
+      await page.keyboard.press('Enter');
+      await page.waitForTimeout(400);
+    }
+    check('a chest opens and hands over what is in it',
+      Boolean(chest) && found.length > 0 && Boolean(chestDone),
+      chest ? `${chest} → ${found.join(', ')}` : 'no CHEST line');
+    await clearField();
+
     // The field menu, and the one screen in it that can be got wrong quietly: equip.
     // A menu that opens is easy; a menu that moves a sword from a hand into the bag and
     // back again without losing it is the part worth checking in a browser.
@@ -413,15 +515,11 @@ if (ready) {
       check('a weapon comes off and goes back on', equipped.length >= 2
         && / weapon=-$/.test(equipped[0]) && !/ weapon=-$/.test(equipped[1]),
         equipped.length ? equipped.slice(0, 2).join(' | ') : 'no EQUIPPED lines');
-      // Out of the menu the way a player leaves it — one press per screen, and it stops
-      // as soon as the menu says it has closed. An escape too many belongs to the field,
-      // which reads it as "back to the title" and would take the travel check with it.
-      for (let i = 0; i < 6 && !menuClosed; i++) {
-        await page.keyboard.press('Escape');
-        await page.waitForTimeout(260);
-      }
-      check('the menu closes when backed out of', Boolean(menuClosed),
-        menuClosed ?? 'no MENU_CLOSED after six cancels');
+      // Out of the menu the way a player leaves it, one press per screen — and no further:
+      // on the field cancel opens the menu, so a press too many undoes the last one.
+      const closed = await closeMenu();
+      check('the menu closes when backed out of', closed,
+        menuClosed ?? 'no MENU_CLOSED after eight cancels');
     }
 
     // The shop. Harrowmere's general store, reached the way a player reaches it — through
@@ -519,9 +617,15 @@ if (ready) {
     check('the night ends and hands the field back', Boolean(innDone),
       innDone ?? 'no INN_DONE after ten confirms');
 
-    // Then out of the village. Harrowmere's south bridge is an exit, and the party
-    // spawns at the top of the map, so walking down far enough should change map — which
-    // is the whole difference between a diagnostic and a world.
+    // Then out of the village. Harrowmere's south bridge is an exit and the party spawned
+    // three paces from it, so walking back down there should change map — which is the whole
+    // difference between a diagnostic and a world. First back to the middle: the crystal
+    // detour above stepped four paces east, and the bridge is a gap in a wall.
+    for (let i = 0; i < 4; i++) {
+      await page.keyboard.down('ArrowLeft');
+      await page.waitForTimeout(150);
+      await page.keyboard.up('ArrowLeft');
+    }
     for (let i = 0; i < 60 && !mapEntered; i++) {
       await page.keyboard.down('ArrowUp');
       await page.waitForTimeout(140);
@@ -559,6 +663,7 @@ if (field) {
   await page.waitForTimeout(600);
   check('the menu writes a save', written.some((line) => /slot=0 /.test(line)),
     written.join(' | ') || 'no SAVED line');
+  await closeMenu();
 
   // And back in through the front door. A reload, so the save comes out of the store
   // rather than out of memory.
@@ -567,6 +672,9 @@ if (field) {
   titleReady = null;
   loaded = null;
   resumed = null;
+  // The counters below count what the *page* has printed, so a reload resets them too.
+  menuOpens = 0;
+  menuCloses = 0;
   await page.goto(target, { waitUntil: 'domcontentloaded' });
   for (let i = 0; i < 60 && !titleReady; i++) await page.waitForTimeout(500);
   check('the title screen finds the save', Boolean(titleReady) && /continue=yes/.test(titleReady),
@@ -602,7 +710,10 @@ if (field) {
       }
       localStorage.setItem('aetherbound.save.0', raw);
     }, blob);
-    await page.goto(target, { waitUntil: 'domcontentloaded' });
+    // The counters below count what the *page* has printed, so a reload resets them too.
+  menuOpens = 0;
+  menuCloses = 0;
+  await page.goto(target, { waitUntil: 'domcontentloaded' });
     for (let i = 0; i < 60 && !titleReady; i++) await page.waitForTimeout(500);
     if (titleReady && /continue=yes/.test(titleReady)) {
       await page.keyboard.press('ArrowDown');
@@ -687,16 +798,9 @@ if (field) {
   await page.waitForTimeout(500);
   await page.screenshot({ path: path.join(root, '.renders',
     remote ? 'godot-web-journal-live.png' : 'godot-web-journal.png') });
-  // Cleared first: it is still set from the menu that was opened and closed further up,
-  // and a loop that trusts it would leave this menu standing open — which is exactly what
-  // swallowed the wipe below the first time.
-  menuClosed = null;
-  for (let i = 0; i < 5 && !menuClosed; i++) {
-    await page.keyboard.press('Escape');
-    await page.waitForTimeout(250);
-  }
-  check('the menu closes from a deep screen', Boolean(menuClosed),
-    menuClosed ?? 'no MENU_CLOSED after five cancels');
+  const deepClosed = await closeMenu();
+  check('the menu closes from a deep screen', deepClosed,
+    menuClosed ?? 'no MENU_CLOSED after eight cancels');
 
   // And the losing end. Reached with a key because being killed on cue is not something a
   // check can arrange, and the rollback is the part with the reasoning in it.
