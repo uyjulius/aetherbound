@@ -148,6 +148,8 @@ let innRest = null;
 let innWoke = null;
 let innDone = null;
 let compared = null;
+let audioReady = null;
+const music = [];
 let titleReady = null;
 let titleChoice = null;
 let loaded = null;
@@ -186,6 +188,8 @@ page.on('console', (message) => {
   if (text.includes('INN_WOKE')) innWoke = text.trim();
   if (text.includes('INN_DONE')) innDone = text.trim();
   if (text.includes('SHOP_COMPARE')) compared = text.trim();
+  if (text.includes('AUDIO_READY')) audioReady = text.trim();
+  if (/^MUSIC /.test(text.trim())) music.push(text.trim());
   if (text.includes('TITLE_READY')) titleReady = text.trim();
   if (text.includes('TITLE_CONTINUE') || text.includes('TITLE_NEW_GAME')) titleChoice = text.trim();
   if (text.includes('LOADED ')) loaded = text.trim();
@@ -579,6 +583,31 @@ if (field) {
         remote ? 'godot-web-ruin-live.png' : 'godot-web-ruin.png') });
     }
   }
+}
+
+// --- the music --------------------------------------------------------------
+//
+// The score is rendered at build time, so what has to be proven in a browser is that the
+// port *finds* it and changes it at the right moments. Whether it is audible is a question
+// for the mixer, not for a headless page: Chromium here has no output device, so what is
+// measured is the track the game asked for at each point in the run above.
+check('the audio bank loads', Boolean(audioReady)
+  && Number(audioReady.match(/music=(\d+)/)?.[1] ?? 0) > 0,
+  audioReady ?? 'no AUDIO_READY line');
+if (audioReady) {
+  const asked = music.map((line) => line.split(' ')[1]);
+  check('the title plays the prelude', asked[0] === 'prelude',
+    asked.slice(0, 3).join(' → ') || 'no MUSIC line');
+  check('the field plays its own map theme', asked.includes('town_harrowmere'),
+    asked.slice(0, 6).join(' → '));
+  // A fight takes the music over and the town gets it back afterwards, which is two
+  // separate things the port has to remember to do.
+  check('a fight changes the music and gives it back',
+    asked.includes('battle') && asked.lastIndexOf('town_harrowmere') > asked.indexOf('battle'),
+    asked.join(' → ').slice(0, 220));
+  check('the shop and the inn have their own themes',
+    asked.includes('shop') && asked.includes('inn'),
+    asked.join(' → ').slice(0, 220));
 }
 
 check('nothing 404s', badResponses.length === 0, badResponses.slice(0, 3).join('; '));

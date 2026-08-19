@@ -413,6 +413,16 @@ export const INSTRUMENTS = {
 };
 
 let noiseBuffer = null;
+/**
+ * Two seconds of noise, shared by every instrument that needs a breath or a snare.
+ *
+ * Cached because filling it is 88,200 random numbers, and one buffer is as good as
+ * another for noise — but the cache is *global*, which makes it the reason an offline
+ * render was not reproducible: whichever track happened to be rendered first paid for the
+ * buffer out of its own seeded sequence, and every track after it got a different sequence
+ * as a result. `renderOffline` therefore clears and refills it up front, so the draws land
+ * in the same place every time. See `resetNoiseBuffer`.
+ */
 function getNoiseBuffer(ctx) {
   if (noiseBuffer && noiseBuffer.sampleRate === ctx.sampleRate) return noiseBuffer;
   const len = ctx.sampleRate * 2;
@@ -420,6 +430,16 @@ function getNoiseBuffer(ctx) {
   const data = noiseBuffer.getChannelData(0);
   for (let i = 0; i < len; i++) data[i] = Math.random() * 2 - 1;
   return noiseBuffer;
+}
+
+/**
+ * Throw the shared noise away.
+ *
+ * Only for rendering: the point is that the next call to `getNoiseBuffer` refills it, so
+ * a render's random draws always begin at the same offset in its seeded sequence.
+ */
+function resetNoiseBuffer() {
+  noiseBuffer = null;
 }
 
 /** A synthetic impulse response: exponentially decaying filtered noise. */
@@ -686,6 +706,154 @@ export class AudioEngine {
         }
       }
       state.nextNoteIndex++;
+    }
+  }
+
+  // --- offline rendering --------------------------------------------------
+
+  /**
+   * Render a track to an AudioBuffer, faster than real time.
+   *
+   * Here rather than in a build tool on purpose. The Godot port cannot run this
+   * synthesiser — it is a Web Audio graph — so its music is rendered from this score
+   * at build time by `tools/render-music.mjs`, and the one thing that must not happen
+   * is a second, drifting copy of the signal chain living in that tool. So the tool
+   * asks the engine, and what it gets back is this engine's own sound: the same master
+   * chain, the same limiter, the same convolution reverb, the same instruments.
+   *
+   * `passes` is why this returns more audio than a loop. A rendered loop has a seam
+   * where a live one does not, because at the moment it wraps there is a reverb tail
+   * still ringing from the bar before. Rendering the loop twice and keeping the second
+   * pass gives audio that already carries that tail, so it joins to itself.
+   *
+   * The mix nodes are held at their defaults rather than at the player's current volume
+   * — a rendered file must not bake in whatever the music slider happened to be on.
+   */
+  async renderOffline(track, opts = {}) {
+    const prepared = this.prepareOfflineRender(track, opts);
+    return { ...prepared, buffer: await prepared.ctx.startRendering() };
+  }
+
+  /**
+   * Build and schedule an offline render, without starting it.
+   *
+   * Split from `renderOffline` for one reason, and it is not tidiness. Every random number
+   * this synthesiser draws — vibrato rates, the reverb impulse, the shared noise buffer —
+   * is drawn *here*, synchronously. A caller that wants a reproducible render installs a
+   * seeded generator, calls this, and puts the real one back before awaiting the render:
+   * during that await the page keeps running, and anything else that draws a random number
+   * would otherwise move the sequence on and make the next render differ from this one.
+   * That is precisely the bug this shape prevents, and it cost an afternoon.
+   */
+  prepareOfflineRender(track, { passes = 2, sampleRate = 44100, tail = 3.4 } = {}) {
+    const Offline = window.OfflineAudioContext || window.webkitOfflineAudioContext;
+    if (!Offline) throw new Error('no OfflineAudioContext in this browser');
+
+    const beatDur = 60 / track.bpm;
+    const loopLength = (track.lengthBeats ?? this._inferLength(track)) * beatDur;
+    const seconds = loopLength * passes + tail;
+    const ctx = new Offline(2, Math.ceil(seconds * sampleRate), sampleRate);
+
+    const live = this.ctx;
+    this.ctx = ctx;
+    try {
+      // Before anything else draws a random number. The shared noise buffer is 88,200 of
+      // them, and if it is filled partway through a track — which is what happens when the
+      // cache is cold and a flute plays first — then every note after it is working from a
+      // different point in the sequence, and two renders of the same score differ.
+      resetNoiseBuffer();
+      getNoiseBuffer(ctx);
+
+      const master = ctx.createGain();
+      master.gain.value = this.volumes.master;
+      const comp = ctx.createDynamicsCompressor();
+      comp.threshold.value = -12;
+      comp.knee.value = 12;
+      comp.ratio.value = 6;
+      comp.attack.value = 0.006;
+      comp.release.value = 0.20;
+      master.connect(comp).connect(ctx.destination);
+
+      const music = ctx.createGain();
+      music.gain.value = this.volumes.music;
+      music.connect(master);
+
+      const reverb = ctx.createConvolver();
+      reverb.buffer = makeImpulse(ctx, 2.8, 3.0);
+      const reverbOut = ctx.createGain();
+      reverbOut.gain.value = 0.9;
+      reverb.connect(reverbOut).connect(master);
+
+      const gain = ctx.createGain();
+      gain.gain.value = 0.8;
+      gain.connect(music);
+      const send = ctx.createGain();
+      send.gain.value = track.reverb ?? 0.22;
+      gain.connect(send);
+      send.connect(reverb);
+
+      // The same flattening the live sequencer does, so a part's gain, pan and layer
+      // are the ones the player hears.
+      const state = { track, gain, layerGains: {} };
+      this._prepare(state);
+
+      for (let pass = 0; pass < passes; pass++) {
+        const base = pass * state.loopLength;
+        for (const ev of state.events) {
+          if (ev.freq < 0) continue;
+          const fn = INSTRUMENTS[ev.instrument] || INSTRUMENTS.strings;
+          fn(ctx, ev.dest, ev.freq, base + ev.time, ev.dur, ev.vel,
+            { ...(ev.opts || {}), drum: ev.drum });
+        }
+      }
+
+      return { ctx, loopLength, passes, sampleRate };
+    } finally {
+      this.ctx = live;
+    }
+  }
+
+  /**
+   * Render one sound effect to an AudioBuffer.
+   *
+   * `sfx` schedules against `currentTime` and reads `this.ready`, so it is driven here
+   * exactly as the game drives it — with the clock at zero — rather than reimplemented.
+   */
+  async renderSfxOffline(name, opts = {}) {
+    const prepared = this.prepareOfflineSfx(name, opts);
+    return { ...prepared, buffer: await prepared.ctx.startRendering() };
+  }
+
+  /** As `prepareOfflineRender`, for one effect, and for the same reason. */
+  prepareOfflineSfx(name, { seconds = 1.4, sampleRate = 44100 } = {}) {
+    const Offline = window.OfflineAudioContext || window.webkitOfflineAudioContext;
+    if (!Offline) throw new Error('no OfflineAudioContext in this browser');
+    const ctx = new Offline(2, Math.ceil(seconds * sampleRate), sampleRate);
+
+    const live = this.ctx;
+    const wasReady = this.ready;
+    const liveSfx = this.sfxGain;
+    const liveMaster = this.masterGain;
+    this.ctx = ctx;
+    this.ready = true;
+    try {
+      resetNoiseBuffer();
+      getNoiseBuffer(ctx);
+      const master = ctx.createGain();
+      master.gain.value = this.volumes.master;
+      master.connect(ctx.destination);
+      const sfx = ctx.createGain();
+      sfx.gain.value = this.volumes.sfx;
+      sfx.connect(master);
+      this.masterGain = master;
+      this.sfxGain = sfx;
+      this.sfx(name);
+      return { ctx, sampleRate };
+    } finally {
+      this.ctx = live;
+      this.ready = wasReady;
+      this.sfxGain = liveSfx;
+      this.masterGain = liveMaster;
     }
   }
 

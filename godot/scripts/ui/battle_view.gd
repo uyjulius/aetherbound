@@ -121,6 +121,9 @@ func begin(party: Party, encounter: Dictionary, database) -> void:
 	_lines.clear()
 	_note("A fight begins: %s" % ", ".join(_enemy_names()))
 	print("BATTLE_START enemies=%d party=%d" % [battle.enemies.size(), battle.party.size()])
+	# The reference's own choice of track and fade: a boss gets its own theme, and 0.6
+	# seconds is short enough that the fight starts on the downbeat rather than after it.
+	Sound.play_music("boss" if battle.is_boss else "battle", 0.6)
 	visible = true
 	_refresh()
 
@@ -196,6 +199,7 @@ func _drive_menu() -> void:
 				else:
 					battle.commit_action({"actor": actor, "kind": "spell", "spell": spell,
 						"targets": [target]})
+					Sound.sfx("magic")
 					_note("%s casts %s." % [actor.name, String(spell.get("name", "a spell"))])
 			"Item":
 				var item := _first_item()
@@ -205,6 +209,7 @@ func _drive_menu() -> void:
 				else:
 					battle.commit_action({"actor": actor, "kind": "item", "item": item,
 						"targets": [actor]})
+					Sound.sfx("heal")
 					_note("%s uses %s." % [actor.name, String(item.get("name", "an item"))])
 			_:
 				battle.commit_action({"actor": actor, "kind": "attack", "targets": [target]})
@@ -213,6 +218,7 @@ func _drive_menu() -> void:
 			_note("%s hits %s for %d." % [actor.name, target.name, dealt] if dealt > 0
 				else "%s misses %s." % [actor.name, target.name])
 			_popup(target, dealt)
+			Sound.sfx("hit" if dealt > 0 else "cancel")
 		_choosing_target = false
 
 
@@ -329,10 +335,14 @@ func _end() -> void:
 	var rewards := battle.rewards
 	match battle.result:
 		"victory":
+			# Victory is a track in the reference, not an effect, and the field puts the
+			# map's own theme back when the screen closes.
+			Sound.play_music("victory", 0.15)
 			_banner.text = "Victory"
 			_note("Victory. %d exp each, %d gil." % [
 				int(rewards.get("exp_each", 0)), int(rewards.get("gold", 0))])
 		"defeat":
+			Sound.play_music("gameover", 0.6)
 			_banner.text = "Defeat"
 		_:
 			_banner.text = "Escaped"

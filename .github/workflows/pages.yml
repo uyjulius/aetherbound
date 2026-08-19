@@ -100,19 +100,23 @@ jobs:
       - name: Import the project
         run: ~/godot/godot --headless --path godot --import
 
+      # Before the parity suite, not after: audio parity re-renders part of the
+      # score through the reference's own Web Audio engine to prove the shipped
+      # files are still that score, and it needs a page to do it in.
+      - name: Install the browser
+        run: npx playwright install --with-deps chromium
+
       # The parity suite is the port's entire guarantee — 3,804 formula values,
-      # 40,855 table numbers, 24,000 AI decisions, 1,719 RNG draws and 897 glue
-      # values against the reference build. It runs before the export, because a
-      # build that disagrees with the game it is porting should not be published
-      # however well it boots.
+      # 40,855 table numbers, 24,000 AI decisions, 1,719 RNG draws, 897 glue
+      # values, five save files and the whole rendered score against the
+      # reference build. It runs before the export, because a build that
+      # disagrees with the game it is porting should not be published however
+      # well it boots.
       - name: Check the port against the reference
         run: GODOT=~/godot/godot npm run port
 
       - name: Export for the browser
         run: GODOT=~/godot/godot npm run export:web
-
-      - name: Install the browser for the check
-        run: npx playwright install --with-deps chromium
 
       # Longer than the local default: compiling 40MB of wasm under a software
       # rasteriser on a shared runner is slow, and a timeout failure here would

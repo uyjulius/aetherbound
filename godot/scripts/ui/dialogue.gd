@@ -174,6 +174,10 @@ func say(speaker: Variant, text: String, opts: Dictionary = {}) -> void:
 				break
 			var ch := text.substr(shown, 1)
 			shown += 1
+			# Every third glyph. Every glyph is grating; every few reads as speech, which
+			# is the reference's finding and its comment.
+			if shown % 3 == 0:
+				Sound.sfx("text")
 			hold = int(PUNCTUATION_PAUSE.get(ch, 0))
 			if hold > 0:
 				break
@@ -224,9 +228,11 @@ func ask(question: Variant, choices: Array, opts: Dictionary = {}) -> int:
 		await _frame()
 		if Actions.just_pressed("down"):
 			_choice_index = posmod(_choice_index + 1, choices.size())
+			Sound.sfx("cursor")
 			_paint_choices(choices)
 		if Actions.just_pressed("up"):
 			_choice_index = posmod(_choice_index - 1, choices.size())
+			Sound.sfx("cursor")
 			_paint_choices(choices)
 		if _confirms > confirms_at_open:
 			_choice_result = _choice_index

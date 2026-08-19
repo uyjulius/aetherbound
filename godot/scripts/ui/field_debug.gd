@@ -112,6 +112,8 @@ func _ready() -> void:
 	add_child(_menu)
 
 	_shop = ShopScreen.new()
+	# The town's theme comes back when the shop door closes.
+	_shop.closed.connect(func(): _play_map_music(0.8))
 	add_child(_shop)
 
 	# The screen going dark and coming back is the whole of an inn. Above everything so a
@@ -162,8 +164,9 @@ func _ready() -> void:
 		return "victory"
 	_ctx.on_chest = func(spec):
 		print("SCENE_CHEST %s" % str(spec))
-	_ctx.on_music = func(track, _opts):
+	_ctx.on_music = func(track, opts):
 		print("SCENE_MUSIC %s" % track)
+		Sound.play_music(String(track), float(opts.get("fade", 1.2)))
 	_ctx.on_goto_map = func(id, _spawn):
 		print("SCENE_GOTO %s" % id)
 
@@ -183,15 +186,28 @@ func _ready() -> void:
 func _open(index: int, spawn := "default") -> void:
 	_index = posmod(index, _ids.size())
 	var id := _ids[_index]
-	_field = FieldSim.new(MapBuilder.resolve(_db.maps[id], _party.world_state),
-		_db.legend, _db.footprints, spawn, _db.encounters, RngStreams.encounter)
+	var def := MapBuilder.resolve(_db.maps[id], _party.world_state)
+	_field = FieldSim.new(def, _db.legend, _db.footprints, spawn,
+		_db.encounters, RngStreams.encounter)
 	_last_event = ""
+	# The map's own theme, from the resolved definition — so a ruined town plays what the
+	# ruin says and not what the town used to.
+	_play_map_music(1.4)
 	# One line per map opened, so `tools/web-smoke.mjs` can prove the field runs in
 	# a browser rather than only in the editor — and so a map that builds an empty
 	# grid is visible as numbers rather than as a blank screen.
 	print("FIELD_READY map=%s tiles=%dx%d colliders=%d triggers=%d" % [
 		id, _field.built.width, _field.built.height,
 		_field.grid.shapes.size(), _field.grid.triggers.size()])
+
+
+## Whatever this map plays. Held in one place because five callers need to put it back:
+## a fight, a shop, an inn, a scene and a load all take the music away for a while.
+func _play_map_music(fade := 1.2) -> void:
+	var def := MapBuilder.resolve(_db.maps[_ids[_index]], _party.world_state)
+	var track := String(def.get("music", ""))
+	if not track.is_empty():
+		Sound.play_music(track, fade)
 
 
 func _process(delta: float) -> void:
@@ -390,7 +406,8 @@ func _talk_to(npc: Dictionary) -> void:
 	# reference's order and it is the reason a shopkeeper has a personality at all.
 	if def.has("shop"):
 		_scene_running = false
-		_shop.open(String(def["shop"]), _party, _db)
+		if _shop.open(String(def["shop"]), _party, _db):
+			Sound.play_music("shop", 0.4)
 		return
 	if def.has("inn"):
 		await _rest_at_inn(def.get("inn", {}), name)
@@ -413,6 +430,7 @@ func _rest_at_inn(inn: Dictionary, name: String) -> void:
 		return
 	_dialogue.close()
 	print("INN_REST price=%d gold=%d" % [price, _party.gold])
+	Sound.play_music("inn", 0.5)
 	await _fade_to(1.0, 1.0)
 	_party.rest_all()
 	var rested: Array = []
@@ -421,6 +439,7 @@ func _rest_at_inn(inn: Dictionary, name: String) -> void:
 		rested.append("%s:%d/%d:%d/%d" % [id, m.hp, m.max_hp(), m.mp, m.max_mp()])
 	print("INN_WOKE %s" % " ".join(rested))
 	await _fade_to(0.0, 1.0)
+	_play_map_music(1.2)
 	await _dialogue.speak(null, ["The party wakes rested. HP and MP fully restored."])
 	# Said out loud because the night ends *after* the fade and the line, and anything
 	# checking this wants to know when the field is walkable again rather than guess from
@@ -463,12 +482,16 @@ func _note_no_encounter() -> void:
 
 func _on_battle_finished(result: String) -> void:
 	_battle.visible = false
+	# The place gets its theme back. The victory cue is a track in the reference too, so
+	# something has to put the town back afterwards.
+	_play_map_music(1.4)
 	# Whatever the fight did to the party stays done. A defeat is not handled here —
 	# a game over belongs with the title screen, which is a later piece.
 	print("BATTLE_CLOSED result=%s" % result)
 
 
-## Play a scene. The same coroutines the harness compares, driven by a live context.
+## Play a scene, then put the map's music back — a scene that changed the track owns it
+## only while it runs.
 func _run_event(id: String) -> void:
 	if _scene_running:
 		return
@@ -478,6 +501,7 @@ func _run_event(id: String) -> void:
 	var known: bool = await Events.run(id, _ctx)
 	_dialogue.close()
 	print("SCENE_END %s known=%s" % [id, str(known)])
+	_play_map_music(1.4)
 	_scene_running = false
 
 

@@ -57,6 +57,9 @@ func _ready() -> void:
 	var bindings: Dictionary = Actions.build(database.input)
 
 	_build(database, cast)
+	# The prelude, at the reference's own fade. The audio node parents itself to the tree
+	# root, so this keeps playing across the change of scene into the field.
+	Sound.play_music("prelude", 1.6)
 
 	# The readiness line. Deliberately one line, machine-first, with the counts
 	# in it: a smoke test that only waits for "ready" cannot tell a full export
@@ -72,8 +75,10 @@ func _ready() -> void:
 func _process(_delta: float) -> void:
 	if Actions.just_pressed("down") or Actions.just_pressed("up"):
 		_choice = 1 - _choice
+		Sound.sfx("cursor")
 		_paint_choices()
 	if Actions.just_pressed("confirm"):
+		Sound.sfx("confirm")
 		if _choice == 1 and not _saved.is_empty():
 			# The party as they were left, not a new one. Handed over rather than loaded
 			# here: the field owns the world and this screen is about to stop existing.
