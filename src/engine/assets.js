@@ -45,7 +45,10 @@ class AssetManager {
     this.textures = new Map();
     this.loader = new THREE.TextureLoader();
     this.maxAnisotropy = 4;
-    this.basePath = '/assets/textures/';
+    // Relative, not absolute. The Godot port takes the site's root and this build moves to
+    // `/js/`, where a leading slash would look for its textures at the top of the site and
+    // find nothing.
+    this.basePath = 'assets/textures/';
     this.onProgress = null;
   }
 

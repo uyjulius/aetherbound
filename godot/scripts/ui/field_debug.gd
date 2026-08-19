@@ -65,6 +65,7 @@ var _crowd: Array[Node3D] = []
 var _walker_clip := ""
 var _sun: DirectionalLight3D
 var _environment: Environment
+var _place: Label
 ## The top-down grid, which is what this screen used to be. Kept behind a key: it is the
 ## only view that shows collision and walkability at once, and that is worth having when the
 ## scenery starts disagreeing with the simulation.
@@ -216,6 +217,19 @@ func _ready() -> void:
 
 	_build_world()
 
+	# Where you are, said once on arrival and then gone. The reference does the same, and it
+	# is the only text a player needs on a field screen.
+	_place = Label.new()
+	_place.add_theme_font_size_override("font_size", 46)
+	_place.add_theme_color_override("font_color", Palette.ui_color("text"))
+	_place.add_theme_constant_override("shadow_offset_y", 2)
+	_place.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	_place.set_anchors_and_offsets_preset(Control.PRESET_CENTER_TOP)
+	_place.anchor_right = 1.0
+	_place.offset_top = 90.0
+	_place.modulate.a = 0.0
+	add_child(_place)
+
 	_label = Label.new()
 	_label.add_theme_font_size_override("font_size", 20)
 	_label.add_theme_color_override("font_color", Palette.ui_color("text"))
@@ -252,6 +266,7 @@ func _open(index: int, spawn := "default") -> void:
 	print("FIELD_READY map=%s tiles=%dx%d colliders=%d triggers=%d" % [
 		id, _field.built.width, _field.built.height,
 		_field.grid.shapes.size(), _field.grid.triggers.size()])
+	_announce(def)
 
 
 ## The 3D world: a camera, a sun, and somewhere for the scenery to hang.
@@ -293,6 +308,20 @@ func _build_world() -> void:
 	# reference picks for whoever is leading the party, from the same table and the same hash.
 	_cast = CastBuilder.new(_db)
 	_spawn_walker()
+
+
+## Say where this is, then get out of the way.
+func _announce(def: Dictionary) -> void:
+	if _place == null:
+		return
+	var name := String(def.get("name", ""))
+	var subtitle := String(def.get("subtitle", ""))
+	_place.text = name if subtitle.is_empty() else "%s — %s" % [name, subtitle]
+	_place.modulate.a = 0.0
+	var tween := create_tween()
+	tween.tween_property(_place, "modulate:a", 1.0, 0.5)
+	tween.tween_interval(1.8)
+	tween.tween_property(_place, "modulate:a", 0.0, 0.9)
 
 
 ## The party's leader, as a model.
@@ -415,7 +444,9 @@ func _process(delta: float) -> void:
 	if _shop != null and _shop.visible:
 		_label.visible = false
 		return
-	_label.visible = true
+	# The diagnostic read-out lives behind the same key as the grid it describes. It is the
+	# most useful screen in this project and the last thing a player should be shown.
+	_label.visible = _show_grid
 	# A scene owns the screen while it plays. The field keeps its position and the
 	# camera keeps its bearing; nothing walks under a conversation.
 	if _scene_running:

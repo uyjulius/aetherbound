@@ -150,6 +150,9 @@ func _build(database: Database, cast: Array) -> void:
 
 	column.add_child(_spacer(16))
 	column.add_child(_label("move to choose · confirm to begin", 20, _muted))
+	# The web build is still here, and still the reference every number in this one is
+	# checked against. Saying where it went costs a line and saves somebody a search.
+	column.add_child(_label("the original web build is at /js/", 18, _muted))
 
 
 ## One cast member: name in the character's own accent colour, role beside it.

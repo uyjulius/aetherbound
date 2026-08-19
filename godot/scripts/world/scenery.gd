@@ -194,7 +194,10 @@ func _material(texture: String, tile: float) -> StandardMaterial3D:
 			# position instead, so the plate tiles across the ground the way it does in the
 			# reference and the seams between tiles disappear.
 			material.uv1_triplanar = true
-			material.uv1_scale = Vector3.ONE * (1.0 / tile)
+			# One repeat every four units, which is what the reference tiles its ground at:
+			# `assets.tiled(GROUND_TEX[base], W * TILE * 0.25, …)`. Denser than that and a
+			# grass plate reads as carpet.
+			material.uv1_scale = Vector3.ONE * 0.25
 		else:
 			if not _missing.has(texture):
 				_missing[texture] = true

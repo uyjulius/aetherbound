@@ -170,17 +170,27 @@ jobs:
       - name: Build the bundle
         run: npm run build
 
+      # The Godot port takes the root and the web build moves to `/js/`.
+      #
+      # Both ship, and both keep working. The web build is still the reference this
+      # whole port is verified against — 132 checks, and the spec for every number in
+      # it — so it is not going anywhere; it is simply no longer what a visitor lands
+      # on. Its paths are all relative, so it runs from a subdirectory unchanged.
+      #
+      # Saves survive the move. They live in `localStorage` under the origin, not the
+      # path, and the port reads the same keys in the same format — so somebody who has
+      # been playing here presses Continue and finds their party.
       - name: Assemble the site
         run: |
-          mkdir -p _site
-          cp -r public/. _site/
-          mkdir -p _site/assets
+          mkdir -p _site/js
+          cp -r public/. _site/js/
+          mkdir -p _site/js/assets
           # Only what the game loads at runtime. The raw generator inputs are
           # not in the repo and the contact sheets are documentation.
-          cp -r assets/textures _site/assets/
-          cp -r assets/models _site/assets/
-          cp -r assets/monsters _site/assets/
-          rm -f _site/game.js.map
+          cp -r assets/textures _site/js/assets/
+          cp -r assets/models _site/js/assets/
+          cp -r assets/monsters _site/js/assets/
+          rm -f _site/js/game.js.map
           echo 'aetherbound.uy.sg' > _site/CNAME
           du -sh _site
 
@@ -191,36 +201,40 @@ jobs:
       - name: Check the runtime assets are present
         run: |
           for dir in textures models monsters; do
-            count=$(find "_site/assets/$dir" -type f | wc -l)
-            echo "assets/$dir: $count files"
-            [ "$count" -gt 0 ] || { echo "::error::_site/assets/$dir is empty"; exit 1; }
+            count=$(find "_site/js/assets/$dir" -type f | wc -l)
+            echo "js/assets/$dir: $count files"
+            [ "$count" -gt 0 ] || { echo "::error::_site/js/assets/$dir is empty"; exit 1; }
           done
           # Every model the loaders name has to actually be there.
           missing=0
           for id in $(grep -oE "id: '[A-Za-z0-9_-]+'" src/battle/monstermodels.js | cut -d"'" -f2); do
-            [ -f "_site/assets/monsters/$id.glb" ] || { echo "::error::missing monster $id"; missing=1; }
+            [ -f "_site/js/assets/monsters/$id.glb" ] || { echo "::error::missing monster $id"; missing=1; }
           done
           for f in $(grep -oE "file: '[A-Za-z0-9_-]+\.glb'" src/world/charmodels.js | cut -d"'" -f2); do
-            [ -f "_site/assets/models/$f" ] || { echo "::error::missing character model $f"; missing=1; }
+            [ -f "_site/js/assets/models/$f" ] || { echo "::error::missing character model $f"; missing=1; }
           done
           exit $missing
 
-      - name: Add the Godot preview
+      - name: Add the Godot build
         if: needs.godot.result == 'success'
         uses: actions/download-artifact@v4
         with:
           name: godot-web
-          path: _site/godot
+          path: _site
 
-      # Said out loud either way. A preview that silently stops appearing is
-      # worse than one that is loudly missing.
+      # The root has to have something in it. If the Godot job failed there is no
+      # `index.html` at the top of the site, and a deploy that serves a directory
+      # listing is worse than a deploy that does not happen — so the web build is put
+      # back at the root as a fallback and the failure is shouted about.
       - name: Report what is shipping
         run: |
-          if [ -f _site/godot/index.html ]; then
-            echo "Godot preview: publishing $(du -sh _site/godot | cut -f1) to /godot/"
+          if [ -f _site/index.html ]; then
+            echo "Godot build: $(du -sh _site/index.pck 2>/dev/null | cut -f1) of pack at /"
           else
-            echo "::warning::Godot preview NOT shipping — the export or its browser check failed (job result: ${{ needs.godot.result }})"
+            echo "::error::the Godot export or its browser check failed (job result: ${{ needs.godot.result }}) — falling back to the web build at the root"
+            cp -r _site/js/. _site/
           fi
+          echo "web build: $(du -sh _site/js | cut -f1) at /js/"
           du -sh _site
 
       - uses: actions/upload-pages-artifact@v3
