@@ -20,12 +20,13 @@
     "export:godot": "node tools/to-godot.mjs",
     "export:web": "node tools/export-web.mjs",
     "smoke:web": "node tools/web-smoke.mjs",
-    "port": "node tools/parity.mjs && node tools/data-parity.mjs && node tools/ai-parity.mjs && node tools/rng-parity.mjs && node tools/glue-parity.mjs && node tools/growth-parity.mjs && node tools/commands-parity.mjs && node tools/field-parity.mjs && node tools/battle-parity.mjs && node tools/events-parity.mjs",
+    "port": "node tools/parity.mjs && node tools/data-parity.mjs && node tools/ai-parity.mjs && node tools/rng-parity.mjs && node tools/glue-parity.mjs && node tools/growth-parity.mjs && node tools/commands-parity.mjs && node tools/field-parity.mjs && node tools/battle-parity.mjs && node tools/events-parity.mjs && node tools/saves-parity.mjs",
     "start": "npm run textures && npm run build && npm run serve",
     "balance": "node tools/balance.mjs",
     "harvest": "node tools/harvest-reference.mjs",
     "harvest:battles": "node tools/harvest-battles.mjs",
-    "harvest:events": "node tools/harvest-events.mjs"
+    "harvest:events": "node tools/harvest-events.mjs",
+    "harvest:saves": "node tools/harvest-saves.mjs"
   },
   "dependencies": {
     "three": "^0.180.0"

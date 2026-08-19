@@ -38,23 +38,35 @@ func _initialize() -> void:
 		quit(1)
 		return
 
-	var maps := {}
+	# Every map in the world before the cataclysm, and the twenty-six that carry a `ruin`
+	# block again in the world after it. Keyed the way the harvest keys them.
+	var wanted: Array = []
 	var ids: Array = db.maps.keys()
 	ids.sort()
 	for id in ids:
+		wanted.append([id, "whole", String(id)])
+	for id in ids:
+		if not Dictionary(db.maps[id]).get("ruin", {}).is_empty():
+			wanted.append([id, "ruin", "%s#ruin" % id])
+
+	var maps := {}
+	for entry in wanted:
+		var id: String = entry[0]
+		var state: String = entry[1]
+		var key: String = entry[2]
 		# A *field*, not just a map build: NPCs carry colliders and the field is
 		# what places them, so a grid without them would be missing every villager
 		# in the world. The reference's grids were harvested with the field running
 		# for the same reason.
-		var field = FieldSim.new(db.maps[id], db.legend, db.footprints, "default",
-			db.encounters, RNG.new(1))
+		var field = FieldSim.new(Build.resolve(db.maps[id], state), db.legend,
+			db.footprints, "default", db.encounters, RNG.new(1))
 		var rows := PackedStringArray()
 		for z in field.built.height:
 			var row := ""
 			for x in field.built.width:
 				row += "." if field.grid.is_walk_tile(x, z) else "#"
 			rows.append(row)
-		maps[id] = {
+		maps[key] = {
 			"width": field.built.width,
 			"height": field.built.height,
 			"walk": rows,

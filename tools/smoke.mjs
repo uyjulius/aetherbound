@@ -1726,6 +1726,45 @@ const saveLoad = await page.evaluate(() => {
 check('save writes a slot', saveLoad.ok === true, `${saveLoad.peek?.location} Lv${saveLoad.peek?.level}`);
 check('save round-trips party data', saveLoad.gold === 4321, `gold=${saveLoad.gold}, party=${(saveLoad.names || []).join('/')}`);
 
+/**
+ * And the party the save comes back as.
+ *
+ * The two checks above read the *written* blob and never rebuilt a party out of
+ * it, which is how `restoreParty` recomputed every level from experience with a
+ * stale copy of the curve for as long as it did: the whole party came back at
+ * level 1 on a third of their health, and both checks passed because gold and
+ * names were intact. This one compares member for member.
+ */
+const roundTrip = await page.evaluate(() => {
+  const g = window.__game;
+  const describe = (party) => [...party.roster.values()].map((m) => [
+    m.id, `lv${m.level}`, `exp${m.exp}`, `${m.hp}/${m.maxHP}`, `${m.mp}/${m.maxMP}`,
+    Object.values(m.equipment).map((e) => e?.id ?? '-').join('+'),
+    m.esper?.id ?? '-',
+  ].join(' '));
+  const before = describe(g.party);
+  g.saves.save(1, g);
+  const data = g.saves.load(1);
+  const restored = g.saves.constructor.restoreParty(data.party);
+  const after = describe(restored);
+  const at = before.findIndex((line, i) => line !== after[i]);
+  return {
+    count: [before.length, after.length],
+    differing: before.filter((line, i) => line !== after[i]).slice(0, 2),
+    // The *matching* member, so the message compares like with like: the two rosters
+    // are built in different orders and quoting `after[0]` names somebody else.
+    firstAfter: at >= 0 ? after[at] : null,
+    gold: [g.party.gold, restored.gold],
+    active: [g.party.active.join(','), restored.active.join(',')],
+  };
+});
+check('a loaded party is the party that was saved',
+  roundTrip.count[0] === roundTrip.count[1] && roundTrip.differing.length === 0
+    && roundTrip.gold[0] === roundTrip.gold[1] && roundTrip.active[0] === roundTrip.active[1],
+  roundTrip.differing.length
+    ? `saved "${roundTrip.differing[0]}", loaded "${roundTrip.firstAfter}"`
+    : `${roundTrip.count[0]} members, ${roundTrip.gold[1]} gil, ${roundTrip.active[1]}`);
+
 // --- console ---------------------------------------------------------------
 check('no console errors', consoleErrors.length === 0,
   consoleErrors.slice(0, 3).join(' | ') || 'clean');

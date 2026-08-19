@@ -86,16 +86,36 @@ await page.waitForFunction(() => window.__game?.state?.player, null, { timeout: 
 const maps = await page.evaluate(() => Object.keys(window.__maps ?? {}));
 if (!maps.length) throw new Error('the page exposed no maps');
 const targets = only ? [only] : maps;
-say(`  ${targets.length} maps`);
+/**
+ * And the same places after the cataclysm.
+ *
+ * Twenty-six of the maps carry a `ruin` block — a different sky, different music,
+ * props and people added and taken away — and the second half of the game is played
+ * in it. Harvesting only the world before it would leave the port's `resolve` unchecked
+ * against exactly the maps that need it, so those twenty-six are walked twice and the
+ * ruined pass is keyed `<id>#ruin`.
+ */
+const ruined = await page.evaluate((ids) => ids.filter((id) => window.__maps[id]?.ruin), targets);
+say(`  ${targets.length} maps, ${ruined.length} of them twice`);
 
 const grids = {};
 const footprints = {};
 let colliderCount = 0;
 let shared = 0;
 
-for (const id of targets) {
-  const harvested = await page.evaluate(async (mapId) => {
+/** Every map in one world, then the ruined ones in the other. */
+const passes = [
+  { state: 'whole', ids: targets, suffix: '' },
+  { state: 'ruin', ids: ruined, suffix: '#ruin' },
+];
+
+for (const pass of passes) {
+for (const id of pass.ids) {
+  const harvested = await page.evaluate(async ({ mapId, worldState }) => {
     const game = window.__game;
+    // Set before the map is asked for: `gotoMap` resolves the definition against
+    // this, which is the whole mechanism under test.
+    game.party.worldState = worldState;
     await game.gotoMap(mapId, 'default');
     await new Promise((resolve) => setTimeout(resolve, 380));
     const state = game.state;
@@ -113,6 +133,7 @@ for (const id of targets) {
     // fail on the last bit for no reason.
     const round = (n) => Number(n.toFixed(4));
     return {
+      worldState: game.party.worldState,
       width: state.map.width,
       height: state.map.height,
       walk: rows,
@@ -132,14 +153,20 @@ for (const id of targets) {
       spawn: [round(state.player.x), round(state.player.z)],
       standing_clear: grid.clear(state.player.x, state.player.z, 0.42),
     };
-  }, id);
+  }, { mapId: id, worldState: pass.state });
 
   if (!harvested) {
     say(`  \x1b[33mskip\x1b[0m ${id} — the map did not load`);
     continue;
   }
+  if (harvested.worldState !== pass.state) {
+    say(`\x1b[31mFAIL\x1b[0m — ${id} was harvested in "${harvested.worldState}", `
+      + `not "${pass.state}"`);
+    process.exit(1);
+  }
+  const key = `${id}${pass.suffix}`;
 
-  grids[id] = {
+  grids[key] = {
     width: harvested.width, height: harvested.height,
     walk: harvested.walk, triggers: harvested.triggers, shapes: harvested.shapes,
     spawn: harvested.spawn, standing_clear: harvested.standing_clear,
@@ -177,11 +204,14 @@ for (const id of targets) {
     }
     colliderCount++;
   }
-  footprints[id] = byTile;
-  process.stdout.write(`\r  ${id.padEnd(18)} ${harvested.width}x${harvested.height}  `
+  footprints[key] = byTile;
+  process.stdout.write(`\r  ${key.padEnd(24)} ${harvested.width}x${harvested.height}  `
     + `${authored.length} authored colliders   `);
 }
+}
 say();
+// Back to the world the walks below expect.
+await page.evaluate(() => { window.__game.party.worldState = 'whole'; });
 
 if (pageErrors.length) {
   say(`\x1b[31mFAIL\x1b[0m — the page threw ${pageErrors.length} error(s):`);

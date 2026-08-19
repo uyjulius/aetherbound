@@ -26,6 +26,10 @@ var _ink := Color(0.07, 0.07, 0.09)
 var _paper := Color.WHITE
 var _select := Color.YELLOW
 var _muted := Color.GRAY
+## The newest save, or `{}` when there is nothing to continue.
+var _saved: Dictionary = {}
+var _choices: VBoxContainer
+var _choice := 0
 
 
 func _ready() -> void:
@@ -66,7 +70,19 @@ func _ready() -> void:
 ## the cast is data: the column has as many rows as the tables say it does, and
 ## a fifteenth character would appear here without anyone editing a scene.
 func _process(_delta: float) -> void:
+	if Actions.just_pressed("down") or Actions.just_pressed("up"):
+		_choice = 1 - _choice
+		_paint_choices()
 	if Actions.just_pressed("confirm"):
+		if _choice == 1 and not _saved.is_empty():
+			# The party as they were left, not a new one. Handed over rather than loaded
+			# here: the field owns the world and this screen is about to stop existing.
+			Saves.pending = _saved
+			print("TITLE_CONTINUE map=%s lv=%d" % [String(_saved.get("mapId", "?")),
+				int(_saved.get("leadLevel", 0))])
+		else:
+			Saves.pending = {}
+			print("TITLE_NEW_GAME")
 		get_tree().change_scene_to_file("res://scenes/field_debug.tscn")
 
 
@@ -109,9 +125,26 @@ func _build(database: Database, cast: Array) -> void:
 			side.add_child(_cast_row(database.character(String(cast[i]))))
 
 	column.add_child(_spacer(0, true))
-	column.add_child(_label(
-		"Press confirm for the field diagnostic  ·  the playable build is at aetherbound.uy.sg",
-		22, _muted))
+
+	# New Game or Continue. Continue is offered only when there is something to
+	# continue, and says what it would open — a Continue that silently starts a new
+	# campaign is the most alarming button a game can have.
+	_saved = Saves.latest()
+	_choices = VBoxContainer.new()
+	_choices.add_theme_constant_override("separation", 8)
+	column.add_child(_choices)
+	for _i in 2:
+		_choices.add_child(_label("", 30, _paper))
+	_paint_choices()
+	var written := 0
+	for slot in Saves.list():
+		if not slot.is_empty():
+			written += 1
+	print("TITLE_READY saves=%d continue=%s" % [
+		written, "yes" if not _saved.is_empty() else "no"])
+
+	column.add_child(_spacer(16))
+	column.add_child(_label("move to choose · confirm to begin", 20, _muted))
 
 
 ## One cast member: name in the character's own accent colour, role beside it.
@@ -169,3 +202,32 @@ func _fail(reason: String) -> void:
 	label.set_anchors_preset(Control.PRESET_CENTER)
 	label.autowrap_mode = TextServer.AUTOWRAP_WORD
 	add_child(label)
+
+
+## The two rows, and what Continue would open.
+func _paint_choices() -> void:
+	if _choices == null:
+		return
+	var summary := ""
+	if not _saved.is_empty():
+		var party: Dictionary = _saved.get("party", {})
+		summary = "  —  %s, Lv %d, %s, %d gil" % [
+			String(_saved.get("locationName", "somewhere")),
+			int(_saved.get("leadLevel", 1)),
+			Saves.format_time(float(party.get("playTime", 0.0))),
+			int(party.get("gold", 0))]
+	var labels := ["New Game",
+		("Continue%s" % summary) if not _saved.is_empty() else "Continue  —  no save found"]
+	# Continue cannot be chosen when there is nothing behind it, so the cursor never
+	# rests there.
+	if _saved.is_empty():
+		_choice = 0
+	for i in _choices.get_child_count():
+		var row: Label = _choices.get_child(i)
+		row.text = "%s %s" % [">" if i == _choice else " ", labels[i]]
+		var colour := _paper
+		if i == 1 and _saved.is_empty():
+			colour = _muted
+		elif i == _choice:
+			colour = _select
+		row.add_theme_color_override("font_color", colour)

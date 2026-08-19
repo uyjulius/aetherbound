@@ -21,6 +21,12 @@ const SLOT_LABEL := {
 }
 const STATS := ["vig", "spd", "sta", "mag", "res", "lck"]
 
+## Where the party is, for the save screen: `{map_id, spawn, position, location_name}`.
+##
+## Supplied by whatever owns the world rather than known here. A menu that guessed the
+## map would write a save that reloads somewhere else.
+var where: Callable = Callable()
+
 
 func _tag() -> String:
 	return "MENU"
@@ -48,7 +54,7 @@ func _root() -> Dictionary:
 		{"label": "Bestiary", "right": "not built", "disabled": true},
 		{"label": "Quests", "right": "not built", "disabled": true},
 		{"label": "Config", "right": "not built", "disabled": true},
-		{"label": "Save", "right": "not built", "disabled": true},
+		{"label": "Save", "go": "save"},
 	]
 	return {
 		"title": "Menu", "rows": rows,
@@ -65,6 +71,7 @@ func _open_named(name: String) -> void:
 		"pick_status": _push(_character_pick("Status", func(m): _push(_status(m))))
 		"pick_espers": _push(_character_pick("Espers", func(m): _push(_espers(m))))
 		"formation": _push(_formation())
+		"save": _push(_save_slots())
 
 
 func _character_pick(title: String, then: Callable) -> Dictionary:
@@ -306,6 +313,45 @@ func _formation() -> Dictionary:
 		"on_special": on_special,
 		"detail": func(_row): return _party_overview() + note,
 	}
+
+
+## The three slots and the autosave beside them.
+##
+## Each row says what is in it, because a save screen whose rows are numbers is a screen
+## that makes the player remember which of three files was the good one.
+func _save_slots() -> Dictionary:
+	var build := func() -> Array:
+		var rows: Array = []
+		for slot in Saves.SLOTS:
+			rows.append({"label": "Slot %d" % (slot + 1), "right": _slot_line(slot),
+				"slot": slot})
+		# Shown and not writable: the autosave is the game's to write, and it is usually
+		# what Continue opens, so a save screen that hid it would be hiding the file the
+		# player is most likely to load.
+		rows.append({"label": "Autosave", "right": _slot_line(Saves.AUTOSAVE_SLOT),
+			"disabled": true})
+		return rows
+	var on_select := func(row):
+		if not row.has("slot"):
+			return
+		if not where.is_valid():
+			push_warning("the save screen has no idea where the party is")
+			return
+		Saves.save(row["slot"], party, where.call())
+	return {
+		"title": "Save", "rows": build.call(), "rebuild": build,
+		"footer": "confirm writes the slot · cancel back",
+		"on_select": on_select,
+		"detail": func(_row): return _party_overview(),
+	}
+
+
+func _slot_line(slot: Variant) -> String:
+	var peek := Saves.peek(slot)
+	if peek.is_empty():
+		return "empty"
+	return "%s  Lv %d  %s  %d gil" % [String(peek["location"]), int(peek["level"]),
+		String(peek["time"]), int(peek["gold"])]
 
 
 # ---------------------------------------------------------------------------

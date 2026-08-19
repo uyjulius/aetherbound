@@ -63,6 +63,20 @@ class Member:
 	func name() -> String:
 		return String(def.get("name", id))
 
+	## One member, as a save file holds them. Equipment and magicite cross as ids and are
+	## looked up fresh on load, so a content update never corrupts an existing save.
+	func serialize() -> Dictionary:
+		var worn: Dictionary = {}
+		for slot in SLOTS:
+			var item: Dictionary = equipment.get(slot, {})
+			worn[slot] = null if item.is_empty() else String(item.get("id", ""))
+		return {
+			"id": id, "exp": exp, "hp": hp, "mp": mp, "limit": limit,
+			"equipment": worn, "spells": spells.duplicate(),
+			"esper": null if esper.is_empty() else String(esper.get("id", "")),
+			"statuses": statuses.duplicate(), "esperGrowth": esper_growth.duplicate(),
+		}
+
 	## The stat before equipment, including anything magicite has banked.
 	func base_stat(stat: String) -> int:
 		return Growth.stat_at(def, stat, level) + int(esper_growth.get(stat, 0))
@@ -214,11 +228,27 @@ var rows: Dictionary = {}
 var world_state := "whole"
 ## Story flags. A set, spelled as a dictionary because GDScript has no set type.
 var flags: Dictionary = {}
-## Quest id → the stage it is on, or -1 for "not started". `done` is a stage of its own
-## rather than a second field, because every reader wants to compare a number.
+## Quest id → `{stage, done}`, the reference's own shape.
+##
+## Two fields rather than a sentinel stage: the reference keeps them apart, a completed
+## quest remembers which stage it finished on, and a save written by either build has to
+## load in the other.
 var quests: Dictionary = {}
 ## Magicite the party has been given, whether or not anyone is carrying it.
 var espers: Dictionary = {}
+## Creature id → how many have been fought, for the bestiary.
+var bestiary: Dictionary = {}
+## Chests already looted, as `mapId:chestId`.
+##
+## On the party, which is to say in the save file. The reference learned this the hard
+## way: it used to be an `opened` flag mutated on the shared map definition, which no
+## save ever recorded, so all 383 chests in the game reopened on reload.
+var opened_chests: Dictionary = {}
+## Seconds played, and ground covered. Both are shown on a save slot.
+var play_time := 0.0
+var steps := 0
+## Where the airship was parked, so it is still there on a reload. `{}` until it is won.
+var airship: Dictionary = {}
 
 var _db
 
@@ -355,26 +385,45 @@ func set_flag(id: String) -> void:
 	flags[id] = true
 
 
-## Open a quest at a stage. Silent if it is already open: several scenes offer the same
-## quest from two directions and the second must not reset the first.
+## Open a quest at a stage.
+##
+## Unconditional, as in the reference. Every scene that offers a quest a second time
+## guards the call with `quest_stage(id) < 0` itself, so nothing in the game restarts an
+## open quest — and a port that guarded here as well would be answering a question the
+## content has already answered, differently.
 func start_quest(id: String, stage := 0) -> void:
-	if not quests.has(id):
-		quests[id] = stage
+	quests[id] = {"stage": stage, "done": false}
 
 
+## Move a quest on. Nothing happens to a quest that was never started, which is the
+## reference's rule: a stage without a quest is a typo in a scene, not a new quest.
 func advance_quest(id: String, stage: int) -> void:
-	if not quests.has(id) or int(quests[id]) < stage:
-		quests[id] = stage
+	if not quests.has(id):
+		return
+	var quest: Dictionary = quests[id]
+	if int(quest.get("stage", 0)) == stage:
+		return
+	quest["stage"] = stage
 
 
+## Finish a quest. The stage it finished on is kept — a journal that forgets where a
+## quest ended cannot describe how it ended.
 func complete_quest(id: String) -> void:
-	quests[id] = 99
+	var quest: Dictionary = quests.get(id, {"stage": 0, "done": false})
+	quest["done"] = true
+	quests[id] = quest
 
 
 ## The stage a quest is on, or -1 if it has never been started — which is what the
 ## scenes compare against, and why this is not simply zero.
 func quest_stage(id: String) -> int:
-	return int(quests.get(id, -1))
+	if not quests.has(id):
+		return -1
+	return int(quests[id].get("stage", 0))
+
+
+func quest_done(id: String) -> bool:
+	return quests.has(id) and bool(quests[id].get("done", false))
 
 
 func has_esper(id: String) -> bool:
@@ -417,6 +466,65 @@ func count_item(item_id: String) -> int:
 func rest_all() -> void:
 	for id in roster:
 		roster[id].full_restore()
+
+
+static func chest_key(map_id: String, chest_id: String) -> String:
+	return "%s:%s" % [map_id, chest_id]
+
+
+func chest_opened(map_id: String, chest_id: String) -> bool:
+	return opened_chests.has(chest_key(map_id, chest_id))
+
+
+func open_chest(map_id: String, chest_id: String) -> void:
+	opened_chests[chest_key(map_id, chest_id)] = true
+
+
+func note_kill(enemy_id: String) -> void:
+	bestiary[enemy_id] = int(bestiary.get(enemy_id, 0)) + 1
+
+
+# --- saving -----------------------------------------------------------------
+
+## The party as a save file holds it: ids, counts and numbers, no object references.
+##
+## The shape is the reference's exactly — pairs for its `Map`s, plain arrays for its
+## `Set`s — because a save written by either build has to load in the other. A player
+## whose browser holds a save from the JS game should press Continue and find their party
+## where they left it, not a fresh one.
+func serialize() -> Dictionary:
+	var members: Array = []
+	for id in roster:
+		members.append(roster[id].serialize())
+	var bag: Array = []
+	for id in inventory:
+		bag.append([id, int(inventory[id])])
+	var quest_pairs: Array = []
+	for id in quests:
+		quest_pairs.append([id, quests[id]])
+
+	var seen: Array = []
+	for id in bestiary:
+		seen.append([id, int(bestiary[id])])
+	var row_pairs: Array = []
+	for id in rows:
+		row_pairs.append([id, String(rows[id])])
+	return {
+		"roster": members,
+		"active": active.duplicate(),
+		"gold": gold,
+		"inventory": bag,
+		"espers": espers.keys(),
+		"flags": flags.keys(),
+		"quests": quest_pairs,
+		"bestiary": seen,
+		"row": row_pairs,
+		"openedChests": opened_chests.keys(),
+		"playTime": play_time,
+		"steps": steps,
+		"worldState": world_state,
+		"airship": null if airship.is_empty() else airship,
+	}
 
 
 func add_gold(amount: int) -> void:

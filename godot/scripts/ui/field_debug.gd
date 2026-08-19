@@ -23,6 +23,7 @@ const Ctx := preload("res://scripts/game/event_context.gd")
 const BattleScreen := preload("res://scripts/ui/battle_view.gd")
 const MenuScreen := preload("res://scripts/ui/menu.gd")
 const ShopScreen := preload("res://scripts/ui/shop.gd")
+const MapBuilder := preload("res://scripts/world/map_build.gd")
 
 ## Maps worth opening on first, in this order: a town, an interior, a continent,
 ## a dungeon. `M` walks the whole world from there.
@@ -47,6 +48,8 @@ var _encounter_rng := RNG.new(0x9d2f11)
 var _ids: PackedStringArray = PackedStringArray()
 var _index := 0
 var _label: Label
+## The save this session opened with, so the first map is the one it was left on.
+var _loaded_from: Dictionary = {}
 
 
 func _ready() -> void:
@@ -66,10 +69,18 @@ func _ready() -> void:
 		if not _ids.has(id):
 			_ids.append(id)
 
-	# A party, so the scenes have somebody to talk about. The opening three at the level
-	# the reference's New Game gives them.
-	_party = PartyModel.new(_db)
-	_party.new_campaign()
+	# A party. Either the one a save was left with, or the opening three at the level the
+	# reference's New Game gives them.
+	var pending: Dictionary = Saves.pending
+	Saves.pending = {}
+	if not pending.is_empty():
+		_party = Saves.restore_party(pending.get("party", {}), _db)
+		_loaded_from = pending
+		print("LOADED map=%s gold=%d roster=%d" % [String(pending.get("mapId", "?")),
+			_party.gold, _party.roster.size()])
+	else:
+		_party = PartyModel.new(_db)
+		_party.new_campaign()
 	# The party, out loud. `tools/web-smoke.mjs` holds these against the ones harvested
 	# from the reference's own New Game, so a starting kit that stops being fitted — or a
 	# growth curve that drifts — is caught in the browser rather than in a fight.
@@ -88,6 +99,16 @@ func _ready() -> void:
 	add_child(_battle)
 
 	_menu = MenuScreen.new()
+	# Where the party is, when the save screen asks. Read at the moment of writing rather
+	# than handed over once, so a save carries the map the player is standing on.
+	_menu.where = func():
+		return {
+			"map_id": _ids[_index],
+			"spawn": null,
+			"position": {"x": _field.player.x, "z": _field.player.z,
+				"facing": _field.player.facing},
+			"location_name": String(_db.maps[_ids[_index]].get("name", "the road")),
+		}
 	add_child(_menu)
 
 	_shop = ShopScreen.new()
@@ -152,15 +173,18 @@ func _ready() -> void:
 	_label.position = Vector2(24, 18)
 	add_child(_label)
 
-	_open(0)
+	if _loaded_from.is_empty():
+		_open(0)
+	else:
+		_resume(_loaded_from)
 	set_process(true)
 
 
 func _open(index: int, spawn := "default") -> void:
 	_index = posmod(index, _ids.size())
 	var id := _ids[_index]
-	_field = FieldSim.new(_db.maps[id], _db.legend, _db.footprints, spawn,
-		_db.encounters, RngStreams.encounter)
+	_field = FieldSim.new(MapBuilder.resolve(_db.maps[id], _party.world_state),
+		_db.legend, _db.footprints, spawn, _db.encounters, RngStreams.encounter)
 	_last_event = ""
 	# One line per map opened, so `tools/web-smoke.mjs` can prove the field runs in
 	# a browser rather than only in the editor — and so a map that builds an empty
@@ -171,6 +195,15 @@ func _open(index: int, spawn := "default") -> void:
 
 
 func _process(delta: float) -> void:
+	# The clock, first and unconditionally. The reference adds a tick's worth of time on
+	# every simulation step whatever is on screen — a menu, a fight, a conversation — so
+	# a save slot's "3:41" is time spent playing rather than time spent walking.
+	#
+	# `steps` is left at zero on purpose: the reference has the field and serialises it,
+	# and nothing has ever incremented it. A port that started counting would put a number
+	# in a save that the JS build would then contradict.
+	if _party != null:
+		_party.play_time += delta
 	# A fight owns the screen outright: it has its own turn clock, and a field that kept
 	# walking underneath would be accumulating encounter distance during a battle.
 	if _battle != null and _battle.visible:
@@ -297,6 +330,40 @@ func _travel(map_id: String, spawn: String) -> void:
 	print("MAP_ENTERED %s spawn=%s" % [map_id, spawn])
 	_open(at, spawn)
 	_last_trigger = ""
+	# The autosave, on arriving somewhere new — the reference's rule, and its reasoning:
+	# a wipe is rare enough that the game never trains the habit of saving, so the one
+	# time it takes something away the player has almost certainly not saved recently.
+	# Failures are swallowed: a full store must never be the reason somebody cannot walk
+	# through a door.
+	Saves.save(Saves.AUTOSAVE_SLOT, _party, {
+		"map_id": map_id, "spawn": spawn,
+		"position": {"x": _field.player.x, "z": _field.player.z,
+			"facing": _field.player.facing},
+		"location_name": String(_db.maps[map_id].get("name", "the road")),
+	})
+
+
+## Open the map a save was left on, at the position it was left at.
+##
+## Position and not just the map: saving in the middle of a dungeon and reloading at its
+## entrance loses real progress, which is why the format carries both.
+func _resume(data: Dictionary) -> void:
+	var map_id := String(data.get("mapId", "harrowmere"))
+	var at := _ids.find(map_id)
+	if at < 0:
+		push_warning("the save names a map this build does not have: %s" % map_id)
+		_open(0)
+		return
+	var spawn: Variant = data.get("spawn", null)
+	_open(at, String(spawn) if spawn != null else "default")
+	var position: Variant = data.get("position", null)
+	if position is Dictionary:
+		_field.player.x = float(position.get("x", _field.player.x))
+		_field.player.z = float(position.get("z", _field.player.z))
+		_field.player.facing = float(position.get("facing", _field.player.facing))
+		_field.player.target_facing = _field.player.facing
+		_field.camera.look = Vector3(_field.player.x, _field.camera.height, _field.player.z)
+	print("RESUMED map=%s at %.2f,%.2f" % [map_id, _field.player.x, _field.player.z])
 
 
 ## Talk to somebody. Their scene if they have one, their lines if they do not, and a note

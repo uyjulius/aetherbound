@@ -148,6 +148,11 @@ let innRest = null;
 let innWoke = null;
 let innDone = null;
 let compared = null;
+let titleReady = null;
+let titleChoice = null;
+let loaded = null;
+let resumed = null;
+const written = [];
 // Gil, as last reported by any line that mentions it — the inn's bill is checked
 // against what the party had a moment before rather than against the inn's own word.
 let lastGold = NaN;
@@ -181,6 +186,11 @@ page.on('console', (message) => {
   if (text.includes('INN_WOKE')) innWoke = text.trim();
   if (text.includes('INN_DONE')) innDone = text.trim();
   if (text.includes('SHOP_COMPARE')) compared = text.trim();
+  if (text.includes('TITLE_READY')) titleReady = text.trim();
+  if (text.includes('TITLE_CONTINUE') || text.includes('TITLE_NEW_GAME')) titleChoice = text.trim();
+  if (text.includes('LOADED ')) loaded = text.trim();
+  if (text.includes('RESUMED ')) resumed = text.trim();
+  if (/^SAVED /.test(text.trim())) written.push(text.trim());
   const gold = text.match(/gold=(\d+)/);
   if (gold) lastGold = Number(gold[1]);
   if (text.includes('EQUIPPED ')) equipped.push(text.trim());
@@ -471,6 +481,102 @@ if (ready) {
       await page.waitForTimeout(600);
       await page.screenshot({ path: path.join(root, '.renders',
         remote ? 'godot-web-travel-live.png' : 'godot-web-travel.png') });
+    }
+  }
+}
+
+// --- saving, and loading what the JS build wrote ----------------------------
+//
+// The one part of this game that outlives the build that wrote it. Two things are
+// proven here and they are different claims: that the port can write a save and read
+// it back through the browser's own store, and that it can read a save the *reference*
+// wrote — which is what somebody who has been playing at this address actually has.
+if (field) {
+  // Written from the menu: Save is the last row on the root screen.
+  await page.keyboard.press('KeyC');
+  await page.waitForTimeout(500);
+  for (let i = 0; i < 9; i++) {
+    await page.keyboard.press('ArrowDown');
+    await page.waitForTimeout(110);
+  }
+  await page.keyboard.press('Enter');   // into the slot list
+  await page.waitForTimeout(400);
+  await page.screenshot({ path: path.join(root, '.renders',
+    remote ? 'godot-web-save-live.png' : 'godot-web-save.png') });
+  await page.keyboard.press('Enter');   // slot 1
+  await page.waitForTimeout(600);
+  check('the menu writes a save', written.some((line) => /slot=0 /.test(line)),
+    written.join(' | ') || 'no SAVED line');
+
+  // And back in through the front door. A reload, so the save comes out of the store
+  // rather than out of memory.
+  const carried = written.find((line) => /slot=0 /.test(line)) ?? '';
+  const carriedGold = Number(carried.match(/gold=(\d+)/)?.[1] ?? NaN);
+  titleReady = null;
+  loaded = null;
+  resumed = null;
+  await page.goto(target, { waitUntil: 'domcontentloaded' });
+  for (let i = 0; i < 60 && !titleReady; i++) await page.waitForTimeout(500);
+  check('the title screen finds the save', Boolean(titleReady) && /continue=yes/.test(titleReady),
+    titleReady ?? 'no TITLE_READY in 30s');
+  if (titleReady && /continue=yes/.test(titleReady)) {
+    await page.keyboard.press('ArrowDown');
+    await page.waitForTimeout(300);
+    await page.keyboard.press('Enter');
+    for (let i = 0; i < 60 && !resumed; i++) await page.waitForTimeout(500);
+    check('Continue opens the party that was saved',
+      Boolean(loaded) && Number(loaded.match(/gold=(\d+)/)?.[1] ?? NaN) === carriedGold,
+      loaded ? `${loaded}, saved with ${carriedGold} gil` : 'no LOADED line in 30s');
+    check('Continue opens where the party was left', Boolean(resumed),
+      resumed ?? 'no RESUMED line in 30s');
+  }
+
+  // Then a save the reference wrote, straight out of the harvest fixture. `mid-story` is
+  // deliberately the awkward one: it is after the cataclysm, so loading it also has to
+  // resolve twenty-six maps into their ruined form.
+  const fixturePath = path.join(root, 'tools', 'fixtures', 'reference-saves.json');
+  if (!fs.existsSync(fixturePath)) {
+    check('a save from the JS build loads in the port', false,
+      'no tools/fixtures/reference-saves.json — run `npm run harvest:saves`');
+  } else {
+    const blob = JSON.parse(fs.readFileSync(fixturePath, 'utf8')).saves['mid-story'].raw;
+    const expected = JSON.parse(blob);
+    titleReady = null;
+    loaded = null;
+    resumed = null;
+    await page.evaluate((raw) => {
+      for (const key of Object.keys(localStorage)) {
+        if (key.startsWith('aetherbound.save.')) localStorage.removeItem(key);
+      }
+      localStorage.setItem('aetherbound.save.0', raw);
+    }, blob);
+    await page.goto(target, { waitUntil: 'domcontentloaded' });
+    for (let i = 0; i < 60 && !titleReady; i++) await page.waitForTimeout(500);
+    if (titleReady && /continue=yes/.test(titleReady)) {
+      await page.keyboard.press('ArrowDown');
+      await page.waitForTimeout(300);
+      await page.keyboard.press('Enter');
+      for (let i = 0; i < 60 && !resumed; i++) await page.waitForTimeout(500);
+    }
+    check('a save from the JS build loads in the port',
+      Boolean(loaded)
+        && Number(loaded.match(/gold=(\d+)/)?.[1] ?? NaN) === expected.party.gold
+        && Number(loaded.match(/roster=(\d+)/)?.[1] ?? NaN) === expected.party.roster.length,
+      loaded ? `${loaded}, blob had ${expected.party.gold} gil `
+        + `and ${expected.party.roster.length} member(s)` : 'no LOADED line in 30s');
+    // The map *and* the spot. A load that puts the party back at the map's entrance
+    // rather than where they stood loses whatever they had walked past.
+    const at = resumed?.match(/at ([\d.-]+),([\d.-]+)/);
+    const sameSpot = Boolean(at) && Math.abs(Number(at[1]) - expected.position.x) < 0.01
+      && Math.abs(Number(at[2]) - expected.position.z) < 0.01;
+    check('and opens the map it was left on, on the spot',
+      Boolean(resumed) && resumed.includes(expected.mapId) && sameSpot,
+      resumed ? `${resumed}, saved on ${expected.mapId} at `
+        + `${expected.position.x},${expected.position.z}` : 'no RESUMED line in 30s');
+    if (resumed) {
+      await page.waitForTimeout(800);
+      await page.screenshot({ path: path.join(root, '.renders',
+        remote ? 'godot-web-ruin-live.png' : 'godot-web-ruin.png') });
     }
   }
 }

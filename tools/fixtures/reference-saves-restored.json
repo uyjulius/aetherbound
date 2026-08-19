@@ -1,0 +1,749 @@
+{
+ "harvested": 5,
+ "parties": {
+  "fresh": {
+   "gold": 500,
+   "playTime": 1.566666666666666,
+   "steps": 0,
+   "worldState": "whole",
+   "airship": "",
+   "active": "vesna,corvin,wick",
+   "reserve": "",
+   "inventory": [
+    "antidote:2",
+    "potion:5",
+    "tonic:2"
+   ],
+   "espers": [
+    "emberwake"
+   ],
+   "flags": [
+    "seen_harrowmere"
+   ],
+   "quests": [],
+   "bestiary": [],
+   "rows": [
+    "corvin:front",
+    "vesna:front",
+    "wick:front"
+   ],
+   "openedChests": [],
+   "roster": [
+    {
+     "id": "corvin",
+     "level": 6,
+     "exp": 28,
+     "hp": 275,
+     "mp": 33,
+     "maxHP": 275,
+     "maxMP": 33,
+     "limit": 0,
+     "stats": [
+      39,
+      49,
+      33,
+      24,
+      27,
+      42
+     ],
+     "equipment": [
+      "body:travelvest",
+      "head:leathercap",
+      "offhand:woodshield",
+      "relic1:-",
+      "relic2:-",
+      "weapon:boltdirk"
+     ],
+     "esper": "-",
+     "spells": [],
+     "statuses": [],
+     "esperGrowth": []
+    },
+    {
+     "id": "vesna",
+     "level": 6,
+     "exp": 28,
+     "hp": 237,
+     "mp": 54,
+     "maxHP": 237,
+     "maxMP": 54,
+     "limit": 0,
+     "stats": [
+      32,
+      38,
+      28,
+      47,
+      39,
+      24
+     ],
+     "equipment": [
+      "body:travelvest",
+      "head:leathercap",
+      "offhand:-",
+      "relic1:-",
+      "relic2:-",
+      "weapon:ironsword"
+     ],
+     "esper": "emberwake",
+     "spells": [
+      "dimming:100",
+      "ember:100",
+      "mend:100",
+      "rime:100",
+      "spark:100"
+     ],
+     "statuses": [],
+     "esperGrowth": []
+    },
+    {
+     "id": "wick",
+     "level": 6,
+     "exp": 28,
+     "hp": 221,
+     "mp": 85,
+     "maxHP": 221,
+     "maxMP": 85,
+     "limit": 0,
+     "stats": [
+      27,
+      34,
+      31,
+      58,
+      47,
+      29
+     ],
+     "equipment": [
+      "body:silkrobe",
+      "head:leathercap",
+      "offhand:-",
+      "relic1:-",
+      "relic2:-",
+      "weapon:ashrod"
+     ],
+     "esper": "-",
+     "spells": [
+      "cleanse:100",
+      "mend:100",
+      "renewal:100",
+      "scan:100",
+      "wardflesh:100"
+     ],
+     "statuses": [],
+     "esperGrowth": []
+    }
+   ]
+  },
+  "levelled": {
+   "gold": 1734,
+   "playTime": 3672.0000000000064,
+   "steps": 4821,
+   "worldState": "whole",
+   "airship": "",
+   "active": "vesna,corvin,wick",
+   "reserve": "",
+   "inventory": [
+    "antidote:2",
+    "potion:5",
+    "tonic:2"
+   ],
+   "espers": [
+    "emberwake"
+   ],
+   "flags": [
+    "seen_overworld"
+   ],
+   "quests": [],
+   "bestiary": [],
+   "rows": [
+    "corvin:front",
+    "vesna:front",
+    "wick:front"
+   ],
+   "openedChests": [],
+   "roster": [
+    {
+     "id": "corvin",
+     "level": 24,
+     "exp": 4028,
+     "hp": 923,
+     "mp": 0,
+     "maxHP": 923,
+     "maxMP": 114,
+     "limit": 0,
+     "stats": [
+      79,
+      85,
+      65,
+      46,
+      52,
+      78
+     ],
+     "equipment": [
+      "body:travelvest",
+      "head:leathercap",
+      "offhand:woodshield",
+      "relic1:-",
+      "relic2:-",
+      "weapon:boltdirk"
+     ],
+     "esper": "-",
+     "spells": [],
+     "statuses": [],
+     "esperGrowth": []
+    },
+    {
+     "id": "vesna",
+     "level": 24,
+     "exp": 4028,
+     "hp": 7,
+     "mp": 189,
+     "maxHP": 777,
+     "maxMP": 189,
+     "limit": 0,
+     "stats": [
+      79,
+      65,
+      55,
+      94,
+      76,
+      43
+     ],
+     "equipment": [
+      "body:travelvest",
+      "head:leathercap",
+      "offhand:-",
+      "relic1:-",
+      "relic2:-",
+      "weapon:ironsword"
+     ],
+     "esper": "emberwake",
+     "spells": [
+      "dimming:100",
+      "ember:100",
+      "mend:100",
+      "rime:100",
+      "spark:100"
+     ],
+     "statuses": [],
+     "esperGrowth": [
+      "vig:18"
+     ]
+    },
+    {
+     "id": "wick",
+     "level": 24,
+     "exp": 4028,
+     "hp": 797,
+     "mp": 247,
+     "maxHP": 797,
+     "maxMP": 247,
+     "limit": 0,
+     "stats": [
+      52,
+      59,
+      61,
+      106,
+      92,
+      52
+     ],
+     "equipment": [
+      "body:silkrobe",
+      "head:leathercap",
+      "offhand:-",
+      "relic1:-",
+      "relic2:-",
+      "weapon:ashrod"
+     ],
+     "esper": "-",
+     "spells": [
+      "cleanse:100",
+      "mend:100",
+      "renewal:100",
+      "scan:100",
+      "wardflesh:100"
+     ],
+     "statuses": [],
+     "esperGrowth": []
+    }
+   ]
+  },
+  "kitted": {
+   "gold": 500,
+   "playTime": 1.6666666666666656,
+   "steps": 0,
+   "worldState": "whole",
+   "airship": "",
+   "active": "vesna,corvin,wick",
+   "reserve": "",
+   "inventory": [
+    "antidote:2",
+    "echoherb:1",
+    "hipotion:9",
+    "phoenixtear:3",
+    "potion:5",
+    "tonic:2"
+   ],
+   "espers": [
+    "emberwake",
+    "hoarking"
+   ],
+   "flags": [
+    "seen_sunkenvault"
+   ],
+   "quests": [],
+   "bestiary": [],
+   "rows": [
+    "corvin:front",
+    "vesna:front",
+    "wick:front"
+   ],
+   "openedChests": [],
+   "roster": [
+    {
+     "id": "corvin",
+     "level": 6,
+     "exp": 28,
+     "hp": 260,
+     "mp": 33,
+     "maxHP": 260,
+     "maxMP": 33,
+     "limit": 0,
+     "stats": [
+      39,
+      49,
+      33,
+      24,
+      27,
+      42
+     ],
+     "equipment": [
+      "body:travelvest",
+      "head:-",
+      "offhand:woodshield",
+      "relic1:-",
+      "relic2:-",
+      "weapon:boltdirk"
+     ],
+     "esper": "-",
+     "spells": [
+      "rime:40"
+     ],
+     "statuses": [],
+     "esperGrowth": []
+    },
+    {
+     "id": "vesna",
+     "level": 30,
+     "exp": 9028,
+     "hp": 957,
+     "mp": 234,
+     "maxHP": 957,
+     "maxMP": 264,
+     "limit": 0,
+     "stats": [
+      68,
+      74,
+      64,
+      141,
+      91,
+      50
+     ],
+     "equipment": [
+      "body:travelvest",
+      "head:leathercap",
+      "offhand:-",
+      "relic1:focusring",
+      "relic2:-",
+      "weapon:rimebrand"
+     ],
+     "esper": "hoarking",
+     "spells": [
+      "dimming:100",
+      "ember:100",
+      "mend:100",
+      "rime:100",
+      "spark:100"
+     ],
+     "statuses": [],
+     "esperGrowth": [
+      "mag:24"
+     ]
+    },
+    {
+     "id": "wick",
+     "level": 6,
+     "exp": 28,
+     "hp": 221,
+     "mp": 85,
+     "maxHP": 221,
+     "maxMP": 85,
+     "limit": 0,
+     "stats": [
+      27,
+      34,
+      31,
+      58,
+      47,
+      29
+     ],
+     "equipment": [
+      "body:silkrobe",
+      "head:leathercap",
+      "offhand:-",
+      "relic1:-",
+      "relic2:-",
+      "weapon:ashrod"
+     ],
+     "esper": "-",
+     "spells": [
+      "cleanse:100",
+      "mend:100",
+      "renewal:100",
+      "scan:100",
+      "wardflesh:100"
+     ],
+     "statuses": [],
+     "esperGrowth": []
+    }
+   ]
+  },
+  "party-of-four": {
+   "gold": 500,
+   "playTime": 1.4999999999999996,
+   "steps": 0,
+   "worldState": "whole",
+   "airship": "",
+   "active": "vesna,rusk,wick,kestrel",
+   "reserve": "corvin",
+   "inventory": [
+    "antidote:2",
+    "potion:5",
+    "tonic:2"
+   ],
+   "espers": [
+    "emberwake"
+   ],
+   "flags": [
+    "seen_duncastle"
+   ],
+   "quests": [],
+   "bestiary": [],
+   "rows": [
+    "corvin:front",
+    "kestrel:back",
+    "rusk:front",
+    "vesna:back",
+    "wick:front"
+   ],
+   "openedChests": [],
+   "roster": [
+    {
+     "id": "corvin",
+     "level": 6,
+     "exp": 28,
+     "hp": 275,
+     "mp": 33,
+     "maxHP": 275,
+     "maxMP": 33,
+     "limit": 0,
+     "stats": [
+      39,
+      49,
+      33,
+      24,
+      27,
+      42
+     ],
+     "equipment": [
+      "body:travelvest",
+      "head:leathercap",
+      "offhand:woodshield",
+      "relic1:-",
+      "relic2:-",
+      "weapon:boltdirk"
+     ],
+     "esper": "-",
+     "spells": [],
+     "statuses": [],
+     "esperGrowth": []
+    },
+    {
+     "id": "kestrel",
+     "level": 9,
+     "exp": 120,
+     "hp": 264,
+     "mp": 83,
+     "maxHP": 264,
+     "maxMP": 83,
+     "limit": 0,
+     "stats": [
+      28,
+      44,
+      30,
+      51,
+      51,
+      45
+     ],
+     "equipment": [
+      "body:-",
+      "head:-",
+      "offhand:-",
+      "relic1:-",
+      "relic2:-",
+      "weapon:-"
+     ],
+     "esper": "-",
+     "spells": [],
+     "statuses": [],
+     "esperGrowth": []
+    },
+    {
+     "id": "rusk",
+     "level": 12,
+     "exp": 332,
+     "hp": 796,
+     "mp": 28,
+     "maxHP": 796,
+     "maxMP": 28,
+     "limit": 0,
+     "stats": [
+      75,
+      31,
+      73,
+      17,
+      58,
+      14
+     ],
+     "equipment": [
+      "body:-",
+      "head:-",
+      "offhand:-",
+      "relic1:-",
+      "relic2:-",
+      "weapon:-"
+     ],
+     "esper": "-",
+     "spells": [],
+     "statuses": [],
+     "esperGrowth": []
+    },
+    {
+     "id": "vesna",
+     "level": 6,
+     "exp": 28,
+     "hp": 237,
+     "mp": 54,
+     "maxHP": 237,
+     "maxMP": 54,
+     "limit": 0,
+     "stats": [
+      32,
+      38,
+      28,
+      47,
+      39,
+      24
+     ],
+     "equipment": [
+      "body:travelvest",
+      "head:leathercap",
+      "offhand:-",
+      "relic1:-",
+      "relic2:-",
+      "weapon:ironsword"
+     ],
+     "esper": "emberwake",
+     "spells": [
+      "dimming:100",
+      "ember:100",
+      "mend:100",
+      "rime:100",
+      "spark:100"
+     ],
+     "statuses": [],
+     "esperGrowth": []
+    },
+    {
+     "id": "wick",
+     "level": 6,
+     "exp": 28,
+     "hp": 221,
+     "mp": 85,
+     "maxHP": 221,
+     "maxMP": 85,
+     "limit": 0,
+     "stats": [
+      27,
+      34,
+      31,
+      58,
+      47,
+      29
+     ],
+     "equipment": [
+      "body:silkrobe",
+      "head:leathercap",
+      "offhand:-",
+      "relic1:-",
+      "relic2:-",
+      "weapon:ashrod"
+     ],
+     "esper": "-",
+     "spells": [
+      "cleanse:100",
+      "mend:100",
+      "renewal:100",
+      "scan:100",
+      "wardflesh:100"
+     ],
+     "statuses": [],
+     "esperGrowth": []
+    }
+   ]
+  },
+  "mid-story": {
+   "gold": 500,
+   "playTime": 74520.33333333326,
+   "steps": 0,
+   "worldState": "ruin",
+   "airship": "facing:1.5 map:overworld x:12.5 z:30.25",
+   "active": "vesna,corvin,wick",
+   "reserve": "",
+   "inventory": [
+    "antidote:2",
+    "potion:5",
+    "tonic:2"
+   ],
+   "espers": [
+    "emberwake"
+   ],
+   "flags": [
+    "barrow_cleared",
+    "seen_harrowmere",
+    "seen_solmere"
+   ],
+   "quests": [
+    "barrow:0:0",
+    "cabinet:0:1",
+    "engine:2:0"
+   ],
+   "bestiary": [
+    "fenrat:2",
+    "mireslug:1"
+   ],
+   "rows": [
+    "corvin:front",
+    "vesna:front",
+    "wick:front"
+   ],
+   "openedChests": [
+    "harrowmere:hm-well",
+    "sunkenvault:sv-chest-1"
+   ],
+   "roster": [
+    {
+     "id": "corvin",
+     "level": 6,
+     "exp": 28,
+     "hp": 275,
+     "mp": 33,
+     "maxHP": 275,
+     "maxMP": 33,
+     "limit": 0,
+     "stats": [
+      39,
+      49,
+      33,
+      24,
+      27,
+      42
+     ],
+     "equipment": [
+      "body:travelvest",
+      "head:leathercap",
+      "offhand:woodshield",
+      "relic1:-",
+      "relic2:-",
+      "weapon:boltdirk"
+     ],
+     "esper": "-",
+     "spells": [],
+     "statuses": [],
+     "esperGrowth": []
+    },
+    {
+     "id": "vesna",
+     "level": 6,
+     "exp": 28,
+     "hp": 237,
+     "mp": 54,
+     "maxHP": 237,
+     "maxMP": 54,
+     "limit": 0,
+     "stats": [
+      32,
+      38,
+      28,
+      47,
+      39,
+      24
+     ],
+     "equipment": [
+      "body:travelvest",
+      "head:leathercap",
+      "offhand:-",
+      "relic1:-",
+      "relic2:-",
+      "weapon:ironsword"
+     ],
+     "esper": "emberwake",
+     "spells": [
+      "dimming:100",
+      "ember:100",
+      "mend:100",
+      "rime:100",
+      "spark:100"
+     ],
+     "statuses": [],
+     "esperGrowth": []
+    },
+    {
+     "id": "wick",
+     "level": 6,
+     "exp": 28,
+     "hp": 221,
+     "mp": 85,
+     "maxHP": 221,
+     "maxMP": 85,
+     "limit": 0,
+     "stats": [
+      27,
+      34,
+      31,
+      58,
+      47,
+      29
+     ],
+     "equipment": [
+      "body:silkrobe",
+      "head:leathercap",
+      "offhand:-",
+      "relic1:-",
+      "relic2:-",
+      "weapon:ashrod"
+     ],
+     "esper": "-",
+     "spells": [
+      "cleanse:100",
+      "mend:100",
+      "renewal:100",
+      "scan:100",
+      "wardflesh:100"
+     ],
+     "statuses": [],
+     "esperGrowth": []
+    }
+   ]
+  }
+ }
+}

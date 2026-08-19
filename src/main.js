@@ -921,6 +921,7 @@ async function boot() {
   window.__tracks = TRACKS;
   window.__spells = SPELLS;
   window.__items = ITEMS;
+  window.__espers = ESPERS;   // debug: the magicite table, for the save harvest
   window.__equippable = isEquippable;
   window.THREE_V3 = THREE.Vector3;   // for tools/ probes
   window.THREE_BOX3 = THREE.Box3;    // ditto — measuring what is actually on screen

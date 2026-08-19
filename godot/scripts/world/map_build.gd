@@ -34,6 +34,69 @@ class Built:
 	var glyph_props := {}
 
 
+## Resolve a map against the world state.
+##
+## The second half of the game reuses the same geography under a different sky. A map may
+## carry a `ruin` block whose keys are merged over the base — atmosphere, music,
+## encounters, and lists of props and people to add or take away by id — so the two
+## worlds are genuinely the same *place*, which is the whole emotional point of the
+## device: a player should recognise a street and find it wrong.
+##
+## A port of `resolveMap` in `src/world/map.js`, and not optional: twenty-six of the
+## ninety-five maps carry one of these blocks, and a port that ignored them would render
+## the wrong half of the game for the whole of the second act.
+static func resolve(map_def: Dictionary, world_state := "whole") -> Dictionary:
+	if world_state != "ruin" or not map_def.has("ruin"):
+		return map_def
+	var override: Dictionary = map_def["ruin"]
+	if override.is_empty():
+		return map_def
+
+	var merged := map_def.duplicate()
+	for key in override:
+		merged[key] = override[key]
+
+	# `removeProps` and `removeNpcs` take ids; `props` and `npcs` in the override are
+	# additive rather than replacing, since most of a town survives.
+	var drop_props := {}
+	for id in override.get("removeProps", []):
+		drop_props[String(id)] = true
+	var drop_npcs := {}
+	for id in override.get("removeNpcs", []):
+		drop_npcs[String(id)] = true
+
+	var props: Array = []
+	for prop in map_def.get("props", []):
+		if not drop_props.has(String(prop.get("id", ""))):
+			props.append(prop)
+	for prop in override.get("props", []):
+		props.append(prop)
+	merged["props"] = props
+
+	var npcs: Array = []
+	for npc in map_def.get("npcs", []):
+		if not drop_npcs.has(String(npc.get("id", ""))):
+			npcs.append(npc)
+	for npc in override.get("npcs", []):
+		npcs.append(npc)
+	merged["npcs"] = npcs
+
+	if override.has("terrain"):
+		merged["terrain"] = override["terrain"]
+	# Triggers and exits replace wholesale when given, since routes change.
+	merged["triggers"] = override.get("triggers", map_def.get("triggers", []))
+	merged["exits"] = override.get("exits", map_def.get("exits", []))
+	merged.erase("ruin")
+	merged.erase("removeProps")
+	merged.erase("removeNpcs")
+	# Which footprints to measure against. The ruined world adds fifty-seven props and
+	# takes thirty-one away, and two of the new ones stand exactly where an old one did —
+	# so the two worlds cannot share one position-keyed table without over-blocking those
+	# two spots in whichever world they do not belong to.
+	merged["footprintKey"] = "%s#ruin" % String(map_def.get("id", ""))
+	return merged
+
+
 static func build(map_def: Dictionary, legend: Dictionary,
 		footprints: Dictionary = {}) -> Built:
 	var rows: Array = map_def.get("terrain", [])
@@ -86,7 +149,8 @@ static func build(map_def: Dictionary, legend: Dictionary,
 				grid.add_circle(x * tile + tile / 2.0, z * tile + tile / 2.0, radius, prop)
 
 	# --- authored props ------------------------------------------------------
-	var map_footprints: Dictionary = footprints.get(out.id, {})
+	var map_footprints: Dictionary = footprints.get(
+		String(map_def.get("footprintKey", out.id)), {})
 	# How many colliders have been taken from each position, because two props can
 	# stand on the same spot and each is entitled to one collider. Without this,
 	# both props read the whole list and the position ends up with twice the

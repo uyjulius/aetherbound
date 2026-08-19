@@ -1,0 +1,91 @@
+{
+ "harvested": 5,
+ "saves": {
+  "fresh": {
+   "slot": 0,
+   "raw": "{\"version\":1,\"savedAt\":1787123668173,\"mapId\":\"harrowmere\",\"spawn\":\"default\",\"position\":{\"x\":35,\"z\":41,\"facing\":3.141592653589793},\"locationName\":\"Harrowmere\",\"leadLevel\":6,\"partyNames\":[\"Vesna\",\"Corvin\",\"Wick\"],\"party\":{\"roster\":[{\"id\":\"vesna\",\"exp\":28,\"hp\":237,\"mp\":54,\"limit\":0,\"equipment\":{\"weapon\":\"ironsword\",\"offhand\":null,\"head\":\"leathercap\",\"body\":\"travelvest\",\"relic1\":null,\"relic2\":null},\"spells\":{\"ember\":100,\"rime\":100,\"spark\":100,\"mend\":100,\"dimming\":100},\"esper\":\"emberwake\",\"statuses\":{},\"esperGrowth\":{}},{\"id\":\"corvin\",\"exp\":28,\"hp\":275,\"mp\":33,\"limit\":0,\"equipment\":{\"weapon\":\"boltdirk\",\"offhand\":\"woodshield\",\"head\":\"leathercap\",\"body\":\"travelvest\",\"relic1\":null,\"relic2\":null},\"spells\":{},\"esper\":null,\"statuses\":{},\"esperGrowth\":{}},{\"id\":\"wick\",\"exp\":28,\"hp\":221,\"mp\":85,\"limit\":0,\"equipment\":{\"weapon\":\"ashrod\",\"offhand\":null,\"head\":\"leathercap\",\"body\":\"silkrobe\",\"relic1\":null,\"relic2\":null},\"spells\":{\"mend\":100,\"cleanse\":100,\"renewal\":100,\"wardflesh\":100,\"scan\":100},\"esper\":null,\"statuses\":{},\"esperGrowth\":{}}],\"active\":[\"vesna\",\"corvin\",\"wick\"],\"gold\":500,\"inventory\":[[\"potion\",5],[\"antidote\",2],[\"tonic\",2]],\"espers\":[\"emberwake\"],\"flags\":[\"seen_harrowmere\"],\"quests\":[],\"bestiary\":[],\"row\":[[\"vesna\",\"front\"],[\"corvin\",\"front\"],[\"wick\",\"front\"]],\"openedChests\":[],\"playTime\":1.566666666666666,\"steps\":0,\"worldState\":\"whole\",\"airship\":null},\"rng\":{\"battle\":[469917502,1770097412,2738929359,188798531],\"encounter\":[790183784,156550320,161507312,1666081824],\"loot\":[3934710003,3859892010,2542513220,37439077],\"world\":[3725128195,1262900945,385521493,2010454129]},\"config\":{\"atbMode\":\"wait\",\"battleSpeed\":3,\"textSpeed\":4,\"musicVolume\":0.65,\"sfxVolume\":0.8,\"quality\":\"high\",\"windowColour\":\"Sapphire\"}}",
+   "peek": {
+    "slot": 0,
+    "location": "Harrowmere",
+    "level": 6,
+    "time": "0:00",
+    "gold": 500,
+    "saved": 1787123668173,
+    "names": [
+     "Vesna",
+     "Corvin",
+     "Wick"
+    ]
+   }
+  },
+  "levelled": {
+   "slot": 1,
+   "raw": "{\"version\":1,\"savedAt\":1787123677792,\"mapId\":\"overworld\",\"spawn\":\"harrowmere\",\"position\":{\"x\":53,\"z\":65,\"facing\":3.141592653589793},\"locationName\":\"The Silt Road\",\"leadLevel\":24,\"partyNames\":[\"Vesna\",\"Corvin\",\"Wick\"],\"party\":{\"roster\":[{\"id\":\"vesna\",\"exp\":4028,\"hp\":7,\"mp\":189,\"limit\":0,\"equipment\":{\"weapon\":\"ironsword\",\"offhand\":null,\"head\":\"leathercap\",\"body\":\"travelvest\",\"relic1\":null,\"relic2\":null},\"spells\":{\"ember\":100,\"rime\":100,\"spark\":100,\"mend\":100,\"dimming\":100},\"esper\":\"emberwake\",\"statuses\":{},\"esperGrowth\":{\"vig\":18}},{\"id\":\"corvin\",\"exp\":4028,\"hp\":923,\"mp\":0,\"limit\":0,\"equipment\":{\"weapon\":\"boltdirk\",\"offhand\":\"woodshield\",\"head\":\"leathercap\",\"body\":\"travelvest\",\"relic1\":null,\"relic2\":null},\"spells\":{},\"esper\":null,\"statuses\":{},\"esperGrowth\":{}},{\"id\":\"wick\",\"exp\":4028,\"hp\":797,\"mp\":247,\"limit\":0,\"equipment\":{\"weapon\":\"ashrod\",\"offhand\":null,\"head\":\"leathercap\",\"body\":\"silkrobe\",\"relic1\":null,\"relic2\":null},\"spells\":{\"mend\":100,\"cleanse\":100,\"renewal\":100,\"wardflesh\":100,\"scan\":100},\"esper\":null,\"statuses\":{},\"esperGrowth\":{}}],\"active\":[\"vesna\",\"corvin\",\"wick\"],\"gold\":1734,\"inventory\":[[\"potion\",5],[\"antidote\",2],[\"tonic\",2]],\"espers\":[\"emberwake\"],\"flags\":[\"seen_overworld\"],\"quests\":[],\"bestiary\":[],\"row\":[[\"vesna\",\"front\"],[\"corvin\",\"front\"],[\"wick\",\"front\"]],\"openedChests\":[],\"playTime\":3672.0000000000064,\"steps\":4821,\"worldState\":\"whole\",\"airship\":null},\"rng\":{\"battle\":[469917502,1770097412,2738929359,188798531],\"encounter\":[1157865464,804101160,-1892665192,3573842768],\"loot\":[3934710003,3859892010,2542513220,37439077],\"world\":[3725128195,1262900945,385521493,2010454129]},\"config\":{\"atbMode\":\"wait\",\"battleSpeed\":3,\"textSpeed\":4,\"musicVolume\":0.65,\"sfxVolume\":0.8,\"quality\":\"high\",\"windowColour\":\"Sapphire\"}}",
+   "peek": {
+    "slot": 1,
+    "location": "The Silt Road",
+    "level": 24,
+    "time": "1:01",
+    "gold": 1734,
+    "saved": 1787123677792,
+    "names": [
+     "Vesna",
+     "Corvin",
+     "Wick"
+    ]
+   }
+  },
+  "kitted": {
+   "slot": 2,
+   "raw": "{\"version\":1,\"savedAt\":1787123685959,\"mapId\":\"sunkenvault\",\"spawn\":\"default\",\"position\":{\"x\":41,\"z\":83,\"facing\":3.141592653589793},\"locationName\":\"The Sunken Vault\",\"leadLevel\":30,\"partyNames\":[\"Vesna\",\"Corvin\",\"Wick\"],\"party\":{\"roster\":[{\"id\":\"vesna\",\"exp\":9028,\"hp\":957,\"mp\":234,\"limit\":0,\"equipment\":{\"weapon\":\"rimebrand\",\"offhand\":null,\"head\":\"leathercap\",\"body\":\"travelvest\",\"relic1\":\"focusring\",\"relic2\":null},\"spells\":{\"ember\":100,\"rime\":100,\"spark\":100,\"mend\":100,\"dimming\":100},\"esper\":\"hoarking\",\"statuses\":{},\"esperGrowth\":{\"mag\":24}},{\"id\":\"corvin\",\"exp\":28,\"hp\":275,\"mp\":33,\"limit\":0,\"equipment\":{\"weapon\":\"boltdirk\",\"offhand\":\"woodshield\",\"head\":null,\"body\":\"travelvest\",\"relic1\":null,\"relic2\":null},\"spells\":{\"rime\":40},\"esper\":null,\"statuses\":{},\"esperGrowth\":{}},{\"id\":\"wick\",\"exp\":28,\"hp\":221,\"mp\":85,\"limit\":0,\"equipment\":{\"weapon\":\"ashrod\",\"offhand\":null,\"head\":\"leathercap\",\"body\":\"silkrobe\",\"relic1\":null,\"relic2\":null},\"spells\":{\"mend\":100,\"cleanse\":100,\"renewal\":100,\"wardflesh\":100,\"scan\":100},\"esper\":null,\"statuses\":{},\"esperGrowth\":{}}],\"active\":[\"vesna\",\"corvin\",\"wick\"],\"gold\":500,\"inventory\":[[\"potion\",5],[\"antidote\",2],[\"tonic\",2],[\"hipotion\",9],[\"phoenixtear\",3],[\"echoherb\",1]],\"espers\":[\"emberwake\",\"hoarking\"],\"flags\":[\"seen_sunkenvault\"],\"quests\":[],\"bestiary\":[],\"row\":[[\"vesna\",\"front\"],[\"corvin\",\"front\"],[\"wick\",\"front\"]],\"openedChests\":[],\"playTime\":1.6666666666666656,\"steps\":0,\"worldState\":\"whole\",\"airship\":null},\"rng\":{\"battle\":[469917502,1770097412,2738929359,188798531],\"encounter\":[1157865464,804101160,-1892665192,3573842768],\"loot\":[3934710003,3859892010,2542513220,37439077],\"world\":[3725128195,1262900945,385521493,2010454129]},\"config\":{\"atbMode\":\"wait\",\"battleSpeed\":3,\"textSpeed\":4,\"musicVolume\":0.65,\"sfxVolume\":0.8,\"quality\":\"high\",\"windowColour\":\"Sapphire\"}}",
+   "peek": {
+    "slot": 2,
+    "location": "The Sunken Vault",
+    "level": 30,
+    "time": "0:00",
+    "gold": 500,
+    "saved": 1787123685959,
+    "names": [
+     "Vesna",
+     "Corvin",
+     "Wick"
+    ]
+   }
+  },
+  "party-of-four": {
+   "slot": "auto",
+   "raw": "{\"version\":1,\"savedAt\":1787123694324,\"mapId\":\"duncastle\",\"spawn\":\"gate\",\"position\":{\"x\":38,\"z\":53,\"facing\":3.141592653589793},\"locationName\":\"Duncastle\",\"leadLevel\":6,\"partyNames\":[\"Vesna\",\"Rusk\",\"Wick\",\"Kestrel\"],\"party\":{\"roster\":[{\"id\":\"vesna\",\"exp\":28,\"hp\":237,\"mp\":54,\"limit\":0,\"equipment\":{\"weapon\":\"ironsword\",\"offhand\":null,\"head\":\"leathercap\",\"body\":\"travelvest\",\"relic1\":null,\"relic2\":null},\"spells\":{\"ember\":100,\"rime\":100,\"spark\":100,\"mend\":100,\"dimming\":100},\"esper\":\"emberwake\",\"statuses\":{},\"esperGrowth\":{}},{\"id\":\"corvin\",\"exp\":28,\"hp\":275,\"mp\":33,\"limit\":0,\"equipment\":{\"weapon\":\"boltdirk\",\"offhand\":\"woodshield\",\"head\":\"leathercap\",\"body\":\"travelvest\",\"relic1\":null,\"relic2\":null},\"spells\":{},\"esper\":null,\"statuses\":{},\"esperGrowth\":{}},{\"id\":\"wick\",\"exp\":28,\"hp\":221,\"mp\":85,\"limit\":0,\"equipment\":{\"weapon\":\"ashrod\",\"offhand\":null,\"head\":\"leathercap\",\"body\":\"silkrobe\",\"relic1\":null,\"relic2\":null},\"spells\":{\"mend\":100,\"cleanse\":100,\"renewal\":100,\"wardflesh\":100,\"scan\":100},\"esper\":null,\"statuses\":{},\"esperGrowth\":{}},{\"id\":\"rusk\",\"exp\":332,\"hp\":796,\"mp\":28,\"limit\":0,\"equipment\":{\"weapon\":null,\"offhand\":null,\"head\":null,\"body\":null,\"relic1\":null,\"relic2\":null},\"spells\":{},\"esper\":null,\"statuses\":{},\"esperGrowth\":{}},{\"id\":\"kestrel\",\"exp\":120,\"hp\":264,\"mp\":83,\"limit\":0,\"equipment\":{\"weapon\":null,\"offhand\":null,\"head\":null,\"body\":null,\"relic1\":null,\"relic2\":null},\"spells\":{},\"esper\":null,\"statuses\":{},\"esperGrowth\":{}}],\"active\":[\"vesna\",\"rusk\",\"wick\",\"kestrel\"],\"gold\":500,\"inventory\":[[\"potion\",5],[\"antidote\",2],[\"tonic\",2]],\"espers\":[\"emberwake\"],\"flags\":[\"seen_duncastle\"],\"quests\":[],\"bestiary\":[],\"row\":[[\"vesna\",\"back\"],[\"corvin\",\"front\"],[\"wick\",\"front\"],[\"rusk\",\"front\"],[\"kestrel\",\"back\"]],\"openedChests\":[],\"playTime\":1.4999999999999996,\"steps\":0,\"worldState\":\"whole\",\"airship\":null},\"rng\":{\"battle\":[469917502,1770097412,2738929359,188798531],\"encounter\":[790183784,156550320,161507312,1666081824],\"loot\":[3934710003,3859892010,2542513220,37439077],\"world\":[3725128195,1262900945,385521493,2010454129]},\"config\":{\"atbMode\":\"wait\",\"battleSpeed\":3,\"textSpeed\":4,\"musicVolume\":0.65,\"sfxVolume\":0.8,\"quality\":\"high\",\"windowColour\":\"Sapphire\"}}",
+   "peek": {
+    "slot": "auto",
+    "location": "Duncastle",
+    "level": 6,
+    "time": "0:00",
+    "gold": 500,
+    "saved": 1787123694324,
+    "names": [
+     "Vesna",
+     "Rusk",
+     "Wick",
+     "Kestrel"
+    ]
+   }
+  },
+  "mid-story": {
+   "slot": 0,
+   "raw": "{\"version\":1,\"savedAt\":1787123702416,\"mapId\":\"solmere\",\"spawn\":\"default\",\"position\":{\"x\":44.5,\"z\":59,\"facing\":3.141592653589793},\"locationName\":\"Solmere\",\"leadLevel\":6,\"partyNames\":[\"Vesna\",\"Corvin\",\"Wick\"],\"party\":{\"roster\":[{\"id\":\"vesna\",\"exp\":28,\"hp\":237,\"mp\":54,\"limit\":0,\"equipment\":{\"weapon\":\"ironsword\",\"offhand\":null,\"head\":\"leathercap\",\"body\":\"travelvest\",\"relic1\":null,\"relic2\":null},\"spells\":{\"ember\":100,\"rime\":100,\"spark\":100,\"mend\":100,\"dimming\":100},\"esper\":\"emberwake\",\"statuses\":{},\"esperGrowth\":{}},{\"id\":\"corvin\",\"exp\":28,\"hp\":275,\"mp\":33,\"limit\":0,\"equipment\":{\"weapon\":\"boltdirk\",\"offhand\":\"woodshield\",\"head\":\"leathercap\",\"body\":\"travelvest\",\"relic1\":null,\"relic2\":null},\"spells\":{},\"esper\":null,\"statuses\":{},\"esperGrowth\":{}},{\"id\":\"wick\",\"exp\":28,\"hp\":221,\"mp\":85,\"limit\":0,\"equipment\":{\"weapon\":\"ashrod\",\"offhand\":null,\"head\":\"leathercap\",\"body\":\"silkrobe\",\"relic1\":null,\"relic2\":null},\"spells\":{\"mend\":100,\"cleanse\":100,\"renewal\":100,\"wardflesh\":100,\"scan\":100},\"esper\":null,\"statuses\":{},\"esperGrowth\":{}}],\"active\":[\"vesna\",\"corvin\",\"wick\"],\"gold\":500,\"inventory\":[[\"potion\",5],[\"antidote\",2],[\"tonic\",2]],\"espers\":[\"emberwake\"],\"flags\":[\"barrow_cleared\",\"seen_harrowmere\",\"seen_solmere\"],\"quests\":[[\"barrow\",{\"stage\":0,\"done\":false}],[\"engine\",{\"stage\":2,\"done\":false}],[\"cabinet\",{\"stage\":0,\"done\":true}]],\"bestiary\":[[\"fenrat\",2],[\"mireslug\",1]],\"row\":[[\"vesna\",\"front\"],[\"corvin\",\"front\"],[\"wick\",\"front\"]],\"openedChests\":[\"harrowmere:hm-well\",\"sunkenvault:sv-chest-1\"],\"playTime\":74520.33333333326,\"steps\":0,\"worldState\":\"ruin\",\"airship\":{\"map\":\"overworld\",\"x\":12.5,\"z\":30.25,\"facing\":1.5}},\"rng\":{\"battle\":[469917502,1770097412,2738929359,188798531],\"encounter\":[1157865464,804101160,-1892665192,3573842768],\"loot\":[3934710003,3859892010,2542513220,37439077],\"world\":[3725128195,1262900945,385521493,2010454129]},\"config\":{\"atbMode\":\"wait\",\"battleSpeed\":3,\"textSpeed\":4,\"musicVolume\":0.65,\"sfxVolume\":0.8,\"quality\":\"high\",\"windowColour\":\"Sapphire\"}}",
+   "peek": {
+    "slot": 0,
+    "location": "Solmere",
+    "level": 6,
+    "time": "20:42",
+    "gold": 500,
+    "saved": 1787123702416,
+    "names": [
+     "Vesna",
+     "Corvin",
+     "Wick"
+    ]
+   }
+  }
+ }
+}

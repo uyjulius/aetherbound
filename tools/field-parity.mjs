@@ -5,9 +5,12 @@
  *
  * Four things are compared, and they are four different kinds of claim.
  *
- * **The grids.** For all 95 maps: every walkability cell, every collider, every
- * trigger rectangle, the resolved spawn point, and whether the party can legally
- * stand on it. The oracle is `tools/fixtures/reference-grids.json`, harvested from
+ * **The grids.** For all 95 maps, and again for the 26 the cataclysm rewrites:
+ * every walkability cell, every collider, every trigger rectangle, the resolved
+ * spawn point, and whether the party can legally stand on it. The second pass is
+ * the point of `MapBuild.resolve` — half the game is played in those maps' ruined
+ * form, and a port that read the `ruin` block wrongly would look right for the
+ * whole first act. The oracle is `tools/fixtures/reference-grids.json`, harvested from
  * the running reference build by `harvest-reference.mjs`. A cell is one bit and
  * there are a hundred thousand of them; getting the legend or the ragged-row rule
  * subtly wrong shows up here as a handful of tiles somewhere in a barrow.
@@ -302,6 +305,8 @@ if (process.env.FIELD_PARITY_DETAIL) {
 }
 say();
 const total = Object.values(tally).reduce((n, v) => n + v, 0);
-say(`\x1b[32mOK\x1b[0m — ${total.toLocaleString()} values across 95 maps: every walkable cell, `
-  + 'every collider,');
-say('     every trigger, every spawn, and every step of sixteen scripted walks.');
+const keys = Object.keys(fixture.grids);
+const ruinKeys = keys.filter((k) => k.endsWith('#ruin')).length;
+say(`\x1b[32mOK\x1b[0m — ${total.toLocaleString()} values across ${keys.length - ruinKeys} maps `
+  + `and the ${ruinKeys} of them the cataclysm changes: every walkable cell,`);
+say('     every collider, every trigger, every spawn, and every step of sixteen walks.');

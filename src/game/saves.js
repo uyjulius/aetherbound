@@ -3,6 +3,20 @@ import { Member, Party } from './party.js';
 import { ITEMS } from '../data/items.js';
 import { ESPERS } from '../data/espers.js';
 import { serializeRng, deserializeRng } from '../engine/rng.js';
+/**
+ * The experience curve, from the one place that owns it.
+ *
+ * This used to be a copy, inlined here with a note about a circular dependency
+ * that does not exist — `characters.js` imports nothing at all. The copy was of
+ * the *old* curve, `24 × (level-1)^2.42`, and never moved when the real one
+ * became `0.049 × level^3.55`. Since a save stores experience and recomputes the
+ * level from it, loading any save reset the entire party to level 1: the three
+ * you start with saved at level 6 on 28 experience and came back at level 1 with
+ * a third of their health. Every level anybody had ever gained was destroyed by
+ * pressing Continue, and the save round-trip check passed throughout because it
+ * compared gold and names.
+ */
+import { levelForExp } from '../data/characters.js';
 
 /**
  * Save data.
@@ -152,7 +166,7 @@ export class SaveManager {
     for (const m of data.roster || []) {
       const member = new Member(m.id, 1);
       member.exp = m.exp;
-      member.level = Math.max(1, memberLevelFromExp(m.exp));
+      member.level = Math.max(1, levelForExp(m.exp));
       member.spells = m.spells || {};
       member.statuses = m.statuses || {};
       member.limit = m.limit ?? 0;
@@ -192,14 +206,6 @@ export class SaveManager {
       console.warn('[save] config write failed', err);
     }
   }
-}
-
-// Imported lazily to avoid a circular dependency with characters.js.
-function memberLevelFromExp(exp) {
-  let lv = 1;
-  const need = (l) => Math.round(24 * Math.pow(l - 1, 2.42) + 40 * (l - 1));
-  while (lv < 99 && exp >= need(lv + 1)) lv++;
-  return lv;
 }
 
 export const saves = new SaveManager();
