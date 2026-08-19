@@ -136,6 +136,8 @@ func set_flag(id: String) -> void:
 
 func start_quest(id: String) -> void:
 	_record("party.startQuest", [id])
+	if not recording and party != null:
+		party.start_quest(id)
 
 
 ## The reference's `startQuest(id, stage)`; several scenes open a quest at a stage.
@@ -180,6 +182,11 @@ func recruit(id: String, level: Variant = null) -> Dictionary:
 ## for every id would only ever take the first branch.
 func member(id: String) -> Dictionary:
 	_record("party.member", [id])
+	if not recording and party != null:
+		if not party.roster.has(id):
+			return {}
+		var m: Party.Member = party.roster[id]
+		return {"id": m.id, "name": m.name(), "level": m.level}
 	if STARTERS.has(id) or policy == "flagged":
 		return _member(id)
 	return {}
@@ -225,14 +232,22 @@ func count_flags(flags: Array) -> int:
 
 func count_item(id: String) -> int:
 	_record("party.countItem", [id])
+	if not recording and party != null:
+		return party.count_item(id)
 	return 3 if policy == "flagged" else 0
 
 
 func rest_all() -> void:
 	_record("party.restAll", [])
+	if not recording and party != null:
+		party.rest_all()
 
 
+## What the party actually has. Two scenes work out what is owed from it, so a fixed 500 was
+## not a harmless stand-in: it decided how much the Yardmaster was paid.
 func gold() -> int:
+	if not recording and party != null:
+		return party.gold
 	return 500
 
 
@@ -265,11 +280,15 @@ func roster_members() -> Array:
 
 func remove_esper(id: String) -> void:
 	_record("party.espers.delete", [id])
+	if not recording and party != null:
+		party.remove_esper(id)
 
 
 ## Take the magicite off a member, so it can be handed to somebody who asked for it.
 func clear_esper(member_id: String) -> void:
 	_record("member.clearEsper", [member_id])
+	if not recording and party != null and party.roster.has(member_id):
+		party.roster[member_id].esper = {}
 
 
 ## The first of these the party already carries, or an empty string.
@@ -344,6 +363,8 @@ func learn_spell(id: String) -> void:
 
 func member_learn_spell(member_id: String, spell_id: String) -> void:
 	_record("member.learnSpell", [member_id, spell_id])
+	if not recording and party != null and party.roster.has(member_id):
+		party.roster[member_id].learn_spell(spell_id)
 
 
 func full_restore() -> void:
@@ -359,6 +380,8 @@ func has_esper(id: String) -> bool:
 
 func add_esper(id: String) -> void:
 	_record("party.espers.add", [id])
+	if not recording and party != null:
+		party.add_esper(id)
 
 
 func in_roster(id: String) -> bool:
@@ -370,6 +393,8 @@ func in_roster(id: String) -> bool:
 
 ## How many kinds of creature the party has met — one scene prices a favour on it.
 func bestiary_size() -> int:
+	if not recording and party != null:
+		return party.bestiary.size()
 	return 3 if policy == "flagged" else 0
 
 
