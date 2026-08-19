@@ -94,6 +94,14 @@ export const UI = {
   good: '#6fd08c',
   mp: '#6fb2ff',
   hp: '#8ce07a',
+  // The two colours a health bar turns as it empties — a quarter left, then an
+  // eighth. They were in the stylesheet as `--hp-low` and `--hp-crit` and nowhere
+  // else, which meant a renderer that is not a browser had no way to ask for them.
+  // `hpCrit` is the same red as `danger` and is named separately anyway: what a bar
+  // does at 12% is a decision about bars, and it should be changeable without
+  // repainting every warning in the game.
+  hpLow: '#e0a44f',
+  hpCrit: '#e0574f',
   atb: '#ffcf5c',
   limit: '#ff8a4c',
 };

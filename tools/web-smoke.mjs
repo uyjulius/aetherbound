@@ -420,8 +420,23 @@ if (ready) {
           }
           cast = actions.some((line) => line.endsWith(' spell'));
         } else {
-          // Whoever this is cannot cast. Take the swing and wait for the next gauge.
-          for (let i = 0; i < 2; i++) {
+          // Whoever this is cannot cast — Corvin never can, and anybody can be out of MP.
+          // Defend rather than attack: this check needs a caster's gauge to fill, and a
+          // party that swings every time it is asked kills two rats before the third
+          // character has a turn. That is exactly how this failed on CI, where the fight
+          // ended after two attacks and the check reported "no spell" for a fight that
+          // never got the chance to cast one. Defending spends the turn and leaves the
+          // enemies standing. It needs no target, so it is one confirm, not two.
+          const defend = menu.indexOf('Defend');
+          for (let i = 0; i < Math.max(0, defend); i++) {
+            await page.keyboard.press('ArrowDown');
+            await page.waitForTimeout(120);
+          }
+          await page.keyboard.press('Enter');
+          await page.waitForTimeout(350);
+          // A menu with neither Magic nor Defend in it is not a menu this knows how to
+          // drive, so fall back to the old two-confirm swing rather than hanging.
+          if (defend < 0) {
             await page.keyboard.press('Enter');
             await page.waitForTimeout(350);
           }

@@ -33,8 +33,10 @@ signal finished(result: String)
 var battle: Battle
 
 var _party_rows: VBoxContainer
-var _enemy_rows: VBoxContainer
+var _party_panel: PanelContainer
+var _name_tags: EnemyTags
 var _commands: VBoxContainer
+var _commands_panel: PanelContainer
 var _banner: Label
 var _log: Label
 var _popups: Control
@@ -107,33 +109,41 @@ func _build() -> void:
 	_banner.offset_top = 48.0
 	add_child(_banner)
 
-	# The enemy line, across the top.
-	_enemy_rows = VBoxContainer.new()
-	_enemy_rows.position = Vector2(80, 150)
-	_enemy_rows.add_theme_constant_override("separation", 6)
-	add_child(_enemy_rows)
+	# The enemies' names, on the enemies. A list in the corner made the player read a row and
+	# then go looking for the creature it meant, which is a job the game can do for them.
+	_name_tags = EnemyTags.new()
+	add_child(_name_tags)
 
-	# The party's status, bottom right, which is where thirty years of this genre has
-	# trained everyone to look for it.
+	# The party's status, bottom right, which is where thirty years of this genre has trained
+	# everyone to look for it — on a panel, because bars and numbers over a sunlit field are
+	# the one thing this screen cannot afford to be hard to read.
+	_party_panel = PanelContainer.new()
+	_party_panel.add_theme_stylebox_override("panel", WindowBox.panel(0.72, 16.0))
+	_party_panel.set_anchors_and_offsets_preset(Control.PRESET_BOTTOM_RIGHT)
+	_party_panel.offset_left = -660.0
+	_party_panel.offset_right = -50.0
+	_party_panel.offset_bottom = -50.0
+	add_child(_party_panel)
+
 	_party_rows = VBoxContainer.new()
-	_party_rows.set_anchors_and_offsets_preset(Control.PRESET_BOTTOM_RIGHT)
-	_party_rows.offset_left = -640.0
-	_party_rows.offset_top = -300.0
-	_party_rows.offset_right = -60.0
-	_party_rows.offset_bottom = -60.0
 	_party_rows.add_theme_constant_override("separation", 10)
-	add_child(_party_rows)
+	_party_panel.add_child(_party_rows)
+
+	_commands_panel = PanelContainer.new()
+	_commands_panel.add_theme_stylebox_override("panel", WindowBox.panel(0.88, 18.0))
+	_commands_panel.set_anchors_and_offsets_preset(Control.PRESET_BOTTOM_LEFT)
+	_commands_panel.offset_left = 50.0
+	_commands_panel.offset_bottom = -50.0
+	add_child(_commands_panel)
 
 	_commands = VBoxContainer.new()
-	_commands.set_anchors_and_offsets_preset(Control.PRESET_BOTTOM_LEFT)
-	_commands.offset_left = 60.0
-	_commands.offset_top = -300.0
-	_commands.offset_bottom = -60.0
 	_commands.add_theme_constant_override("separation", 8)
-	add_child(_commands)
+	_commands_panel.add_child(_commands)
 
 	_log = Label.new()
-	_log.position = Vector2(80, 620)
+	# Above the command panel, not behind it: the panel is as tall as its longest menu — Wick's
+	# runs to twelve rows — and the log used to sit inside that.
+	_log.position = Vector2(80, 400)
 	_log.add_theme_font_size_override("font_size", 22)
 	_log.add_theme_color_override("font_color", Palette.ui_color("textDim"))
 	add_child(_log)
@@ -285,6 +295,8 @@ func _slot(index: int, total: int, z: float) -> Vector3:
 
 
 func _tear_down_stage() -> void:
+	if _name_tags != null:
+		_name_tags.clear()
 	if _stage != null:
 		_stage.queue_free()
 		_stage = null
@@ -706,17 +718,38 @@ func _commit(actor: Combatant, action: Dictionary) -> void:
 		before[combatant.id] = combatant.hp
 	print("ACTION %s %s" % [actor.id, kind])
 	battle.commit_action(full)
-	_after_action(actor, kind, before)
+	_after_action(actor, kind, before, _element_of(full))
+
+
+## What element an action lands as, for the light it throws.
+##
+## Spells, monster moves and character specials all carry their own; a plain swing carries the
+## weapon's, and a bare fist carries none, which is `physical` — a colour in the same table,
+## because "no element" is still something the player has to be able to see.
+func _element_of(action: Dictionary) -> String:
+	for key in ["spell", "move", "item"]:
+		var source: Dictionary = action.get(key, {})
+		var element := String(source.get("element", ""))
+		if element != "":
+			return element
+	if String(action.get("kind", "")) == "attack":
+		var actor: Combatant = action["actor"]
+		return String(actor.weapon().get("element", "physical")) 			if actor.has_method("weapon") else "physical"
+	return "physical"
 
 
 ## What just happened, said and shown.
-func _after_action(actor: Combatant, kind: String, before: Dictionary) -> void:
+func _after_action(actor: Combatant, kind: String, before: Dictionary,
+		element := "physical") -> void:
 	var struck := 0
 	for combatant in battle.party + battle.enemies:
 		var moved := int(before.get(combatant.id, combatant.hp)) - combatant.hp
 		if moved == 0:
 			continue
 		struck += 1
+		# The light before the number: the flash is what makes the hit look like it caused the
+		# damage rather than coinciding with it.
+		_flash(combatant, element, moved < 0)
 		_show_change(actor, kind, combatant, moved)
 	if struck == 0 and kind == "attack":
 		# A swing that changed nobody's health missed, and a fight where a miss shows nothing at
@@ -825,43 +858,51 @@ func _one_enemy() -> Array:
 
 
 func _refresh() -> void:
-	_sync_rows(_party_rows, battle.party, true)
-	_sync_rows(_enemy_rows, battle.enemies, false)
+	_sync_party()
+	_name_tags.sync(battle.enemies, _targets_now(), _head_of)
 	_sync_commands()
+	_place_panels()
 	_log.text = "\n".join(_lines.slice(maxi(0, _lines.size() - 4)))
 
 
-## The cursor, on whichever side is being chosen from.
-func _pointer_for(c: Combatant) -> String:
+## Both panels are sized by what is in them and pinned by their bottom edge, so a five-row
+## menu is a five-row window rather than a twelve-row window with a hole in it, and the row
+## the cursor is on never moves when the list below it changes length.
+func _place_panels() -> void:
+	_party_panel.offset_top = -(50.0 + _party_panel.get_combined_minimum_size().y)
+	var wanted := _commands_panel.get_combined_minimum_size()
+	_commands_panel.offset_top = -(50.0 + wanted.y)
+	# A floor on the width: a menu of "Attack / Magic / Item" is narrow enough to look like a
+	# mistake next to the party panel, and the numbers in the right-hand column need the room.
+	_commands_panel.offset_right = _commands_panel.offset_left + maxf(400.0, wanted.x)
+	_commands_panel.visible = wanted.y > 0.0 and _commands.get_child(0).text != ""
+
+
+## Whoever the cursor is on, as a list, because that is what a tag needs to know. Empty
+## whenever nothing is being chosen — and the all-enemies and all-allies spells never get here
+## at all, since they resolve without asking.
+func _targets_now() -> Array:
 	if _targeting.is_empty() or battle.phase != BattleModel.Phase.MENU:
-		return ""
+		return []
 	var candidates := _living(battle.enemies if String(_targeting["side"]) == "enemies"
 		else battle.party)
 	if candidates.is_empty():
-		return ""
-	return "> " if candidates[mini(_target_index, candidates.size() - 1)] == c else "  "
+		return []
+	return [candidates[mini(_target_index, candidates.size() - 1)]]
 
 
-## One row per combatant: a name, the numbers, and the gauge.
-func _sync_rows(into: VBoxContainer, who: Array, party_side: bool) -> void:
-	while into.get_child_count() < who.size():
-		var row := Label.new()
-		row.add_theme_font_size_override("font_size", 24)
-		into.add_child(row)
-	for i in who.size():
-		var c: Combatant = who[i]
-		var row: Label = into.get_child(i)
-		var gauge := int(round(c.atb / 10.0))
-		var marks := "|".repeat(gauge) + ".".repeat(10 - gauge)
-		if party_side:
-			row.text = "%s%-10s %5d/%-5d HP  %4d MP  [%s]%s" % [
-				_pointer_for(c), c.name, c.hp, c.max_hp, c.mp, marks,
-				"" if c.statuses.is_empty() else "  " + ",".join(c.statuses.keys())]
-		else:
-			row.text = "%s%-16s %5d/%-5d" % [_pointer_for(c), c.name, c.hp, c.max_hp]
-		var dim := c.is_ko()
-		row.add_theme_color_override("font_color", Palette.ui_color("textDisabled") if dim
-			else (Palette.ui_color("select") if c == battle.active_actor else Palette.ui_color("text")))
+## One row per character: a name, what is wrong with them, and three gauges.
+func _sync_party() -> void:
+	var targets := _targets_now()
+	var statuses: Dictionary = battle._db.statuses
+	while _party_rows.get_child_count() < battle.party.size():
+		_party_rows.add_child(PartyRow.new())
+	for i in battle.party.size():
+		var c: Combatant = battle.party[i]
+		var row: PartyRow = _party_rows.get_child(i)
+		# "Acting" covers both the character whose turn it is and the one the cursor is on: a
+		# row lit for either reason is the row the next confirm is about.
+		row.show_combatant(c, c == battle.active_actor or targets.has(c), statuses)
 
 
 ## The menu as it stands: a title, then whatever the innermost screen is offering.
@@ -908,15 +949,60 @@ func _sync_commands() -> void:
 ## Falls back to a column at the left when the stage has no model for them — a creature whose
 ## mesh is missing still has to be able to show a number.
 func _over(target: Combatant) -> Vector2:
-	var body: Node3D = _bodies.get(target.id, null)
-	var camera := get_viewport().get_camera_3d()
-	if body != null and camera != null:
-		var head := body.global_position + Vector3(0, _cast.bounds(body).size.y + 0.3, 0)
-		if not camera.is_position_behind(head):
-			var at := camera.unproject_position(head)
-			return at - Vector2(20.0, 0.0)
+	var head := _head_of(target)
+	if head != Vector2.INF:
+		return head - Vector2(20.0, 0.0)
 	var index := battle.enemies.find(target)
 	return Vector2(360.0, 150.0 + float(maxi(0, index)) * 34.0)
+
+
+## Where a combatant's head is on screen, or `Vector2.INF` when there is nothing to point at.
+##
+## A point behind the camera still projects — to a mirrored position in front of it — so this
+## has to be asked rather than assumed, or a name tag appears on the wrong side of the screen
+## for a creature nobody can see.
+func _head_of(target: Combatant) -> Vector2:
+	var body: Node3D = _bodies.get(target.id, null)
+	var camera := get_viewport().get_camera_3d()
+	if body == null or camera == null:
+		return Vector2.INF
+	var head := body.global_position + Vector3(0, _cast.bounds(body).size.y + 0.3, 0)
+	if camera.is_position_behind(head):
+		return Vector2.INF
+	return camera.unproject_position(head)
+
+
+## The light a hit throws, in the colour of what hit.
+##
+## This is the port's answer to the reference's spell effects, and it is deliberately not those:
+## the reference builds rings, pillars and arcs out of geometry in code, and nothing in this
+## project is allowed to be geometry built in code. What is left is real and enough — a light
+## the colour of the element, at the height of the body it struck, fading over a fifth of a
+## second. Fire lights the rank orange from below, a cure washes it green, and no mesh is
+## invented to do it.
+##
+## Healing takes the palette's `good` rather than the spell's element: what matters at the
+## moment a number appears over somebody is which direction it went.
+func _flash(target: Combatant, element: String, healing: bool) -> void:
+	var body: Node3D = _bodies.get(target.id, null)
+	if body == null or _stage == null:
+		return
+	var light := OmniLight3D.new()
+	light.light_color = Palette.ui_color("good") if healing 		else Palette.element_color(element)
+	light.light_energy = 9.0
+	light.omni_range = 5.5
+	light.omni_attenuation = 1.6
+	# Shadowless on purpose: this is on screen for 200ms in a browser build running a software
+	# rasteriser, and a shadow-casting light for that long costs more than it shows.
+	light.shadow_enabled = false
+	light.position = body.position + Vector3(0.0, 1.1, 0.0)
+	_stage.add_child(light)
+	# Bound to the light, not to this screen: a fight that ends mid-fade frees the stage and
+	# everything on it, and a tween still animating a freed light is an error in the console —
+	# which the browser check treats, correctly, as a broken build.
+	var fade := create_tween().bind_node(light)
+	fade.tween_property(light, "light_energy", 0.0, 0.2)
+	fade.tween_callback(func(): if is_instance_valid(light): light.queue_free())
 
 
 ## A number that rises and fades where the blow landed. The only animation here, and it

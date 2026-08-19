@@ -1,7 +1,7 @@
 import { el, win, bar, MenuList } from '../ui/ui.js';
 import { input } from '../engine/input.js';
 import { ELEMENT_COLOR } from '../engine/palette.js';
-import { STATUSES } from './formulas.js';
+import { STATUSES, STATUS_DISPLAY } from './formulas.js';
 
 /**
  * Battle interface.
@@ -81,7 +81,8 @@ export class BattleUI {
       r.row.className = `party-row${c.isKO ? ' dead' : ''}${c.id === activeId ? ' acting' : ''}`;
       // Status glyphs after the name keep ailments visible without a tooltip.
       const badges = Object.keys(c.statuses || {}).filter((s) => STATUSES[s]).slice(0, 4);
-      r.name.textContent = c.name + (badges.length ? '  ' + badges.map((s) => STATUS_GLYPH[s] || '•').join('') : '');
+      r.name.textContent = c.name + (badges.length
+        ? '  ' + badges.map((s) => STATUS_DISPLAY[s]?.glyph || '•').join('') : '');
     }
   }
 
@@ -237,9 +238,3 @@ export class BattleUI {
   }
 }
 
-const STATUS_GLYPH = {
-  poison: '☠', venom: '☠', blind: '◐', silence: '♪', sleep: 'z', confuse: '?',
-  slow: '▼', haste: '▲', protect: '⛊', shell: '⌂', reflect: '◇', regen: '✚',
-  stop: '⊘', doom: '⌛', berserk: '‼', stone: '▣', imp: '☺', float: '⇡', vanish: '◌',
-  zombie: '☣', charm: '♥', critUp: '✦', safe: '⛨', freeze: '❄', paralysis: '⚡', seizure: '≈',
-};

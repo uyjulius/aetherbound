@@ -78,16 +78,9 @@ func _build() -> void:
 	add_child(margin)
 
 	_panel = PanelContainer.new()
-	var style := StyleBoxFlat.new()
-	# The reference's panel: a deep blue with a lit top edge, which is the one piece of
-	# chrome the whole interface is built from.
-	style.bg_color = Palette.ui_color("panelBottom")
-	style.bg_color.a = 0.94
-	style.border_color = Palette.ui_color("panelEdgeLight")
-	style.set_border_width_all(2)
-	style.set_corner_radius_all(4)
-	style.set_content_margin_all(22)
-	_panel.add_theme_stylebox_override("panel", style)
+	# The reference's panel: a deep blue with a lit top edge, shared with every other window
+	# in the game.
+	_panel.add_theme_stylebox_override("panel", WindowBox.panel())
 	margin.add_child(_panel)
 
 	var column := VBoxContainer.new()

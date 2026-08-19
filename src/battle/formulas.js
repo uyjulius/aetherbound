@@ -65,6 +65,53 @@ export const STATUSES = {
   critUp:    { name: 'Focused', kind: 'good', duration: 0 },
 };
 
+/**
+ * How a status is shown: the glyph the browser build draws after a name, and the
+ * short code the Godot port draws instead.
+ *
+ * The port needs its own because Godot's built-in font has 22 of these 26 symbols
+ * missing — `☠`, `⛊`, `❄` and most of the rest come back as nothing at all, which
+ * is worse than no indicator, because an empty space says "healthy". So the port
+ * draws small kind-coloured pills with a three-letter code in them, and the code
+ * lives here next to the glyph rather than in the port, because what a status is
+ * called is this table's business and not a renderer's.
+ *
+ * `ko`, `muddle` and `morph` have no glyph on purpose: a KO'd row dims and reads
+ * as dead without help, and the other two arrived after the glyph set did. They
+ * fall back to a dot in the browser and still carry a code for the port.
+ */
+export const STATUS_DISPLAY = {
+  ko:        { short: 'KO' },
+  stone:     { glyph: '\u25a3', short: 'STN' },
+  sleep:     { glyph: 'z', short: 'SLP' },
+  stop:      { glyph: '\u2298', short: 'STP' },
+  paralysis: { glyph: '\u26a1', short: 'PAR' },
+  freeze:    { glyph: '\u2744', short: 'FRZ' },
+  confuse:   { glyph: '?', short: 'CNF' },
+  berserk:   { glyph: '\u203c', short: 'BSK' },
+  charm:     { glyph: '\u2665', short: 'CHM' },
+  muddle:    { short: 'MDL' },
+  poison:    { glyph: '\u2620', short: 'PSN' },
+  venom:     { glyph: '\u2620', short: 'VEN' },
+  doom:      { glyph: '\u231b', short: 'DOM' },
+  seizure:   { glyph: '\u2248', short: 'SEI' },
+  regen:     { glyph: '\u271a', short: 'RGN' },
+  silence:   { glyph: '\u266a', short: 'SIL' },
+  blind:     { glyph: '\u25d0', short: 'BLD' },
+  slow:      { glyph: '\u25bc', short: 'SLO' },
+  haste:     { glyph: '\u25b2', short: 'HST' },
+  shell:     { glyph: '\u2302', short: 'SHL' },
+  protect:   { glyph: '\u26ca', short: 'PRO' },
+  reflect:   { glyph: '\u25c7', short: 'RFL' },
+  safe:      { glyph: '\u26e8', short: 'SAF' },
+  float:     { glyph: '\u21e1', short: 'FLT' },
+  vanish:    { glyph: '\u25cc', short: 'VAN' },
+  zombie:    { glyph: '\u2623', short: 'ZOM' },
+  imp:       { glyph: '\u263a', short: 'IMP' },
+  morph:     { short: 'ATN' },
+  critUp:    { glyph: '\u2726', short: 'FOC' },
+};
+
 export const BLOCKING_STATUSES = Object.entries(STATUSES)
   .filter(([, s]) => s.blocksTurn).map(([k]) => k);
 
