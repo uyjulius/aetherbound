@@ -162,6 +162,13 @@ func begin(party: Party, encounter: Dictionary, database, ground := "grass.png",
 	if _cast == null:
 		_cast = CastBuilder.new(database)
 	battle = BattleModel.new(party, encounter, database)
+	# The two settings the config screen offers that a fight is actually about. The reference
+	# reads both off the game's config when it builds a battle — `battleSpeed` scales every
+	# gauge and `atbMode` decides whether they keep filling while somebody reads a menu — and
+	# the port offered them, wrote them to the save, and then fought at the defaults regardless.
+	var config := Saves.load_config()
+	battle.battle_speed = float(config.get("battleSpeed", 3))
+	battle.wait_mode = String(config.get("atbMode", "wait")) != "active"
 	# No policy: a player turn opens a menu and waits for `commit_action`, which is what
 	# the harness's scripted policies stand in for.
 	battle.command_policy = Callable()
@@ -172,7 +179,9 @@ func begin(party: Party, encounter: Dictionary, database, ground := "grass.png",
 	_cancels = 0
 	_moves.clear()
 	_raise_stage(database)
-	print("BATTLE_START enemies=%d party=%d" % [battle.enemies.size(), battle.party.size()])
+	print("BATTLE_START enemies=%d party=%d speed=%d wait=%s" % [
+		battle.enemies.size(), battle.party.size(), int(battle.battle_speed),
+		str(battle.wait_mode).to_lower()])
 	Telemetry.track(Telemetry.BATTLE_STARTED, {
 		"enemies": battle.enemies.size(), "party": battle.party.size(),
 		"boss": battle.is_boss, "party_level": _party_level(),

@@ -538,11 +538,16 @@ func _config_notes() -> String:
 		"",
 		"Music and sound are applied as you turn them and written straight away.",
 		"",
-		"Text and battle speed are recorded and will be read by the",
-		"dialogue and battle screens; the reference's graphics quality and",
-		"window colour settings drive a post-processing chain and an HTML",
-		"interface that this port does not have, so they are not offered",
-		"rather than offered and ignored.",
+		"Battle speed scales every gauge, and ATB mode decides whether they",
+		"keep filling while a menu is open. Both are read when a fight starts.",
+		"",
+		"Text speed is written to the save and read by nothing, here or in the",
+		"JS build: its dialogue holds the same 1.6 characters a frame whatever",
+		"this says. Said plainly rather than quietly ignored.",
+		"",
+		"The reference's graphics quality and window colour drive a",
+		"post-processing chain and an HTML interface this port does not have,",
+		"so they are not offered rather than offered and ignored.",
 	])
 
 

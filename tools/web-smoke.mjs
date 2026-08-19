@@ -411,6 +411,10 @@ if (ready) {
     const battleFrom = Date.now();
     while (!battleStarted && Date.now() - battleFrom < 30_000) await page.waitForTimeout(200);
     check('a fight starts', Boolean(battleStarted), battleStarted ?? 'no BATTLE_START in 30s');
+    // And it fights at the settings the config screen offers. Both were written to the save and
+    // then ignored: every fight ran at the defaults whatever the player had chosen.
+    check('and at the speed the config says', /speed=3 wait=true/.test(battleStarted ?? ''),
+      battleStarted ?? 'no BATTLE_START line');
     if (battleStarted) {
       // Long enough for a gauge to fill and a command list to open, so the picture is of
       // a turn being taken rather than of two rats and a wait.
