@@ -41,6 +41,9 @@ const STUCK_AFTER := 3.0
 const STUCK_EPISODES := 3
 
 ## How far ahead the party reaches, and how far that reach carries.
+## How fast a villager strolls. The reference's number.
+const NPC_SPEED := 1.9
+
 ## A chest is a thing on the ground rather than a person to face.
 const CHEST_REACH := 1.7
 
@@ -178,6 +181,9 @@ func _spawn_npcs() -> void:
 		npcs.append({
 			"id": String(def.get("id", "npc")),
 			"x": x, "z": z, "home_x": x, "home_z": z,
+			# Staggered, so a street of villagers does not set off in step.
+			"wander_timer": 1.0 + RngStreams.fx.float_range(0.0, 3.0),
+			"speed": 0.0,
 			"facing": float(FACINGS.get(String(def.get("face", "south")), 0.0)),
 			"shape": grid.shapes[grid.shapes.size() - 1],
 			# The authored row, so an interaction can read what this person offers —
@@ -400,6 +406,56 @@ func interact_target() -> Dictionary:
 ## Passed in rather than read from the party, so the field stays a simulation with no
 ## opinion about save files — which is what lets `field-parity.mjs` drive it without one.
 var opened_chests: Dictionary = {}
+
+
+## Move the people who move, and turn the ones the party walks up to.
+##
+## Deliberately *not* part of `update`. That function is the simulation the harness drives
+## step for step against the reference's own `_updatePlayer`, and an NPC's collider travels
+## with the NPC — so wandering inside it would change what the party can walk through halfway
+## through a scripted walk and make every comparison meaningless. Thirty-one villagers wander;
+## none of them decides anything.
+##
+## The clock comes from the `fx` stream for the same reason: it is seeded from the wall clock
+## and never saved, because where a villager happens to be standing is not part of the game's
+## state.
+func update_npcs(dt: float) -> void:
+	for npc in npcs:
+		var def: Dictionary = npc["def"]
+		var radius := float(def.get("wander", 0.0))
+		if radius > 0.0:
+			npc["wander_timer"] = float(npc.get("wander_timer", 0.0)) - dt
+			if float(npc["wander_timer"]) <= 0.0:
+				npc["wander_timer"] = 2.0 + RngStreams.fx.float_range(0.0, 4.0)
+				var reach := radius * _tile
+				npc["target_x"] = float(npc["home_x"]) + RngStreams.fx.float_range(-reach, reach)
+				npc["target_z"] = float(npc["home_z"]) + RngStreams.fx.float_range(-reach, reach)
+			if npc.has("target_x"):
+				var dx := float(npc["target_x"]) - float(npc["x"])
+				var dz := float(npc["target_z"]) - float(npc["z"])
+				var distance := sqrt(dx * dx + dz * dz)
+				if distance > 0.2:
+					var step := minf(distance, NPC_SPEED * dt)
+					var to := grid.resolve(float(npc["x"]), float(npc["z"]),
+						float(npc["x"]) + dx / distance * step,
+						float(npc["z"]) + dz / distance * step, 0.4)
+					npc["x"] = to[0]
+					npc["z"] = to[1]
+					# The collider goes with them, or a villager blocks themselves.
+					var shape: Dictionary = npc["shape"]
+					shape["x"] = npc["x"]
+					shape["z"] = npc["z"]
+					npc["facing"] = atan2(dx, dz)
+					npc["speed"] = step / maxf(dt, 1e-5)
+				else:
+					npc["speed"] = 0.0
+		# Turning to look at somebody who has come close is most of what makes a village feel
+		# inhabited, and it costs one angle.
+		if bool(def.get("facePlayer", true)) and float(npc.get("speed", 0.0)) < 0.1:
+			var to_player := sqrt(pow(player.x - float(npc["x"]), 2.0)
+				+ pow(player.z - float(npc["z"]), 2.0))
+			if to_player < 2.6:
+				npc["facing"] = atan2(player.x - float(npc["x"]), player.z - float(npc["z"]))
 
 
 ## The flag that spends a `once` trigger.

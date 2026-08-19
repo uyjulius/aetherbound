@@ -61,6 +61,8 @@ var _walker: Node3D
 var _cast: CastModels
 ## One model per villager on this map, in the field's own npc order.
 var _crowd: Array[Node3D] = []
+## What each of them is doing, so a clip is only restarted when it changes.
+var _crowd_clips: Array[String] = []
 ## What the walker is doing, so a clip is only restarted when it changes.
 var _walker_clip := ""
 var _sun: DirectionalLight3D
@@ -468,6 +470,7 @@ func _spawn_crowd() -> void:
 		if node != null:
 			node.queue_free()
 	_crowd.clear()
+	_crowd_clips.clear()
 	if _cast == null or _field == null:
 		return
 	for npc in _field.npcs:
@@ -486,7 +489,26 @@ func _spawn_crowd() -> void:
 		_crowd.append(node)
 		# `clip` is the map's own word for what this person is doing.
 		_cast.play_character_clip(node, String(def.get("clip", "loiter")))
+		_crowd_clips.append(String(def.get("clip", "loiter")))
 	print("CROWD map=%s people=%d" % [_ids[_index], _crowd.size()])
+
+
+## Walk the crowd's models to wherever the simulation has put them.
+func _move_crowd() -> void:
+	for i in mini(_crowd.size(), _field.npcs.size()):
+		var node := _crowd[i]
+		if node == null:
+			continue
+		var npc: Dictionary = _field.npcs[i]
+		node.position = Vector3(float(npc["x"]), 0.0, float(npc["z"]))
+		# Facing the same way the party's model does, and by the same half turn: these meshes
+		# look down +Z and the field measures facing from there.
+		node.rotation.y = float(npc["facing"]) + PI
+		var wanted := "walk" if float(npc.get("speed", 0.0)) > 0.2 \
+			else String(npc["def"].get("clip", "loiter"))
+		if i < _crowd_clips.size() and _crowd_clips[i] != wanted:
+			_crowd_clips[i] = wanted
+			_cast.play_character_clip(node, wanted)
 
 
 ## Point the camera where the simulation says it is.
@@ -611,6 +633,12 @@ func _process(delta: float) -> void:
 		_field.camera.orbit(1)
 	if Actions.just_pressed("pageRight"):
 		_field.camera.orbit(-1)
+
+	# The villagers, before the party moves: thirty-one of them wander and the rest turn to
+	# look at whoever has come close. Outside `Field.update` on purpose — their colliders travel
+	# with them, and the harness drives that function step for step against the reference.
+	_field.update_npcs(delta)
+	_move_crowd()
 
 	var result := _field.update(delta, Actions.move_vector(), Actions.is_down("run"))
 	if not result["encounter"].is_empty():
