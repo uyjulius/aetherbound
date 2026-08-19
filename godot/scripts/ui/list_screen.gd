@@ -72,25 +72,41 @@ func _build() -> void:
 	add_child(ground)
 
 	_title = Label.new()
-	_title.position = Vector2(80, 60)
+	_title.position = Vector2(72, 44)
 	_title.add_theme_font_size_override("font_size", 40)
 	_title.add_theme_color_override("font_color", Palette.ui_color("select"))
 	add_child(_title)
 
+	# Two windows, in the game's own chrome, rather than text floating on a dim screen. The
+	# reference's menu is a set of panels and this was a column of words over the field: legible
+	# enough to read and not obviously a screen, which is worse than it sounds on the shop's
+	# comparison table, where a list and a description sit side by side and nothing said which
+	# was which.
+	var list_panel := PanelContainer.new()
+	list_panel.add_theme_stylebox_override("panel", WindowBox.panel(0.9, 20.0))
+	list_panel.position = Vector2(60, 116)
+	list_panel.custom_minimum_size = Vector2(640, 828)
+	add_child(list_panel)
+
 	_list = VBoxContainer.new()
-	_list.position = Vector2(80, 140)
+	_list.size_flags_vertical = Control.SIZE_SHRINK_BEGIN
 	_list.add_theme_constant_override("separation", 6)
-	add_child(_list)
+	list_panel.add_child(_list)
+
+	var detail_panel := PanelContainer.new()
+	detail_panel.add_theme_stylebox_override("panel", WindowBox.panel(0.9, 20.0))
+	detail_panel.position = Vector2(724, 116)
+	detail_panel.custom_minimum_size = Vector2(1136, 828)
+	add_child(detail_panel)
 
 	_detail = Label.new()
-	_detail.position = Vector2(760, 140)
-	_detail.custom_minimum_size = Vector2(1080, 700)
+	_detail.size_flags_vertical = Control.SIZE_SHRINK_BEGIN
 	_detail.add_theme_font_size_override("font_size", 22)
 	_detail.add_theme_color_override("font_color", Palette.ui_color("text"))
-	add_child(_detail)
+	detail_panel.add_child(_detail)
 
 	_footer = Label.new()
-	_footer.position = Vector2(80, 980)
+	_footer.position = Vector2(72, 972)
 	_footer.add_theme_font_size_override("font_size", 20)
 	_footer.add_theme_color_override("font_color", Palette.ui_color("textDim"))
 	add_child(_footer)
