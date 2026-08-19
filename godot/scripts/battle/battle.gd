@@ -62,6 +62,8 @@ var rewards: Dictionary = {}
 var unsupported: Array = []
 
 var _party_ref: Party
+## The last thing a party member did, for Mimic.
+var last_party_action: Dictionary = {}
 var _db
 var _statuses: Dictionary = {}
 var _tick_rates: Dictionary = {}
@@ -317,6 +319,13 @@ func commit_action(action: Dictionary) -> void:
 		return
 	var actor: Combatant = action["actor"]
 	phase = Phase.EXECUTING
+	# Remembered for the Mask, whose whole command is doing whatever the party just did. Kept
+	# here rather than in the screen because a party member can act without a menu — a
+	# scripted policy in the harness, a confused character taking its own turn — and Mimic
+	# should copy those too.
+	if actor.kind == "party" and String(action.get("kind", "")) != "mimic" \
+			and not bool(action.get("mimicked", false)):
+		last_party_action = action.duplicate()
 
 	var kind := String(action.get("kind", "attack"))
 	match kind:

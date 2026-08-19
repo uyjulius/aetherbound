@@ -81,6 +81,10 @@ func _ready() -> void:
 		return
 	Palette.adopt(_db.palette)
 	Actions.build(_db.input)
+	# The command table, which the battle menu reads for its labels, its kinds and its moves.
+	# Static like the palette, and just as invisible when nobody adopts it: the menu showed
+	# "pilfer" where it should have said "Pilfer", because `label()` falls back to the id.
+	Commands.adopt(_db.commands)
 
 	var rest: Array = _db.maps.keys()
 	rest.sort()

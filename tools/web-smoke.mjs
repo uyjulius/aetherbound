@@ -151,6 +151,8 @@ let compared = null;
 const scenery = [];
 const crowd = [];
 let stage = null;
+const turns = [];
+const actions = [];
 let wiped = null;
 let rolledBack = null;
 const configured = [];
@@ -198,6 +200,8 @@ page.on('console', (message) => {
   if (/^SCENERY /.test(text.trim())) scenery.push(text.trim());
   if (/^CROWD /.test(text.trim())) crowd.push(text.trim());
   if (/^STAGE /.test(text.trim())) stage = text.trim();
+  if (/^TURN /.test(text.trim())) turns.push(text.trim());
+  if (/^ACTION /.test(text.trim())) actions.push(text.trim());
   if (text.includes('PARTY_WIPED')) wiped = text.trim();
   if (text.includes('ROLLED_BACK')) rolledBack = text.trim();
   if (/^CONFIG /.test(text.trim())) configured.push(text.trim());
@@ -331,6 +335,37 @@ if (ready) {
       // Long enough for a gauge to fill and a command list to open, so the picture is of
       // a turn being taken rather than of two rats and a wait.
       await page.waitForTimeout(3500);
+      // Cast something, by finding the row rather than counting on it. What a character can
+      // do depends on who they are, what magicite they carry and how hurt they are — Corvin
+      // has no magic at all — so the menu says what it is offering, marks what cannot be
+      // chosen with a `!`, and this waits for somebody who can cast.
+      let cast = false;
+      for (let attempt = 0; attempt < 8 && !cast; attempt++) {
+        for (let i = 0; i < 40 && turns.length <= attempt; i++) await page.waitForTimeout(250);
+        const menu = (turns[attempt]?.match(/menu=(.*)$/)?.[1] ?? '').split('|');
+        const magic = menu.indexOf('Magic');
+        if (magic >= 0) {
+          for (let i = 0; i < magic; i++) {
+            await page.keyboard.press('ArrowDown');
+            await page.waitForTimeout(120);
+          }
+          // Into the spell list, onto the first spell, onto a target.
+          for (let i = 0; i < 3; i++) {
+            await page.keyboard.press('Enter');
+            await page.waitForTimeout(400);
+          }
+          cast = actions.some((line) => line.endsWith(' spell'));
+        } else {
+          // Whoever this is cannot cast. Take the swing and wait for the next gauge.
+          for (let i = 0; i < 2; i++) {
+            await page.keyboard.press('Enter');
+            await page.waitForTimeout(350);
+          }
+        }
+      }
+      check('a spell can be chosen and cast', cast,
+        actions.length ? actions.slice(0, 5).join(' | ')
+          : `menus were ${turns.slice(0, 3).join(' / ')}`);
       const battleShot = path.join(root, '.renders',
         remote ? 'godot-web-battle-live.png' : 'godot-web-battle.png');
       await page.screenshot({ path: battleShot });
