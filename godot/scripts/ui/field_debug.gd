@@ -66,6 +66,8 @@ var _walker_clip := ""
 var _sun: DirectionalLight3D
 var _environment: Environment
 var _place: Label
+var _prompt: Label
+var _bar: HBoxContainer
 ## The top-down grid, which is what this screen used to be. Kept behind a key: it is the
 ## only view that shows collision and walkability at once, and that is worth having when the
 ## scenery starts disagreeing with the simulation.
@@ -230,6 +232,20 @@ func _ready() -> void:
 	_place.modulate.a = 0.0
 	add_child(_place)
 
+	# What confirm would do, where the reference puts it: over the party's head, and only
+	# when there is something to do. Without it a player has no way to know that the person
+	# they are standing next to can be spoken to at all.
+	_prompt = Label.new()
+	_prompt.add_theme_font_size_override("font_size", 30)
+	_prompt.add_theme_color_override("font_color", Palette.ui_color("select"))
+	_prompt.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	_prompt.set_anchors_and_offsets_preset(Control.PRESET_BOTTOM_WIDE)
+	_prompt.offset_top = -300.0
+	_prompt.offset_bottom = -250.0
+	add_child(_prompt)
+
+	_build_control_bar()
+
 	_label = Label.new()
 	_label.add_theme_font_size_override("font_size", 20)
 	_label.add_theme_color_override("font_color", Palette.ui_color("text"))
@@ -308,6 +324,83 @@ func _build_world() -> void:
 	# reference picks for whoever is leading the party, from the same table and the same hash.
 	_cast = CastBuilder.new(_db)
 	_spawn_walker()
+
+
+## Show or hide the field's own furniture, so a menu or a fight has the screen to itself.
+func _set_field_hud(showing: bool) -> void:
+	if _bar != null:
+		# Not over a conversation: the box is at the bottom of the screen and so is the bar.
+		_bar.visible = showing and not (_dialogue != null and _dialogue.is_open)
+	if _prompt != null:
+		_prompt.visible = showing
+	if _place != null:
+		_place.visible = showing
+
+
+## The controls, along the bottom.
+##
+## The reference's control bar is the game's statement of what its controls *are* — the
+## keys come from the same `input` table the bindings do, so a rebound key changes the bar
+## without anybody editing it. What is not ported is that its bar is clickable: it doubles
+## as a touch pad, and on a phone it is the only way to play. That is a real loss and it is
+## named rather than hidden; a Godot build with 37 MB of engine to download is a poor phone
+## game either way, and the web build is still at /js/ for anybody on one.
+func _build_control_bar() -> void:
+	_bar = HBoxContainer.new()
+	_bar.add_theme_constant_override("separation", 34)
+	_bar.set_anchors_and_offsets_preset(Control.PRESET_BOTTOM_WIDE)
+	_bar.alignment = BoxContainer.ALIGNMENT_CENTER
+	_bar.offset_top = -104.0
+	_bar.offset_bottom = -34.0
+	add_child(_bar)
+
+	# The labels and the hints are the reference's, in its order, from `controls.json`. "Talk"
+	# for confirm and "Enter" rather than "Z" are decisions about how to explain the game to
+	# somebody who has just arrived, and deriving them from the key table instead would tell
+	# them to press Z.
+	var pairs: Array = []
+	var move: Array = _db.controls.get("move", [])
+	if not move.is_empty():
+		# Read in the order a keyboard reads them rather than the order a cross is drawn in:
+		# the reference's pad is positional — up, left, right, down — and a text bar that
+		# copies that order says "WADS".
+		var by_action := {}
+		for entry in move:
+			by_action[String(entry.get("action", ""))] = String(entry.get("hint", ""))
+		var keys := ""
+		for action in ["up", "left", "down", "right"]:
+			keys += String(by_action.get(action, ""))
+		pairs.append(["Move", keys])
+	for entry in _db.controls.get("bar", []):
+		# Nothing that belongs to a fight, and nothing this port has not got: `Pause` and
+		# `Flee` are the reference's and are left out rather than shown and ignored.
+		if bool(entry.get("battleOnly", false)) or entry.get("action", null) == null:
+			continue
+		var label := String(entry.get("label", ""))
+		var hint := String(entry.get("hint", ""))
+		# Two buttons with one name become one entry with two keys: the reference has a Turn
+		# button for each direction because you can click them, and "Turn Q · Turn E" reads as
+		# a mistake.
+		if not pairs.is_empty() and String(pairs[-1][0]) == label:
+			pairs[-1][1] = "%s %s" % [String(pairs[-1][1]), hint]
+			continue
+		pairs.append([label, hint])
+	for pair in pairs:
+		var column := VBoxContainer.new()
+		column.add_theme_constant_override("separation", 0)
+		var label := Label.new()
+		label.text = String(pair[0])
+		label.add_theme_font_size_override("font_size", 20)
+		label.add_theme_color_override("font_color", Palette.ui_color("text"))
+		label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+		column.add_child(label)
+		var hint := Label.new()
+		hint.text = String(pair[1])
+		hint.add_theme_font_size_override("font_size", 16)
+		hint.add_theme_color_override("font_color", Palette.ui_color("textDim"))
+		hint.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+		column.add_child(hint)
+		_bar.add_child(column)
 
 
 ## Say where this is, then get out of the way.
@@ -435,15 +528,19 @@ func _process(delta: float) -> void:
 	if _battle != null and _battle.visible:
 		# The grid and its HUD stay behind the fight rather than showing through it.
 		_label.visible = false
+		_set_field_hud(false)
 		return
 	# The menu likewise: it is a full screen, and a party walking behind it would be
 	# accumulating encounter distance while somebody reads their equipment.
 	if _menu != null and _menu.visible:
 		_label.visible = false
+		_set_field_hud(false)
 		return
 	if _shop != null and _shop.visible:
 		_label.visible = false
+		_set_field_hud(false)
 		return
+	_set_field_hud(true)
 	# The diagnostic read-out lives behind the same key as the grid it describes. It is the
 	# most useful screen in this project and the last thing a player should be shown.
 	_label.visible = _show_grid
@@ -516,12 +613,30 @@ func _process(delta: float) -> void:
 		return
 	_trigger = result["trigger"]
 	_follow_camera()
+	_update_prompt()
 	queue_redraw()
 	_update_label()
 
 
 var _encounters := 0
 var _trigger: Dictionary = {}
+
+
+## What confirm would do here, if anything.
+func _update_prompt() -> void:
+	if _prompt == null:
+		return
+	if not _interact.is_empty():
+		_prompt.text = "%s  %s" % [String(_interact["label"]),
+			String(_interact["npc"]["def"].get("name", ""))]
+		return
+	# A door says where it goes. The reference offers the same thing at an exit, and a village
+	# whose gates are unmarked is a village nobody leaves on purpose.
+	if not _trigger.is_empty() and String(_trigger.get("kind", "")) == "exit":
+		var data: Dictionary = _trigger.get("data", {})
+		_prompt.text = String(data.get("prompt", "")) if data.has("prompt") else ""
+		return
+	_prompt.text = ""
 
 
 ## Act on a trigger. Returns true when it took over the screen.

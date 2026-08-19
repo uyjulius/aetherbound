@@ -42,6 +42,10 @@ import { QUESTS, QUEST_KIND_ORDER, QUEST_KIND_LABEL } from '../src/data/quests.j
 // — plus one hash that has to agree exactly, or the port shows a different monster from the
 // one the reference shows for the same species. So they cross as data.
 import { CHARACTER_MODELS, CAST, CLIP_MAP, ONCE_CLIPS } from '../src/world/charmodels.js';
+// The control bar's own words. "Talk" for confirm and "Enter" rather than "Z" are authored
+// choices about how to explain the game to somebody who has just arrived, and a port that
+// derived them from the key table instead would tell them to press Z.
+import { BUTTONS as CONTROL_BUTTONS, DPAD as CONTROL_DPAD } from '../src/ui/controls.js';
 import {
   MONSTER_MODELS, CLIP_PATTERNS, FALLBACK,
   ONCE_CLIPS as MONSTER_ONCE,
@@ -136,6 +140,15 @@ const written = [
   // player wants to see first — so it crosses as data instead of being retyped in
   // GDScript where it would quietly drift.
   write('quest_kinds', { order: QUEST_KIND_ORDER, label: QUEST_KIND_LABEL }),
+  // Only what a label needs. The glyphs are inline SVG and the click wiring is the web
+  // build's own; what crosses is which controls are worth naming, in what order, and how.
+  write('controls', {
+    bar: CONTROL_BUTTONS.map(({ id, action, label, hint, fieldOnly, battleOnly, primary }) => ({
+      id, action: action ?? null, label, hint,
+      fieldOnly: Boolean(fieldOnly), battleOnly: Boolean(battleOnly), primary: Boolean(primary),
+    })),
+    move: CONTROL_DPAD.map(({ id, action, label, hint }) => ({ id, action, label, hint })),
+  }),
 
   // The cast's meshes and the clips that drive them. `clips` maps a game clip to the name
   // the artist gave it; `once` is the ones that play and hold rather than looping.

@@ -23,7 +23,7 @@ const TABLES := [
 	"enemies", "encounters", "items", "shops", "spells", "espers", "quests",
 	"quest_kinds", "tracks", "characters", "maps", "cast_order", "palette", "input",
 	"legend", "footprints", "statuses", "commands", "boss_events", "char_models",
-	"monster_models",
+	"monster_models", "controls",
 ]
 
 var enemies: Dictionary = {}
@@ -37,6 +37,8 @@ var quest_kinds: Dictionary = {}
 ## Which mesh plays which character, and which plays which creature.
 var char_models: Dictionary = {}
 var monster_models: Dictionary = {}
+## The control bar's labels and key hints, in the reference's own words and order.
+var controls: Dictionary = {}
 var tracks: Dictionary = {}
 var characters: Dictionary = {}
 var maps: Dictionary = {}
@@ -86,6 +88,7 @@ func load_all() -> bool:
 	quest_kinds = _read("quest_kinds")
 	char_models = _read("char_models")
 	monster_models = _read("monster_models")
+	controls = _read("controls")
 	tracks = _read("tracks")
 	characters = _read("characters")
 	maps = _read("maps")

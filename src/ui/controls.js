@@ -27,7 +27,7 @@ import { input } from '../engine/input.js';
  * Camera turns are held-to-repeat, so the button follows suit: press and hold
  * to keep rotating. Menu, pause and the two answer buttons are taps.
  */
-const BUTTONS = [
+export const BUTTONS = [
   {
     id: 'cam-left', action: 'pageLeft', hold: true, fieldOnly: true,
     label: 'Turn', hint: 'Q', glyph: 'rotate-left',
@@ -90,7 +90,7 @@ const GLYPHS = {
  * pointer. Field only — the battle is a menu, and a d-pad over it would
  * suggest the party can be walked around mid-fight.
  */
-const DPAD = [
+export const DPAD = [
   { id: 'move-up', action: 'up', label: 'Up', hint: 'W', glyph: 'arrow-up', cls: 'dpad-up' },
   { id: 'move-left', action: 'left', label: 'Left', hint: 'A', glyph: 'arrow-left', cls: 'dpad-left' },
   { id: 'move-right', action: 'right', label: 'Right', hint: 'D', glyph: 'arrow-right', cls: 'dpad-right' },

@@ -33,7 +33,7 @@ const say = (s = '') => console.log(s);
 
 const TABLES = ['enemies', 'encounters', 'items', 'shops', 'spells', 'espers',
   'quests', 'quest_kinds', 'tracks', 'characters', 'maps', 'char_models',
-  'monster_models'];
+  'monster_models', 'controls'];
 
 /** Total and count of every number reachable inside a value, booleans excluded. */
 function numbers(value) {
