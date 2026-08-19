@@ -75,6 +75,8 @@ var _environment: Environment
 var _place: Label
 var _prompt: Label
 var _bar: HBoxContainer
+var _pad: GridContainer
+var _pad_backing: PanelContainer
 ## The top-down grid, which is what this screen used to be. Kept behind a key: it is the
 ## only view that shows collision and walkability at once, and that is worth having when the
 ## scenery starts disagreeing with the simulation.
@@ -368,6 +370,10 @@ func _build_world() -> void:
 
 ## Show or hide the field's own furniture, so a menu or a fight has the screen to itself.
 func _set_field_hud(showing: bool) -> void:
+	if _pad_backing != null:
+		# The pad is the field's. A battle is a menu, and a d-pad over it would say the party
+		# can be walked around mid-fight.
+		_pad_backing.visible = showing and (_dialogue == null or not _dialogue.is_open)
 	if _bar != null:
 		# Not over a conversation: the box is at the bottom of the screen and so is the bar.
 		_bar.visible = showing and not (_dialogue != null and _dialogue.is_open)
@@ -397,7 +403,7 @@ func _build_control_bar() -> void:
 	# The labels and the hints are the reference's, in its order, from `controls.json`. "Talk"
 	# for confirm and "Enter" rather than "Z" are decisions about how to explain the game to
 	# somebody who has just arrived, and deriving them from the key table instead would tell
-	# them to press Z.
+	# them to press Z. Each entry is `[label, hint, action, hold]`.
 	var pairs: Array = []
 	var move: Array = _db.controls.get("move", [])
 	if not move.is_empty():
@@ -410,7 +416,7 @@ func _build_control_bar() -> void:
 		var keys := ""
 		for action in ["up", "left", "down", "right"]:
 			keys += String(by_action.get(action, ""))
-		pairs.append(["Move", keys])
+		pairs.append(["Move", keys, ""])
 	for entry in _db.controls.get("bar", []):
 		# Nothing that belongs to a fight, and nothing this port has not got: `Pause` and
 		# `Flee` are the reference's and are left out rather than shown and ignored.
@@ -424,23 +430,126 @@ func _build_control_bar() -> void:
 		if not pairs.is_empty() and String(pairs[-1][0]) == label:
 			pairs[-1][1] = "%s %s" % [String(pairs[-1][1]), hint]
 			continue
-		pairs.append([label, hint])
+		# `hold` is the reference's own flag: turning the camera and running are held rather
+		# than tapped, so the button presses on the way down and releases on the way up.
+		pairs.append([label, hint, String(entry.get("action", "")),
+			String(entry.get("action", "")) in ["pageLeft", "pageRight", "run"]])
 	for pair in pairs:
-		var column := VBoxContainer.new()
-		column.add_theme_constant_override("separation", 0)
-		var label := Label.new()
-		label.text = String(pair[0])
-		label.add_theme_font_size_override("font_size", 20)
-		label.add_theme_color_override("font_color", Palette.ui_color("text"))
-		label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-		column.add_child(label)
-		var hint := Label.new()
-		hint.text = String(pair[1])
-		hint.add_theme_font_size_override("font_size", 16)
-		hint.add_theme_color_override("font_color", Palette.ui_color("textDim"))
-		hint.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-		column.add_child(hint)
-		_bar.add_child(column)
+		var action := String(pair[2]) if pair.size() > 2 else ""
+		if action.is_empty():
+			# `Move` is the pad's label, not a button: there is a pad for that.
+			var column := VBoxContainer.new()
+			column.add_theme_constant_override("separation", 0)
+			column.add_child(_bar_label(String(pair[0]), 20, Palette.ui_color("text")))
+			column.add_child(_bar_label(String(pair[1]), 16, Palette.ui_color("textDim")))
+			_bar.add_child(column)
+			continue
+		_bar.add_child(_bar_button(String(pair[0]), String(pair[1]), action,
+			pair.size() > 3 and bool(pair[3])))
+
+	_build_pad()
+
+
+## A press from the screen rather than the keyboard.
+##
+## Said out loud because it is otherwise unobservable from outside: Godot draws its interface
+## into a canvas, so nothing about these buttons appears in the page — a check that wants to
+## know the touch controls work has nothing to look at but this line.
+func _tap_down(action: String) -> void:
+	print("TAP %s" % action)
+	Actions.virtual_press(action)
+
+
+func _bar_label(text: String, size: int, colour: Color) -> Label:
+	var label := Label.new()
+	label.text = text
+	label.add_theme_font_size_override("font_size", size)
+	label.add_theme_color_override("font_color", colour)
+	label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	return label
+
+
+## One button on the bar.
+##
+## Pressable, which is the whole point: the reference's bar doubles as the touch controls, and
+## on a phone it is the only way to play at all. A tap goes through `Actions.virtual_press`,
+## which delivers it as an input event — so the screens that count events rather than polling
+## see it exactly as they see a key.
+func _bar_button(label: String, hint: String, action: String, hold: bool) -> Button:
+	var button := Button.new()
+	button.flat = true
+	button.focus_mode = Control.FOCUS_NONE
+	button.custom_minimum_size = Vector2(96, 62)
+	button.text = "%s\n%s" % [label, hint]
+	button.add_theme_font_size_override("font_size", 20)
+	button.add_theme_color_override("font_color", Palette.ui_color("text"))
+	button.add_theme_color_override("font_hover_color", Palette.ui_color("select"))
+	button.autowrap_mode = TextServer.AUTOWRAP_OFF
+	if hold:
+		button.button_down.connect(func(): _tap_down(action))
+		button.button_up.connect(func(): Actions.virtual_release(action))
+	else:
+		# Pressed and released in the same breath: a tap on Talk is a key going down and up,
+		# and a screen that waits for the release would never see the press.
+		button.pressed.connect(func():
+			_tap_down(action)
+			await get_tree().process_frame
+			Actions.virtual_release(action))
+	return button
+
+
+## What each pad button says.
+##
+## The keys rather than arrows: Godot's default font has no ▲, and a pad of four empty boxes is
+## worse than no pad. Saying "W" also tells a player on a keyboard what the button is for,
+## which an arrow does not.
+const PAD_KEYS := {"up": "W", "down": "S", "left": "A", "right": "D"}
+
+
+## The movement pad, held to walk.
+##
+## Field only, as in the reference: a battle is a menu, and a d-pad over it would suggest the
+## party can be walked around mid-fight.
+func _build_pad() -> void:
+	# On a dark panel, so a pad over grass is still legible.
+	var backing := PanelContainer.new()
+	var style := StyleBoxFlat.new()
+	style.bg_color = Color(Palette.ink)
+	style.bg_color.a = 0.42
+	style.set_corner_radius_all(8)
+	style.set_content_margin_all(8)
+	backing.add_theme_stylebox_override("panel", style)
+	backing.set_anchors_and_offsets_preset(Control.PRESET_BOTTOM_LEFT)
+	backing.offset_left = 30.0
+	backing.offset_top = -244.0
+	backing.offset_bottom = -30.0
+	add_child(backing)
+
+	_pad = GridContainer.new()
+	_pad.columns = 3
+	_pad.add_theme_constant_override("h_separation", 4)
+	_pad.add_theme_constant_override("v_separation", 4)
+	backing.add_child(_pad)
+	_pad_backing = backing
+	for row in [["", "up", ""], ["left", "", "right"], ["", "down", ""]]:
+		for action in row:
+			if String(action).is_empty():
+				var gap := Control.new()
+				gap.custom_minimum_size = Vector2(62, 62)
+				_pad.add_child(gap)
+				continue
+			var glyph: String = PAD_KEYS[String(action)]
+			var button := Button.new()
+			button.flat = true
+			button.focus_mode = Control.FOCUS_NONE
+			button.custom_minimum_size = Vector2(62, 62)
+			button.text = glyph
+			button.add_theme_font_size_override("font_size", 26)
+			button.add_theme_color_override("font_color", Palette.ui_color("text"))
+			button.add_theme_color_override("font_hover_color", Palette.ui_color("select"))
+			button.button_down.connect(func(): _tap_down(String(action)))
+			button.button_up.connect(func(): Actions.virtual_release(String(action)))
+			_pad.add_child(button)
 
 
 ## Say where this is, then get out of the way.

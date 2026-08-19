@@ -161,11 +161,24 @@ static func move_vector() -> Vector2:
 	return Input.get_vector("left", "right", "up", "down")
 
 
-## For the on-screen control bar: a tap the rest of the game cannot tell from a
-## real key press.
+## For the on-screen control bar: a tap the rest of the game cannot tell from a real key
+## press.
+##
+## Through `parse_input_event` rather than `action_press`, and the difference matters. The
+## latter sets the action's *state*, which is enough for anything that polls — walking, holding
+## run — and invisible to anything that counts events. Three screens in this port count events
+## on purpose, because a polled press is lost when the frame it arrived in belonged to somebody
+## else: the dialogue box, the list screens and the battle menu. A tap has to reach those too,
+## so it is delivered as an event and the state follows from it.
 static func virtual_press(action: String) -> void:
-	Input.action_press(action)
+	var event := InputEventAction.new()
+	event.action = action
+	event.pressed = true
+	Input.parse_input_event(event)
 
 
 static func virtual_release(action: String) -> void:
-	Input.action_release(action)
+	var event := InputEventAction.new()
+	event.action = action
+	event.pressed = false
+	Input.parse_input_event(event)

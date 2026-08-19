@@ -130,6 +130,7 @@ const badResponses = [];
 let ready = null;
 let field = null;
 const opened = new Set();
+const taps = [];
 let sceneStarted = null;
 let sceneEnded = null;
 let dialogueOpened = null;
@@ -219,6 +220,7 @@ page.on('console', (message) => {
   if (/^CHEST /.test(text.trim())) chest = text.trim();
   if (/^CHEST_DONE /.test(text.trim())) chestDone = text.trim();
   if (/^SAVE_POINT /.test(text.trim())) savePoint = text.trim();
+  if (/^TAP /.test(text.trim())) taps.push(text.trim().split(' ')[1]);
   if (/^BOARDED /.test(text.trim())) boarded = text.trim();
   if (/^LANDED /.test(text.trim())) landed = text.trim();
   if (/^FOUND /.test(text.trim())) found.push(text.trim());
@@ -626,14 +628,16 @@ if (ready) {
     check('the night ends and hands the field back', Boolean(innDone),
       innDone ?? 'no INN_DONE after ten confirms');
 
-    // Then out of the village. Harrowmere's south bridge is an exit and the party spawned
-    // three paces from it, so walking back down there should change map — which is the whole
-    // difference between a diagnostic and a world. First back to the middle: the crystal
-    // detour above stepped four paces east, and the bridge is a gap in a wall.
-    for (let i = 0; i < 4; i++) {
-      await page.keyboard.down('ArrowLeft');
-      await page.waitForTimeout(150);
-      await page.keyboard.up('ArrowLeft');
+    // Then out of the village, which is the whole difference between a diagnostic and a
+    // world. Harrowmere's south bridge is an exit and the party spawns three paces from it —
+    // but by now they have been to a crystal, a chest, a shop and an inn, and where they are
+    // standing is anybody's guess. So the map is opened again from its own spawn: `M` walks the
+    // map list, and stopping when it comes back round to Harrowmere costs a second and makes
+    // this check independent of everything above it.
+    for (let i = 0; i < 96; i++) {
+      await page.keyboard.press('KeyM');
+      await page.waitForTimeout(240);
+      if (/map=harrowmere\b/.test(field ?? '')) break;
     }
     for (let i = 0; i < 60 && !mapEntered; i++) {
       await page.keyboard.down('ArrowUp');
@@ -906,6 +910,66 @@ if (field) {
   await page.screenshot({ path: path.join(root, '.renders',
     remote ? 'godot-web-airship-live.png' : 'godot-web-airship.png') });
   await clearField();
+}
+
+// --- the controls you can touch ----------------------------------------------
+//
+// The bar and the pad are buttons, because on a phone they are the only way to play. Clicked
+// rather than pressed here: a tap has to reach the screens that count input events as well as
+// the ones that poll it, and `virtual_press` delivers it as an event for exactly that reason.
+if (field) {
+  /**
+   * Where a point in the game's own 1920×1080 space lands on the page.
+   *
+   * Godot draws its interface into a canvas, so there is nothing here to select by role or by
+   * name — a tap is a click at a coordinate, and the coordinate has to be converted. The
+   * viewport stretches to fit with `canvas_items`, so the mapping is one scale factor and the
+   * letterbox offset.
+   */
+  const canvas = await page.evaluate(() => {
+    const el = document.querySelector('canvas');
+    const box = el.getBoundingClientRect();
+    return { left: box.left, top: box.top, width: box.width, height: box.height };
+  });
+  const spot = (x, y) => {
+    const scale = Math.min(canvas.width / 1920, canvas.height / 1080);
+    return [
+      canvas.left + (canvas.width - 1920 * scale) / 2 + x * scale,
+      canvas.top + (canvas.height - 1080 * scale) / 2 + y * scale,
+    ];
+  };
+  // The pad: a panel 30 from the left and 30 from the bottom, eight of margin, then a three
+  // by three grid of 62-pixel buttons four apart. Up is the middle of the top row.
+  const padCentre = (column, row) => spot(30 + 8 + column * 66 + 31, 1080 - 244 + 8 + row * 66 + 31);
+  const held = [];
+  for (const [label, column, row] of [['W', 1, 0], ['S', 1, 2], ['A', 0, 1], ['D', 2, 1]]) {
+    taps.length = 0;
+    const [x, y] = padCentre(column, row);
+    await page.mouse.move(x, y);
+    await page.mouse.down();
+    await page.waitForTimeout(350);
+    await page.mouse.up();
+    await page.waitForTimeout(150);
+    if (taps.length > 0) held.push(`${label}=${taps[0]}`);
+  }
+  check('the movement pad presses the movement actions', held.length === 4,
+    held.join(' ') || 'nothing reported a tap');
+
+  // And the bar. Menu is the one button with an answer in the log.
+  menuOpens = 0;
+  menuCloses = 0;
+  taps.length = 0;
+  // The bar is centred along the bottom: six entries about 96 wide with 34 between them, and
+  // Menu is the fourth. Rather than count pixels across, the check walks a row of likely
+  // centres and stops at the one that opens a menu — which is also how a finger finds it.
+  for (let x = 700; x <= 1240 && menuOpens === 0; x += 40) {
+    const [px, py] = spot(x, 1080 - 68);
+    await page.mouse.click(px, py);
+    await page.waitForTimeout(320);
+  }
+  check('tapping the bar opens the menu', menuOpens > 0,
+    `${menuOpens} open(s), taps seen: ${taps.join(',') || 'none'}`);
+  await closeMenu();
 }
 
 // --- every map in the world --------------------------------------------------
