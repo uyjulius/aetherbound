@@ -168,6 +168,14 @@ func _init(map_def: Dictionary, legend: Dictionary, footprints: Dictionary,
 	grid = built.grid
 	_spawn_npcs()
 
+	# The camera this map wants. Ninety-four of the ninety-five say how far back and how steep
+	# they should be read from — a town is close and level, a dungeon is closer, the overworld
+	# pulls out — and the port was using the default for all of them, which is why the camera
+	# kept ending up inside somebody's roof.
+	camera.distance = float(map_def.get("cameraDistance", camera.distance))
+	camera.target_distance = camera.distance
+	camera.pitch = float(map_def.get("cameraPitch", camera.pitch))
+
 	var spawn := resolve_spawn(spawn_name)
 	player.x = spawn[0]
 	player.z = spawn[1]
@@ -418,6 +426,14 @@ func interact_target() -> Dictionary:
 	return best
 
 
+## How many breadcrumbs apart the party walks. The reference's number.
+const FOLLOWER_SPACING := 9
+
+## The party behind the leader: `{x, z, facing, speed}` each.
+var followers: Array = []
+var _trail: Array = []
+
+
 ## The ship, while the party is flying it: `{x, z, facing, thrust}`. Empty on the ground.
 var vehicle: Dictionary = {}
 ## Where the hull is sitting, when it is sitting: `{x, z, facing}`.
@@ -429,6 +445,46 @@ var parked: Dictionary = {}
 ## Passed in rather than read from the party, so the field stays a simulation with no
 ## opinion about save files — which is what lets `field-parity.mjs` drive it without one.
 var opened_chests: Dictionary = {}
+
+
+## Walk the rest of the party along behind the leader.
+##
+## Breadcrumbs rather than steering: the leader drops a crumb every 0.16 units and each
+## follower walks to the crumb nine places behind the one in front. The reference's note says
+## why, and it is the right reason — a follower that steers towards the leader takes shortcuts
+## through walls, and a follower that walks the leader's own path cannot.
+##
+## Outside `update` for the same reason the villagers are: the harness drives that function
+## against the reference's `_updatePlayer`, which does not move followers either.
+func update_followers(dt: float, count: int) -> Array:
+	if count <= 0:
+		return []
+	if _trail.is_empty() or Vector2(player.x - _trail[0][0], player.z - _trail[0][1]).length() > 0.16:
+		_trail.insert(0, [player.x, player.z])
+		if _trail.size() > 240:
+			_trail.resize(240)
+	while followers.size() < count:
+		followers.append({"x": player.x, "z": player.z, "facing": player.facing, "speed": 0.0})
+	while followers.size() > count:
+		followers.pop_back()
+
+	for i in followers.size():
+		var follower: Dictionary = followers[i]
+		var at: Array = _trail[mini(_trail.size() - 1, FOLLOWER_SPACING * (i + 1))]
+		var dx := float(at[0]) - float(follower["x"])
+		var dz := float(at[1]) - float(follower["z"])
+		var distance := sqrt(dx * dx + dz * dz)
+		if distance > 0.05:
+			# A follower who has fallen behind hurries: 1.35 times running speed, which is the
+			# reference's number and the difference between a party and a conga line.
+			var step := minf(distance, RUN_SPEED * dt * (1.35 if distance > 2.4 else 1.0))
+			follower["x"] = float(follower["x"]) + dx / distance * step
+			follower["z"] = float(follower["z"]) + dz / distance * step
+			follower["facing"] = atan2(dx, dz)
+			follower["speed"] = step / maxf(dt, 1e-5)
+		else:
+			follower["speed"] = 0.0
+	return followers
 
 
 # ---------------------------------------------------------------------------

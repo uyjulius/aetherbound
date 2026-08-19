@@ -63,6 +63,10 @@ var _cast: CastModels
 var _crowd: Array[Node3D] = []
 ## What each of them is doing, so a clip is only restarted when it changes.
 var _crowd_clips: Array[String] = []
+## The party behind the leader, and what each of them is doing.
+var _followers: Array[Node3D] = []
+var _follower_clips: Array[String] = []
+var _field_followers: Array = []
 ## What the walker is doing, so a clip is only restarted when it changes.
 var _walker_clip := ""
 var _ship: Node3D
@@ -359,6 +363,7 @@ func _build_world() -> void:
 	# reference picks for whoever is leading the party, from the same table and the same hash.
 	_cast = CastBuilder.new(_db)
 	_spawn_walker()
+	_spawn_followers()
 
 
 ## Show or hide the field's own furniture, so a menu or a fight has the screen to itself.
@@ -477,6 +482,32 @@ func _spawn_walker() -> void:
 	_cast.play_character_clip(_walker, "idle")
 
 
+## The rest of the party, walking behind.
+##
+## Rebuilt whenever the active party changes, because each of them is a different mesh: the
+## formation screen can put anybody in the line.
+func _spawn_followers() -> void:
+	for node in _followers:
+		if node != null:
+			node.queue_free()
+	_followers.clear()
+	_follower_clips.clear()
+	_field_followers = []
+	var members: Array = _party.active_members()
+	for i in range(1, members.size()):
+		var def: Dictionary = members[i].def
+		var look: Dictionary = Dictionary(def.get("look", {})).duplicate()
+		look["id"] = def.get("id", "")
+		var node := _cast.character(look, float(look.get("height", 1.7)))
+		if node == null:
+			continue
+		if _world != null:
+			_world.add_child(node)
+		_followers.append(node)
+		_follower_clips.append("")
+		_cast.play_character_clip(node, "idle")
+
+
 ## Everybody who lives here.
 ##
 ## Placed once per map with the clip the map gives them — a keeper works, a guest sits, a
@@ -585,9 +616,35 @@ func _place_airship() -> void:
 	# The party is inside it while it flies.
 	if _walker != null:
 		_walker.visible = not flying
+	for node in _followers:
+		if node != null:
+			node.visible = not flying
 	for node in _crowd:
 		if node != null:
 			node.visible = not flying
+
+
+## Walk the party's line along the leader's path.
+func _move_followers(delta: float) -> void:
+	if _followers.is_empty():
+		return
+	_field_followers = _field.update_followers(delta, _followers.size())
+	for i in mini(_followers.size(), _field_followers.size()):
+		var node := _followers[i]
+		if node == null:
+			continue
+		var follower: Dictionary = _field_followers[i]
+		node.position = Vector3(float(follower["x"]), 0.0, float(follower["z"]))
+		node.rotation.y = float(follower["facing"]) + PI
+		var speed := float(follower["speed"])
+		var wanted := "idle"
+		if speed > Field.WALK_SPEED * 0.92:
+			wanted = "run"
+		elif speed > 0.2:
+			wanted = "walk"
+		if _follower_clips[i] != wanted:
+			_follower_clips[i] = wanted
+			_cast.play_character_clip(node, wanted)
 
 
 ## Walk the crowd's models to wherever the simulation has put them.
@@ -748,6 +805,7 @@ func _process(delta: float) -> void:
 	# with them, and the harness drives that function step for step against the reference.
 	_field.update_npcs(delta)
 	_move_crowd()
+	_move_followers(delta)
 
 	var result := _field.update(delta, Actions.move_vector(), Actions.is_down("run"))
 	if not result["encounter"].is_empty():
