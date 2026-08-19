@@ -478,6 +478,28 @@ func count_item(item_id: String) -> int:
 
 
 ## A night's sleep. Everybody, not just the active three — the reference rests the whole
+## Relic effects the field asks about.
+##
+## Both are advertised on items in the shops — "no random encounters" and "move faster in the
+## field" — and both did nothing in the port: `Field.update` takes a `sprinting` flag that
+## nothing passed, and its encounter accumulator never asked about a ward at all. The reference
+## had the same bug with the Sprinter and says so in a comment above the line that fixed it.
+func has_encounter_ward() -> bool:
+	return _active_has("noEncounter")
+
+
+func has_fast_field() -> bool:
+	return _active_has("fastField")
+
+
+## Whoever is *out* — the bench's relics do nothing, on either side of the port.
+func _active_has(effect: String) -> bool:
+	for id in active:
+		if roster.has(id) and roster[id].has_effect(effect):
+			return true
+	return false
+
+
 ## roster, and a bench member who woke up on 1 HP would be a nasty surprise in the fight
 ## after the next formation change.
 func rest_all() -> void:

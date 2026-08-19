@@ -77,7 +77,7 @@ func _initialize() -> void:
 		}
 
 	print(JSON.stringify({"maps": maps, "cases": _cases(), "walks": _walks(db),
-		"flights": _flights(db)}))
+		"flights": _flights(db), "relics": _relics(db)}))
 	quit()
 
 
@@ -186,6 +186,45 @@ func _walks(db) -> Dictionary:
 				"trail": trail,
 				"steps": snappedf(field.step_accum, 0.0001),
 			}
+	return out
+
+
+## The two relics the field is asked about, walked rather than asserted.
+##
+## One script, three ways: on foot, sprinting, and warded. What the harness holds them to is the
+## reference's own two rules — `sprinting ? 1.3 : 1` on the walk speed, and a ward that stops the
+## roll — because both were true of the reference and neither was true of this port until the
+## controller started passing them.
+func _relics(db) -> Dictionary:
+	var script: Array = [
+		[Vector2(0, -1), 240], [Vector2(1, 0), 240], [Vector2(0, 1), 240],
+		[Vector2(-1, 0), 240], [Vector2(0, -1), 240], [Vector2(1, 0), 240],
+	]
+	var out := {}
+	for mode in ["plain", "sprint", "ward"]:
+		var field = FieldSim.new(db.maps["overworld"], db.legend, db.footprints, "world",
+			db.encounters, RNG.new(0x51a3c7))
+		field.camera.yaw = field.camera.target_yaw
+		var travelled := 0.0
+		var encounters := 0
+		var first := 0.0
+		for leg in script:
+			var move: Vector2 = leg[0]
+			for _step in int(leg[1]):
+				var result: Dictionary = field.update(1.0 / 60.0, move, false,
+					mode == "sprint", mode == "ward")
+				travelled += float(result["travelled"])
+				# The first step, before anything has been bumped into: that one is the speed and
+				# nothing else, which is what the sprint multiplier is a claim about.
+				if first == 0.0:
+					first = float(result["travelled"])
+				if not Dictionary(result["encounter"]).is_empty():
+					encounters += 1
+		out[mode] = {
+			"travelled": snappedf(travelled, 0.0001),
+			"first": snappedf(first, 0.000001),
+			"encounters": encounters,
+		}
 	return out
 
 

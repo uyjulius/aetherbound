@@ -1004,7 +1004,11 @@ func _process(delta: float) -> void:
 	_move_crowd()
 	_move_followers(delta)
 
-	var result := _field.update(delta, Actions.move_vector(), Actions.is_down("run"))
+	# The two relics the field is asked about, from whoever is out: Sprinter moves the party
+	# faster and the warding charm stops anything meeting them. Both are on items in the shops and
+	# neither did anything until this line passed them on.
+	var result := _field.update(delta, Actions.move_vector(), Actions.is_down("run"),
+		_party.has_fast_field(), _party.has_encounter_ward())
 	if bool(result["stuck"]):
 		# Three seconds of asking to move and not moving. The field notices; this is the report,
 		# with everything a remote diagnosis would need, because the one thing that cannot be

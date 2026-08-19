@@ -304,7 +304,9 @@ func roll_encounter_threshold() -> float:
 ## "trigger": Dictionary, "stuck": bool}`. Empty dictionaries mean nothing fired;
 ## the caller decides what a trigger or an encounter *means*, because that is
 ## game flow rather than field simulation.
-func update(dt: float, move: Vector2, running: bool, sprinting := false) -> Dictionary:
+## `warded` is the `noEncounter` relic: the party still walks, and nothing meets them.
+func update(dt: float, move: Vector2, running: bool, sprinting := false,
+		warded := false) -> Dictionary:
 	var result := {"travelled": 0.0, "encounter": {}, "trigger": {}, "stuck": false,
 		"unstuck": 0.0}
 	var moving := absf(move.x) > 0.01 or absf(move.y) > 0.01
@@ -333,7 +335,7 @@ func update(dt: float, move: Vector2, running: bool, sprinting := false) -> Dict
 		player.target_facing = atan2(nx, nz)
 		player.speed = travelled / maxf(dt, 1e-5)
 		result["travelled"] = travelled
-		result["encounter"] = _accumulate_steps(travelled)
+		result["encounter"] = {} if warded else _accumulate_steps(travelled)
 		result["trigger"] = grid.trigger_at(player.x, player.z)
 	else:
 		player.speed = 0.0
@@ -350,6 +352,9 @@ func update(dt: float, move: Vector2, running: bool, sprinting := false) -> Dict
 
 
 ## Distance walked since the last encounter, and the roll when it is far enough.
+##
+## A warded party never gets here, which is the reference's own arrangement: the ward stops the
+## roll rather than the counting, so putting the relic on does not bank distance for later.
 func _accumulate_steps(distance: float) -> Dictionary:
 	var table := current_encounter_table()
 	if table.is_empty():

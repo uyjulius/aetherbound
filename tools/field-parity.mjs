@@ -361,6 +361,44 @@ say();
 const total = Object.values(tally).reduce((n, v) => n + v, 0);
 const keys = Object.keys(fixture.grids);
 const ruinKeys = keys.filter((k) => k.endsWith('#ruin')).length;
+// --- the two relics the field is asked about ---------------------------------
+//
+// Not from a harvest: the oracle is the reference's own two lines. `_updatePlayer` multiplies the
+// walk speed by 1.3 when anything equipped carries `fastField`, and `_accumulateSteps` returns
+// before rolling when `hasEncounterWard()`. Both were true of the reference and neither was true
+// of this port — `Field.update` had a `sprinting` flag nothing ever passed and no notion of a
+// ward at all, so two items advertised in the shops did nothing.
+{
+  const relics = ported.relics ?? {};
+  const plain = relics.plain ?? {};
+  const sprint = relics.sprint ?? {};
+  const ward = relics.ward ?? {};
+  // The *first* step of each walk, before anything has been bumped into. Comparing whole walks
+  // measured 1.512× rather than 1.3×, and that is not a wrong multiplier: a longer step per frame
+  // clears corners a shorter one catches on, so the totals are a story about the geometry.
+  const ratio = Number(plain.first) > 0 ? Number(sprint.first) / Number(plain.first) : 0;
+  const problems = [];
+  if (Math.abs(ratio - 1.3) > 0.001) {
+    problems.push(`the Sprinter relic moves the party ${ratio.toFixed(4)}× as fast, reference 1.3×`);
+  }
+  if (Number(plain.encounters) <= 0) {
+    problems.push('the plain walk met nothing at all, so the warded walk proves nothing');
+  }
+  if (Number(ward.encounters) !== 0) {
+    problems.push(`a warded party met ${ward.encounters} encounter(s), reference none`);
+  }
+  say(`  relics             ${ratio.toFixed(3)}× sprint, `
+    + `${plain.encounters ?? '?'} encounters on foot, ${ward.encounters ?? '?'} warded  `
+    + `${problems.length ? '\x1b[31mdiffers\x1b[0m'
+      : '\x1b[32mas the reference has it\x1b[0m'}`);
+  if (problems.length) {
+    say();
+    say('\x1b[31mFAIL\x1b[0m — the relics the field is asked about:');
+    for (const line of problems) say(`  ${line}`);
+    process.exit(1);
+  }
+}
+
 say(`\x1b[32mOK\x1b[0m — ${total.toLocaleString()} values across ${keys.length - ruinKeys} maps `
   + `and the ${ruinKeys} of them the cataclysm changes: every walkable cell,`);
 say('     every collider, every trigger, every spawn, every step of sixteen walks, and four'
