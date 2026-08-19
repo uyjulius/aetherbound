@@ -123,6 +123,10 @@ const browser = await chromium.launch({
   ],
 });
 const page = await browser.newPage({ viewport: { width: 1280, height: 720 } });
+// Generous, because a screenshot forces a frame and a frame is now a world: on a CI runner
+// with no GPU, painting 2,816 ground tiles, a shadow map and a sky through a software
+// rasteriser took longer than Playwright's thirty-second default and failed the build twice.
+page.setDefaultTimeout(120_000);
 
 const errors = [];
 const warnings = [];
