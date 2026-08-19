@@ -490,10 +490,30 @@ func refresh_party() -> void:
 	pass
 
 
-## The world's state — "whole" before the cataclysm, "ruin" after. A plain property,
-## because the reference reads and writes it as one and a recorded accessor would put
-## a call in the transcript that the reference never makes.
-var world_state := "whole"
+## The world's state — "whole" before the cataclysm, "ruin" after.
+##
+## Not recorded, because the reference reads and writes it as a plain property and a call in
+## the transcript would be a call the reference never makes. But it *does* write through to the
+## party, and until it did, the port's cataclysm happened only on paper: the scene set this,
+## nothing read it, and half the game — twenty-six maps the world rewrites — stayed whole
+## forever. Events parity could not see it either, for exactly the reason there is no call to
+## record: both sides agreed about a property nobody was reading.
+var world_state: String:
+	get:
+		return party.world_state if not recording and party != null else _world_state
+	set(value):
+		if value == world_state:
+			return
+		var was := world_state
+		_world_state = value
+		if not recording and party != null:
+			party.world_state = value
+			Telemetry.track(Telemetry.WORLD_STATE_CHANGED, {
+				"from": was, "to": value,
+				"party_level": party.average_level(),
+				"play_seconds": party.play_time,
+				"roster_size": party.roster.size()})
+var _world_state := "whole"
 
 
 func _member(id: String) -> Dictionary:

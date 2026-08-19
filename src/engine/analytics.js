@@ -21,10 +21,10 @@
  * `localStorage['aetherbound.analytics'] = 'off'`.
  */
 
-const TOKEN = '446fdce30255f1caaa9f0d782fa307af';
+export const TOKEN = '446fdce30255f1caaa9f0d782fa307af';
 
 /** The CORS-enabled ingestion host. `api.mixpanel.com` is server-side only. */
-const ENDPOINT = 'https://api-js.mixpanel.com/track/';
+export const ENDPOINT = 'https://api-js.mixpanel.com/track/';
 
 /** Send when the queue reaches this, or when the timer fires — whichever first. */
 const BATCH_SIZE = 20;

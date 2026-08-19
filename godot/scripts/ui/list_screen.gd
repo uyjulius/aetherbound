@@ -124,6 +124,12 @@ func _begin(for_party: Party, db) -> void:
 	visible = true
 	_push(_root())
 	print("%s_OPEN gold=%d items=%d" % [_tag(), party.gold, party.inventory.size()])
+	# Both screens that inherit this are worth an event and the reference has one for each, so
+	# the tag chooses. A screen added later with a new tag reports as a menu rather than as
+	# nothing, which is the safer of the two ways to be wrong.
+	Telemetry.track(Telemetry.SHOP_OPENED if _tag() == "SHOP" else Telemetry.MENU_OPENED, {
+		"gold": party.gold, "items": party.inventory.size(),
+		"party_level": party.average_level()})
 
 
 func close() -> void:
@@ -205,6 +211,11 @@ func _move(by: int, count: int) -> void:
 
 
 func _push(screen: Dictionary) -> void:
+	# Which screens are used and which are furniture. Once per screen per session, because the
+	# question is whether a player ever opens the bestiary, not how often they scroll it.
+	Telemetry.once("screen:%s:%s" % [_tag(), String(screen.get("title", "?"))],
+		Telemetry.MENU_SCREEN_VIEWED,
+		{"screen": String(screen.get("title", "")), "of": _tag()})
 	_stack.append(screen)
 	_index = 0
 	_scroll = 0

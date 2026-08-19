@@ -146,6 +146,8 @@ var _map_def: Dictionary = {}
 var _tile := 2.0
 var _stuck_for := 0.0
 var _stuck_fired := false
+## Set for one frame when a reported episode ends, carrying how long it lasted.
+var _stuck_recovered := 0.0
 var _stuck_episodes := 0
 
 
@@ -303,7 +305,8 @@ func roll_encounter_threshold() -> float:
 ## the caller decides what a trigger or an encounter *means*, because that is
 ## game flow rather than field simulation.
 func update(dt: float, move: Vector2, running: bool, sprinting := false) -> Dictionary:
-	var result := {"travelled": 0.0, "encounter": {}, "trigger": {}, "stuck": false}
+	var result := {"travelled": 0.0, "encounter": {}, "trigger": {}, "stuck": false,
+		"unstuck": 0.0}
 	var moving := absf(move.x) > 0.01 or absf(move.y) > 0.01
 
 	if moving:
@@ -336,6 +339,11 @@ func update(dt: float, move: Vector2, running: bool, sprinting := false) -> Dict
 		player.speed = 0.0
 
 	result["stuck"] = _watch_for_stuck(dt, moving, result["travelled"])
+	# How long a stuck episode lasted, once, at the moment it ends. Whatever fixed it is the
+	# root cause by another name, and a report of the trouble without a report of the recovery
+	# cannot tell a wedged party from a player who put the pad down and came back.
+	result["unstuck"] = _stuck_recovered
+	_stuck_recovered = 0.0
 	player.facing += angle_difference(player.facing, player.target_facing) * minf(1.0, dt * 14.0)
 	camera.update(dt, player.x, player.z)
 	return result
@@ -362,6 +370,8 @@ func _accumulate_steps(distance: float) -> Dictionary:
 ## exactly like a player who has put the pad down.
 func _watch_for_stuck(dt: float, asking: bool, travelled: float) -> bool:
 	if not asking or travelled > 0.01:
+		if _stuck_fired:
+			_stuck_recovered = _stuck_for
 		_stuck_for = 0.0
 		_stuck_fired = false
 		return false

@@ -135,6 +135,7 @@ let ready = null;
 let field = null;
 const opened = new Set();
 const doors = [];
+let analytics = null;
 const taps = [];
 let sceneStarted = null;
 let sceneEnded = null;
@@ -234,6 +235,7 @@ page.on('console', (message) => {
   if (text.includes('ROLLED_BACK')) rolledBack = text.trim();
   if (/^CONFIG /.test(text.trim())) configured.push(text.trim());
   if (text.includes('AUDIO_READY')) audioReady = text.trim();
+  if (/^ANALYTICS /.test(text.trim())) analytics = text.trim();
   if (/^MUSIC /.test(text.trim())) music.push(text.trim());
   if (text.includes('TITLE_READY')) titleReady = text.trim();
   if (text.includes('TITLE_CONTINUE') || text.includes('TITLE_NEW_GAME')) titleChoice = text.trim();
@@ -1029,6 +1031,56 @@ if (field) {
     [...errors.slice(errorsBefore), ...warnings.slice(warningsBefore)].slice(0, 3).join(' | '));
   await page.screenshot({ path: path.join(root, '.renders',
     remote ? 'godot-web-lastmap-live.png' : 'godot-web-lastmap.png') });
+}
+
+// The instrumentation is loaded and *off*, which is the only state this suite may see. Rule
+// three of the module: sixty checks a night must not write sixty sessions into the project.
+// Checked from the build's own report rather than by watching the network, because an event
+// that is queued and never sent is still an event that should never have been recorded.
+check('the analytics stay out of the test suite',
+  Boolean(analytics) && /enabled=false/.test(analytics)
+    && /reason=automated browser/.test(analytics),
+  analytics ?? 'no ANALYTICS line');
+
+// And the other half of that: with the automation flag hidden, does the instrumentation
+// actually work? Rule three keeps it quiet here, which means the *transport* is never
+// exercised by anything else in this suite — and the last three bugs in it were all invisible
+// for exactly that reason (a bridge value compared as a boolean when it arrives as a number,
+// and a `Crypto` call that aborts `start` on a template without the module, both of which
+// looked identical to "correctly disabled").
+//
+// Nothing leaves this machine: the ingestion host is intercepted and answered locally, and the
+// batch is decoded here to prove it carries real events for the right project.
+{
+  const posted = [];
+  const probe = await browser.newPage({ viewport: { width: 900, height: 600 } });
+  await probe.addInitScript(() => {
+    Object.defineProperty(navigator, 'webdriver', { get: () => false });
+  });
+  await probe.route('**/api-js.mixpanel.com/**', async (route) => {
+    posted.push(route.request().postData() ?? '');
+    await route.fulfill({ status: 200, contentType: 'text/plain', body: '1' });
+  });
+  let line = null;
+  probe.on('console', (message) => {
+    const text = message.text();
+    if (/^ANALYTICS /.test(text.trim())) line = text.trim();
+  });
+  await probe.goto(target, { waitUntil: 'domcontentloaded' });
+  for (let i = 0; i < 120 && !posted.length; i++) await probe.waitForTimeout(1000);
+  check('the instrumentation reports when it is not being tested',
+    Boolean(line) && /enabled=true/.test(line), line ?? 'no ANALYTICS line');
+  const events = posted.flatMap((body) => {
+    const data = new URLSearchParams(body).get('data');
+    try { return JSON.parse(data ?? '[]'); } catch { return []; }
+  });
+  const names = new Set(events.map((e) => e.event));
+  check('and it posts a batch of real events to the right project',
+    events.length > 0 && names.has('App Loaded')
+      && events.every((e) => e.properties?.token && e.properties?.distinct_id),
+    events.length ? `${events.length} event(s): ${[...names].slice(0, 5).join(', ')}`
+      : 'nothing posted in 120s');
+  await probe.close();
 }
 
 check('nothing 404s', badResponses.length === 0, badResponses.slice(0, 3).join('; '));

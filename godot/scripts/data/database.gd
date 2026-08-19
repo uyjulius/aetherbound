@@ -23,7 +23,7 @@ const TABLES := [
 	"enemies", "encounters", "items", "shops", "spells", "espers", "quests",
 	"quest_kinds", "tracks", "characters", "maps", "cast_order", "palette", "input",
 	"legend", "footprints", "statuses", "commands", "boss_events", "char_models",
-	"monster_models", "controls",
+	"monster_models", "controls", "analytics",
 ]
 
 var enemies: Dictionary = {}
@@ -39,6 +39,9 @@ var char_models: Dictionary = {}
 var monster_models: Dictionary = {}
 ## The control bar's labels and key hints, in the reference's own words and order.
 var controls: Dictionary = {}
+## The Mixpanel token, endpoint and event taxonomy, exported from the reference's own table
+## so the port reports under the same event names rather than a second set that drifts.
+var analytics: Dictionary = {}
 var tracks: Dictionary = {}
 var characters: Dictionary = {}
 var maps: Dictionary = {}
@@ -89,6 +92,7 @@ func load_all() -> bool:
 	char_models = _read("char_models")
 	monster_models = _read("monster_models")
 	controls = _read("controls")
+	analytics = _read("analytics")
 	tracks = _read("tracks")
 	characters = _read("characters")
 	maps = _read("maps")

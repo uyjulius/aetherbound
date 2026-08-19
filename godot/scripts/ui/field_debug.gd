@@ -337,6 +337,13 @@ func _open(index: int, spawn := "default") -> void:
 		id, _field.built.width, _field.built.height,
 		_field.grid.shapes.size(), _field.grid.triggers.size()])
 	_report_doors(def)
+	# Once, on the first map that finishes building: everything a browser had to download and
+	# parse before the game could be played is in by now, and how long that took is the number
+	# that decides whether somebody on a slow connection ever sees the game at all.
+	Telemetry.once("assets", Telemetry.ASSETS_LOADED, {
+		"map": id, "props": _scenery.placed if _scenery != null else 0,
+		"tiles": _scenery.tiles if _scenery != null else 0,
+		"seconds": Time.get_ticks_msec() / 1000.0})
 	_announce(def)
 
 
@@ -473,6 +480,9 @@ func _build_control_bar() -> void:
 ## know the touch controls work has nothing to look at but this line.
 func _tap_down(action: String) -> void:
 	print("TAP %s" % action)
+	# Which controls people actually use, and on what. The reference counts this to find out
+	# whether the on-screen pad is worth its space.
+	Telemetry.track(Telemetry.CONTROL_USED, {"action": action, "how": "tap"})
 	Actions.virtual_press(action)
 
 
@@ -691,6 +701,7 @@ func _fly(delta: float) -> void:
 			var to := String(crossing.get("to", ""))
 			var spawn := String(crossing.get("spawn", "default"))
 			print("CROSSED to=%s" % to)
+			Telemetry.track(Telemetry.CROSSING_USED, {"from": _ids[_index], "to": to})
 			_field.vehicle = {}
 			_travel(to, spawn)
 			# Still aboard on the other side, which is what "cross" means.
@@ -711,6 +722,7 @@ func _fly(delta: float) -> void:
 			}
 			print("LANDED map=%s at %.2f,%.2f" % [_ids[_index],
 				_field.player.x, _field.player.z])
+			Telemetry.track(Telemetry.AIRSHIP_LANDED, {"map": _ids[_index]})
 			_place_airship()
 			_play_map_music(1.2)
 	else:
@@ -846,6 +858,7 @@ func _process(delta: float) -> void:
 	# in a save that the JS build would then contradict.
 	if _party != null:
 		_party.play_time += delta
+		_report_pacing(delta)
 	# A fight owns the screen outright: it has its own turn clock, and a field that kept
 	# walking underneath would be accumulating encounter distance during a battle.
 	if _battle != null and _battle.visible:
@@ -891,6 +904,7 @@ func _process(delta: float) -> void:
 		return
 	if Input.is_action_just_pressed("debug_fly"):
 		print("BOARDED map=%s" % _ids[_index])
+		Telemetry.track(Telemetry.AIRSHIP_BOARDED, {"map": _ids[_index]})
 		Sound.play_music("airship", 1.2)
 		_field.board()
 		_place_airship()
@@ -939,6 +953,22 @@ func _process(delta: float) -> void:
 	_move_followers(delta)
 
 	var result := _field.update(delta, Actions.move_vector(), Actions.is_down("run"))
+	if bool(result["stuck"]):
+		# Three seconds of asking to move and not moving. The field notices; this is the report,
+		# with everything a remote diagnosis would need, because the one thing that cannot be
+		# reproduced locally is somebody else's wedged party.
+		print("STUCK map=%s at %.2f,%.2f" % [_ids[_index], _field.player.x, _field.player.z])
+		Telemetry.track(Telemetry.PLAYER_STUCK, {
+			"map": _ids[_index], "x": _field.player.x, "z": _field.player.z,
+			"standing_clear": _field.standing_clear(),
+			"facing": rad_to_deg(_field.player.facing),
+			"held": Actions.move_vector().length(),
+			"scene_running": _scene_running,
+			"world_state": _party.world_state,
+			"play_seconds": _party.play_time})
+	if float(result["unstuck"]) > 0.0:
+		Telemetry.track(Telemetry.PLAYER_UNSTUCK, {
+			"map": _ids[_index], "after_seconds": float(result["unstuck"])})
 	if not result["encounter"].is_empty():
 		_start_battle(result["encounter"])
 		return
@@ -965,6 +995,7 @@ func _process(delta: float) -> void:
 				_open_chest(_interact["prop"])
 			"airship":
 				print("BOARDED map=%s" % _ids[_index])
+				Telemetry.track(Telemetry.AIRSHIP_BOARDED, {"map": _ids[_index]})
 				Sound.play_music("airship", 1.2)
 				_field.board()
 				_place_airship()
@@ -979,6 +1010,10 @@ func _process(delta: float) -> void:
 
 
 var _encounters := 0
+## Distance walked this session and time since the last pacing report. Neither is saved: see
+## `_report_pacing`.
+var _walked := 0.0
+var _since_pacing := 0.0
 var _trigger: Dictionary = {}
 
 
@@ -1002,6 +1037,51 @@ func _update_prompt() -> void:
 		_say_danger(String(data.get("to", "")), String(data.get("spawn", "")))
 		return
 	_prompt.text = ""
+
+
+## How far this session has actually walked, every five minutes of it.
+##
+## From the distance the field reports rather than from `Party.steps`, and that is not a
+## shortcut: `steps` is serialised into every save and has never been incremented by anything,
+## on either side of the port, so the reference's own walking-distance event has always reported
+## zero. Counting it here into a number that is never saved gives the pacing signal the event
+## was for without changing what a save contains.
+func _report_pacing(delta: float) -> void:
+	_since_pacing += delta
+	if _since_pacing < 300.0:
+		return
+	_since_pacing = 0.0
+	Telemetry.track(Telemetry.STEPS_WALKED, {
+		"distance": _walked, "play_minutes": _party.play_time / 60.0,
+		"map": _ids[_index], "party_level": _party.average_level()})
+
+
+## Where the party is is the most useful property on every other event, so it is registered
+## rather than repeated at each call site — and the first arrival somewhere is worth its own
+## event, because the walk that leads to it only happens once.
+##
+## Walking through a door the game warned about is the clearest possible signal that the
+## difficulty gradient is not reading, so that gets said too.
+func _report_arrival(map_id: String, spawn: String) -> void:
+	var def: Dictionary = _db.map(map_id)
+	var level := Danger.level_of(def, spawn, _db.encounters, _db.enemies)
+	var arrival := {
+		"map": map_id, "map_name": String(def.get("name", "")), "spawn": spawn,
+		"party_level": _party.average_level(), "play_seconds": _party.play_time,
+		"danger": level,
+	}
+	Telemetry.register({"map": map_id, "map_name": String(def.get("name", "")),
+		"world_state": _party.world_state})
+	Telemetry.track(Telemetry.MAP_ENTERED, arrival)
+	var seen := "seen_%s" % map_id
+	if not _party.has_flag(seen):
+		_party.set_flag(seen)
+		Telemetry.track(Telemetry.MAP_FIRST_SEEN, arrival)
+		var gap := level - _party.average_level()
+		if gap >= 12.0:
+			var ignored := arrival.duplicate()
+			ignored["level_gap"] = gap
+			Telemetry.track(Telemetry.DOOR_WARNING_IGNORED, ignored)
 
 
 ## Every door out of this map, and what is standing on the other side of it.
@@ -1043,6 +1123,11 @@ func _say_danger(to: String, spawn: String) -> void:
 		_warn.text = ""
 		return
 	_warn.text = String(said["text"])
+	# Once per door per session: the interesting number is how many players are told, not how
+	# many frames the sentence was on screen for.
+	Telemetry.once("warn:%s" % to, Telemetry.DOOR_WARNING_SHOWN, {
+		"to": to, "tone": String(said["tone"]),
+		"party_level": _party.average_level()})
 	_warn.add_theme_color_override("font_color", {
 		"warn": Color("#ffd76a"), "bad": Color("#ff9d63"), "grave": Color("#e0574f"),
 	}.get(String(said["tone"]), Palette.ui_color("select")))
@@ -1087,6 +1172,7 @@ func _travel(map_id: String, spawn: String) -> void:
 		print("EXIT_UNKNOWN to=%s" % map_id)
 		return
 	print("MAP_ENTERED %s spawn=%s" % [map_id, spawn])
+	_report_arrival(map_id, spawn)
 	_open(at, spawn)
 	_last_trigger = ""
 	# The autosave, on arriving somewhere new — the reference's rule, and its reasoning:
@@ -1143,6 +1229,9 @@ func _talk_to(npc: Dictionary) -> void:
 		return
 	_scene_running = true
 	print("TALK %s lines=%d" % [String(def.get("id", "?")), lines.size()])
+	Telemetry.track(Telemetry.NPC_TALKED, {
+		"map": _ids[_index], "npc": String(def.get("id", "")),
+		"name": String(def.get("name", "")), "lines": lines.size()})
 	if not lines.is_empty():
 		await _dialogue.speak(name, lines)
 	# Whatever they keep, after what they had to say. Their own line first is the
@@ -1170,6 +1259,7 @@ func _open_chest(prop: Dictionary) -> void:
 	_scene_running = true
 	Sound.sfx("chest")
 	print("CHEST %s:%s" % [map_id, id])
+	Telemetry.track(Telemetry.CHEST_OPENED, {"map": map_id, "chest": id})
 	await _grant(prop.get("contains", {}))
 	_scene_running = false
 	# Said at the end rather than at the start: the contents are a conversation, and anything
@@ -1227,6 +1317,8 @@ func _examine(prop: Dictionary) -> void:
 	# the menu uses, so there is one save screen rather than two.
 	if bool(data.get("save", false)):
 		print("SAVE_POINT %s" % String(prop.get("id", "?")))
+		Telemetry.track(Telemetry.SAVE_POINT_USED, {
+			"map": _ids[_index], "point": String(prop.get("id", ""))})
 		Sound.sfx("confirm")
 		_menu.open_save(_party, _db)
 		return
@@ -1245,6 +1337,9 @@ func _examine(prop: Dictionary) -> void:
 		return
 	_scene_running = true
 	print("EXAMINED %s" % String(prop.get("id", "?")))
+	Telemetry.track(Telemetry.PROP_INSPECTED, {
+		"map": _ids[_index], "prop": String(prop.get("id", "")),
+		"kind": String(prop.get("kind", ""))})
 	# The prop's own name as the speaker where it has one — "Village Well" over a paragraph
 	# about the water reads as a label rather than as somebody talking.
 	var speaker: Variant = data.get("name", data.get("speaker", null))
@@ -1268,6 +1363,8 @@ func _rest_at_inn(inn: Dictionary, name: String) -> void:
 		return
 	_dialogue.close()
 	print("INN_REST price=%d gold=%d" % [price, _party.gold])
+	Telemetry.track(Telemetry.INN_RESTED, {
+		"map": _ids[_index], "price": price, "gold_after": _party.gold})
 	Sound.play_music("inn", 0.5)
 	await _fade_to(1.0, 1.0)
 	_party.rest_all()
@@ -1373,6 +1470,9 @@ func _lose() -> void:
 	_scene_running = true
 	Sound.play_music("gameover", 0.6)
 	print("PARTY_WIPED")
+	Telemetry.track(Telemetry.PARTY_WIPED, {
+		"map": _ids[_index], "party_level": _party.average_level(),
+		"play_seconds": _party.play_time})
 	var last := Saves.latest()
 	if last.is_empty():
 		# Never saved. The run restarts rather than dead-ending.
@@ -1399,9 +1499,24 @@ func _run_event(id: String) -> void:
 	_scene_running = true
 	_last_event = id
 	print("SCENE_START %s" % id)
+	var was_state := _party.world_state
 	var known: bool = await Events.run(id, _ctx)
+	# The one scene that is the end of the game. The reference sends this from inside the scene;
+	# here it rides the scene finishing, because a port that put an analytics call inside a
+	# ported scene would have a scene that differs from the one events parity checks.
+	if id == "first_engine":
+		Telemetry.track(Telemetry.GAME_COMPLETED, {
+			"party_level": _party.average_level(), "play_seconds": _party.play_time,
+			"roster_size": _party.roster.size(), "gold": _party.gold,
+			"bestiary_seen": _party.bestiary.size()})
 	_dialogue.close()
 	print("SCENE_END %s known=%s" % [id, str(known)])
+	# The cataclysm rewrites twenty-six maps, including the one the party is standing on. A
+	# scene that turns the world over has to be followed by the world turning over, or the
+	# player walks out of the end of it into the village that was just destroyed.
+	if _party.world_state != was_state:
+		print("WORLD_STATE %s -> %s" % [was_state, _party.world_state])
+		_open(_index, "")
 	_play_map_music(1.4)
 	_scene_running = false
 

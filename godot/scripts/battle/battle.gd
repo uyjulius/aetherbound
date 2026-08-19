@@ -480,6 +480,17 @@ func _apply_spell(actor: Combatant, target: Combatant, spell: Dictionary) -> voi
 				and String(spell.get("ignores", "")) != "float":
 			mult = 0.0
 		dmg = int(round(float(dmg) * absf(mult)))
+		# Whether the elements are being read. A player who never hits a weakness in twenty
+		# hours is a player the bestiary is failing, and one who feeds a creature its own
+		# element is a player the resistance icons are failing.
+		if mult > 1.0:
+			Telemetry.track(Telemetry.WEAKNESS_HIT, {
+				"element": String(spell.get("element", "")), "spell": String(spell.get("id", "")),
+				"target": target.id, "multiplier": mult})
+		elif mult < 0.0:
+			Telemetry.track(Telemetry.ATTACK_ABSORBED, {
+				"element": String(spell.get("element", "")), "spell": String(spell.get("id", "")),
+				"target": target.id, "healed": dmg})
 		if mult < 0.0:
 			target.hp = mini(target.max_hp, target.hp + dmg)
 		elif mult != 0.0:

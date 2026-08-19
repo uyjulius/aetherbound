@@ -150,7 +150,13 @@ class Member:
 	func learn_spell(spell_id: String, amount := 100.0) -> bool:
 		var before := float(spells.get(spell_id, 0))
 		spells[spell_id] = minf(100.0, before + amount)
-		return float(spells[spell_id]) >= 100.0 and before < 100.0
+		var learned: bool = float(spells[spell_id]) >= 100.0 and before < 100.0
+		# The moment it lands, not every point of proficiency towards it: an esper teaching a
+		# spell over eight fights would otherwise send eight events for one thing happening.
+		if learned:
+			Telemetry.track(Telemetry.SPELL_LEARNED, {
+				"member": id, "spell": spell_id, "level": level})
+		return learned
 
 	## Every effect string on everything equipped. Relics are sold on these, and
 	## the reference had several that nothing read.
@@ -270,6 +276,8 @@ func recruit(character_id: String, level := -1) -> Member:
 	var member := Member.new(character, at)
 	roster[character_id] = member
 	rows[character_id] = "front"
+	Telemetry.track(Telemetry.CHARACTER_RECRUITED, {
+		"member": character_id, "level": at, "roster": roster.size()})
 	if active.size() < MAX_ACTIVE:
 		active.append(character_id)
 	else:
@@ -382,6 +390,9 @@ func has_flag(id: String) -> bool:
 
 
 func set_flag(id: String) -> void:
+	# Only the first time: a flag set twice is the same fact, and the reference counts facts.
+	if not flags.has(id):
+		Telemetry.track(Telemetry.STORY_FLAG_SET, {"flag": id, "play_seconds": play_time})
 	flags[id] = true
 
 
@@ -393,6 +404,7 @@ func set_flag(id: String) -> void:
 ## content has already answered, differently.
 func start_quest(id: String, stage := 0) -> void:
 	quests[id] = {"stage": stage, "done": false}
+	Telemetry.track(Telemetry.QUEST_STARTED, {"quest": id, "stage": stage})
 
 
 ## Move a quest on. Nothing happens to a quest that was never started, which is the
@@ -404,6 +416,7 @@ func advance_quest(id: String, stage: int) -> void:
 	if int(quest.get("stage", 0)) == stage:
 		return
 	quest["stage"] = stage
+	Telemetry.track(Telemetry.QUEST_ADVANCED, {"quest": id, "stage": stage})
 
 
 ## Finish a quest. The stage it finished on is kept — a journal that forgets where a
@@ -412,6 +425,8 @@ func complete_quest(id: String) -> void:
 	var quest: Dictionary = quests.get(id, {"stage": 0, "done": false})
 	quest["done"] = true
 	quests[id] = quest
+	Telemetry.track(Telemetry.QUEST_COMPLETED, {
+		"quest": id, "stage": int(quest.get("stage", 0)), "play_seconds": play_time})
 
 
 ## The stage a quest is on, or -1 if it has never been started — which is what the
@@ -431,6 +446,8 @@ func has_esper(id: String) -> bool:
 
 
 func add_esper(id: String) -> void:
+	if not espers.has(id):
+		Telemetry.track(Telemetry.ESPER_ACQUIRED, {"esper": id, "espers": espers.size() + 1})
 	espers[id] = true
 
 

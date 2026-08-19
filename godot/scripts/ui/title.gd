@@ -68,6 +68,22 @@ func _ready() -> void:
 		cast.size(), Database.TABLES.size(), bindings.size(),
 		RenderingServer.get_current_rendering_method()])
 
+	# The instrumentation the JS build has always sent, from the build that now holds the
+	# root. Off outside a browser and off under Playwright, so this line does nothing at all
+	# in the checks that run it sixty times a night.
+	Telemetry.start("godot", database.analytics)
+	Telemetry.register({"renderer": RenderingServer.get_current_rendering_method()})
+	Telemetry.track(Telemetry.APP_LOADED, {
+		"cast": cast.size(), "tables": Database.TABLES.size(), "actions": bindings.size()})
+	Telemetry.track(Telemetry.TITLE_VIEWED, {"has_save": not _saved.is_empty()})
+	# Said out loud, because "off" is the state that has to be provable: the browser check
+	# insists this reads `automated browser`, and a build that started reporting from the test
+	# suite would be caught by the same line that proves the module loaded at all.
+	var telemetry := Telemetry.summary()
+	print("ANALYTICS enabled=%s reason=%s events=%d" % [
+		str(bool(telemetry["enabled"])).to_lower(), String(telemetry["reason"]),
+		Dictionary(telemetry["events"]).size()])
+
 
 ## Build the screen. Written in code rather than laid out in the editor because
 ## the cast is data: the column has as many rows as the tables say it does, and
@@ -85,9 +101,15 @@ func _process(_delta: float) -> void:
 			Saves.pending = _saved
 			print("TITLE_CONTINUE map=%s lv=%d" % [String(_saved.get("mapId", "?")),
 				int(_saved.get("leadLevel", 0))])
+			Telemetry.track(Telemetry.GAME_LOADED, {
+				"map": String(_saved.get("mapId", "")),
+				"lead_level": int(_saved.get("leadLevel", 0)),
+				"play_seconds": float(_saved.get("playTime", 0.0)),
+				"from": "title"})
 		else:
 			Saves.pending = {}
 			print("TITLE_NEW_GAME")
+			Telemetry.track(Telemetry.GAME_STARTED, {})
 		get_tree().change_scene_to_file("res://scenes/field_debug.tscn")
 
 

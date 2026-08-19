@@ -173,6 +173,10 @@ func begin(party: Party, encounter: Dictionary, database, ground := "grass.png",
 	_moves.clear()
 	_raise_stage(database)
 	print("BATTLE_START enemies=%d party=%d" % [battle.enemies.size(), battle.party.size()])
+	Telemetry.track(Telemetry.BATTLE_STARTED, {
+		"enemies": battle.enemies.size(), "party": battle.party.size(),
+		"boss": battle.is_boss, "party_level": _party_level(),
+		"first_enemy": String(battle.enemies[0].id) if not battle.enemies.is_empty() else ""})
 	# The reference's own choice of track and fade: a boss gets its own theme, and 0.6
 	# seconds is short enough that the fight starts on the downbeat rather than after it.
 	Sound.play_music("boss" if battle.is_boss else "battle", 0.6)
@@ -717,6 +721,12 @@ func _commit(actor: Combatant, action: Dictionary) -> void:
 	for combatant in battle.party + battle.enemies:
 		before[combatant.id] = combatant.hp
 	print("ACTION %s %s" % [actor.id, kind])
+	# One event per command, with what it was — which is the only way to know whether the
+	# fourteen character-specific commands are used or ignored.
+	Telemetry.track(_event_for(kind), {
+		"actor": actor.id, "kind": kind,
+		"what": String(full.get("spell", full.get("item", full.get("move", {}))).get("id", "")),
+		"element": _element_of(full)})
 	battle.commit_action(full)
 	_after_action(actor, kind, before, _element_of(full))
 
@@ -738,6 +748,38 @@ func _element_of(action: Dictionary) -> String:
 	return "physical"
 
 
+## The party's average level, for an event that wants to know who was fighting.
+func _party_level() -> float:
+	if battle.party.is_empty():
+		return 0.0
+	var total := 0.0
+	for c in battle.party:
+		total += float(c.level)
+	return total / float(battle.party.size())
+
+
+## Which event a command is. Spells and items have their own in the reference's taxonomy
+## because they are the two a player spends a resource on; everything else is a command.
+func _event_for(kind: String) -> String:
+	match kind:
+		"spell":
+			return Telemetry.SPELL_CAST
+		"item":
+			return Telemetry.ITEM_USED
+		"summon":
+			return Telemetry.SUMMON_USED
+		"limit":
+			return Telemetry.LIMIT_USED
+		"row":
+			return Telemetry.ROW_CHANGED
+		"scan":
+			return Telemetry.ENEMY_SCANNED
+		"steal":
+			return Telemetry.STEAL_ATTEMPTED
+		_:
+			return Telemetry.COMMAND_USED
+
+
 ## What just happened, said and shown.
 func _after_action(actor: Combatant, kind: String, before: Dictionary,
 		element := "physical") -> void:
@@ -751,6 +793,14 @@ func _after_action(actor: Combatant, kind: String, before: Dictionary,
 		# damage rather than coinciding with it.
 		_flash(combatant, element, moved < 0)
 		_show_change(actor, kind, combatant, moved)
+		# Anybody whose health crossed zero on this action went down on this action. Reported
+		# from the change rather than from the engine, so one place decides what "killed" means.
+		if int(before.get(combatant.id, 1)) > 0 and combatant.hp <= 0:
+			var went_down := {
+				"who": combatant.id, "by": actor.id, "kind": kind, "element": element,
+				"boss": battle.is_boss}
+			Telemetry.track(Telemetry.ENEMY_KILLED if battle.enemies.has(combatant)
+				else Telemetry.CHARACTER_KO, went_down)
 	if struck == 0 and kind == "attack":
 		# A swing that changed nobody's health missed, and a fight where a miss shows nothing at
 		# all reads as a dropped input.
@@ -1049,6 +1099,24 @@ func _end() -> void:
 			_banner.text = "Escaped"
 	print("BATTLE_END result=%s exp=%d gold=%d" % [battle.result,
 		int(rewards.get("exp_each", 0)), int(rewards.get("gold", 0))])
+	Telemetry.track(Telemetry.BATTLE_ENDED, {
+		"result": battle.result, "boss": battle.is_boss,
+		"exp_each": int(rewards.get("exp_each", 0)), "gold": int(rewards.get("gold", 0)),
+		"turns": battle.turn_count if "turn_count" in battle else 0,
+		"party_level": _party_level()})
+	if battle.result == "flee":
+		Telemetry.track(Telemetry.BATTLE_FLED, {
+			"enemies": battle.enemies.size(), "party_level": _party_level()})
+	# A level is the thing a player is playing *for*, so it is its own event rather than a
+	# property of the fight that happened to grant it.
+	for who in Dictionary(rewards.get("levels", {})):
+		Telemetry.track(Telemetry.LEVEL_GAINED, {
+			"member": str(who), "levels": int(rewards["levels"][who]),
+			"exp_each": int(rewards.get("exp_each", 0))})
+	if battle.result == "victory" and battle.is_boss:
+		Telemetry.track(Telemetry.BOSS_DEFEATED, {
+			"boss": String(battle.enemies[0].id) if not battle.enemies.is_empty() else "",
+			"party_level": _party_level()})
 	_refresh()
 	_tear_down_stage()
 	finished.emit(battle.result)

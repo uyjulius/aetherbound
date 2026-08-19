@@ -157,6 +157,10 @@ func say(speaker: Variant, text: String, opts: Dictionary = {}) -> void:
 			skipped = true
 			confirms_at_open = _confirms
 			cancels_at_open = _cancels
+			# How much of the writing people actually read. Once a session: the interesting fact
+			# is that somebody skips, not that they skipped the fortieth line of a scene.
+			Telemetry.once("skipped", Telemetry.DIALOGUE_SKIPPED,
+				{"at_character": shown, "of": characters})
 			continue
 		if hold > 0:
 			hold -= 1

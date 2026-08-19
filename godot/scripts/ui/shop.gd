@@ -96,6 +96,9 @@ func _buy() -> Dictionary:
 			return
 		party.add_item(String(item.get("id", "")), 1)
 		print("BOUGHT %s gold=%d" % [String(item.get("id", "")), party.gold])
+		Telemetry.track(Telemetry.ITEM_BOUGHT, {
+			"item": String(item.get("id", "")), "price": int(item.get("price", 0)),
+			"gold_after": party.gold})
 	return {
 		"title": "Buy", "rows": build.call(), "rebuild": build,
 		"footer": "confirm buy · cancel back · special reads the comparison out",
@@ -132,6 +135,8 @@ func _sell() -> Dictionary:
 			return
 		party.add_gold(int(item.get("sell", 0)))
 		print("SOLD %s gold=%d" % [String(item.get("id", "")), party.gold])
+		Telemetry.track(Telemetry.ITEM_SOLD, {
+			"item": String(item.get("id", "")), "gold_after": party.gold})
 	return {
 		"title": "Sell", "rows": build.call(), "rebuild": build,
 		"footer": "confirm sell · cancel back · special reads the comparison out",

@@ -55,6 +55,7 @@ import { CHARACTERS, CAST_ORDER } from '../src/data/characters.js';
 import { RAMPS, INK, PAPER, UI, ELEMENT_COLOR } from '../src/engine/palette.js';
 import { TILE, LEGEND, WALL_EXPOSURE, GLYPH_PROP_RADII } from '../src/world/map.js';
 import { STATUSES, STATUS_DISPLAY, TICK_RATES } from '../src/battle/formulas.js';
+import { EV, TOKEN, ENDPOINT } from '../src/engine/analytics.js';
 import { COMMANDS } from '../src/battle/commands.js';
 import { BOSS_SPECS } from '../src/data/events-bosses.js';
 import { ACTIONS, DEFAULT_BINDINGS, PAD_BUTTONS } from '../src/engine/input.js';
@@ -202,6 +203,10 @@ const written = [
   // happened, twice, in the reference — so it crosses as data rather than being
   // retyped in GDScript.
   write('statuses', { statuses: STATUSES, tick_rates: TICK_RATES, display: STATUS_DISPLAY }),
+  // The instrumentation, so the port sends to the same project under the same event
+  // names rather than a second taxonomy that drifts. The token is a client token and is
+  // already in the JS bundle served from this origin; it is not a secret.
+  write('analytics', { token: TOKEN, endpoint: ENDPOINT, events: EV }),
 
   // The fourteen per-character commands. Every character's second command is the
   // reason to bring them, and the numbers on the options are balance decisions —

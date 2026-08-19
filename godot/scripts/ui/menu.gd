@@ -135,6 +135,8 @@ func _use_item(item: Dictionary) -> Dictionary:
 		if _apply_item(item, row["member"]):
 			party.remove_item(String(item.get("id", "")), 1)
 			print("ITEM_USED %s on %s" % [String(item.get("id", "")), row["member"].id])
+			Telemetry.track(Telemetry.ITEM_USED, {
+				"item": String(item.get("id", "")), "on": row["member"].id, "where": "field"})
 			_pop()
 	return {
 		"title": "Use %s" % String(item.get("name", "?")), "rows": rows,
@@ -238,6 +240,8 @@ func _equip_choice(member: Party.Member, slot: String) -> Dictionary:
 			party.remove_item(String(chosen.get("id", "")), 1)
 		member.equip(slot, chosen)
 		print("EQUIPPED %s %s=%s" % [member.id, slot, String(chosen.get("id", "-"))])
+		Telemetry.track(Telemetry.EQUIPMENT_CHANGED, {
+			"member": member.id, "slot": slot, "item": String(chosen.get("id", ""))})
 		_pop()
 	return {
 		"title": String(SLOT_LABEL.get(slot, slot)), "rows": build.call(), "rebuild": build,
@@ -288,6 +292,8 @@ func _espers(member: Party.Member) -> Dictionary:
 	var on_select := func(row):
 		member.esper = row.get("esper", {})
 		print("ESPER_EQUIPPED %s=%s" % [member.id, String(member.esper.get("id", "-"))])
+		Telemetry.track(Telemetry.ESPER_EQUIPPED, {
+			"member": member.id, "esper": String(member.esper.get("id", ""))})
 	return {
 		"title": "%s — Esper" % member.name(), "rows": build.call(), "rebuild": build,
 		"on_select": on_select,
@@ -516,6 +522,8 @@ func _config() -> Dictionary:
 		# after turning the music down should not find it loud again.
 		Saves.save_config(config)
 		print("CONFIG %s=%s" % [key, str(config.get(key, ""))])
+		Telemetry.track(Telemetry.CONFIG_CHANGED, {
+			"setting": key, "value": str(config.get(key, ""))})
 	return {
 		"title": "Config", "rows": build.call(), "rebuild": build,
 		"footer": "left and right adjust · graphics and window colour are the JS build's",

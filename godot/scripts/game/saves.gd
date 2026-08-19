@@ -179,6 +179,12 @@ static func save(slot: Variant, party: Party, where: Dictionary,
 	if ok:
 		print("SAVED slot=%s map=%s lv=%d gold=%d" % [str(slot),
 			String(data["mapId"]), int(data["leadLevel"]), party.gold])
+		# The autosave is not a decision anybody made, so it is not the same event as somebody
+		# choosing to save: counting them together would report a save every time a door opens.
+		Telemetry.track(Telemetry.GAME_SAVED, {
+			"slot": str(slot), "auto": str(slot) == AUTOSAVE_SLOT,
+			"map": String(data["mapId"]), "lead_level": int(data["leadLevel"]),
+			"gold": party.gold, "play_seconds": party.play_time})
 	return ok
 
 
