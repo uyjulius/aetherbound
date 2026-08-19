@@ -24,6 +24,9 @@ extends RefCounted
 ## part of the comparison rather than an implementation detail.
 const STEP := 1.0 / 60.0
 
+## Who the opening party is, for the scenes that ask who came along.
+const STARTERS := ["vesna", "corvin", "wick"]
+
 ## Every call and wait, in order, when recording.
 var log: Array = []
 ## Which branch to take. "first", "second", "last", "lost" or "flagged".
@@ -57,6 +60,16 @@ func _record(call: String, args: Array = []) -> void:
 ## Several pages in sequence, then close. `lines` may be one string or many.
 func say(speaker: Variant, lines: Variant, opts: Dictionary = {}) -> void:
 	_record("dialogue.speak", [speaker, lines if lines is Array else [lines], opts])
+
+
+## The same, from a caller that passes no options at all.
+##
+## The distinction is not pedantry: the volumes' own `say` helper defaults `opts` to an
+## empty dictionary and forwards it, while the boss factory's omits the argument
+## entirely, so one records `{}` and the other records nothing. A transcript that
+## flattened the two would hide a scene passing the wrong options.
+func say_plain(speaker: Variant, lines: Variant) -> void:
+	_record("dialogue.speak", [speaker, lines if lines is Array else [lines], null])
 
 
 ## A single page.
@@ -123,9 +136,144 @@ func recruit(id: String, level: Variant = null) -> Dictionary:
 	return _member(id)
 
 
+## A member of the roster, or an empty dictionary if they have not joined.
+##
+## Only the opening three answer unless the policy says everything has already
+## happened. Scenes branch on who came along, and a context that produced a member
+## for every id would only ever take the first branch.
 func member(id: String) -> Dictionary:
 	_record("party.member", [id])
-	return _member(id)
+	if STARTERS.has(id) or policy == "flagged":
+		return _member(id)
+	return {}
+
+
+## The ids of whoever is in the active party, in formation order.
+func active_ids() -> Array:
+	if policy == "flagged":
+		return ["vesna", "corvin", "wick", "aurelian", "bastian", "idris", "osric",
+			"maret", "tam", "ilsabet", "kestrel", "oda", "rusk", "themask"]
+	return STARTERS.duplicate()
+
+
+## The first of `ids` who is in the *active* party, or an empty dictionary. Different
+## from `present`, which asks about the whole roster.
+func speaking(ids: Array) -> Dictionary:
+	var active := active_ids()
+	for id in ids:
+		if active.has(String(id)):
+			return _member(String(id))
+	return {}
+
+
+## Everyone active except these.
+func active_except(ids: Array) -> Array:
+	var out: Array = []
+	for id in active_ids():
+		if not ids.has(id):
+			out.append(_member(id))
+	return out
+
+
+## How many of these flags are set. Some scenes gate on a count rather than an order.
+func count_flags(flags: Array) -> int:
+	var n := 0
+	for flag in flags:
+		if has_flag(String(flag)):
+			n += 1
+	return n
+
+
+func count_item(id: String) -> int:
+	_record("party.countItem", [id])
+	return 3 if policy == "flagged" else 0
+
+
+func rest_all() -> void:
+	_record("party.restAll", [])
+
+
+func gold() -> int:
+	return 500
+
+
+## A coin toss the policy decides, so a branch is exercised rather than left to a
+## stream position that the two engines would have to keep in step for no reason.
+func chance(_p: float) -> bool:
+	_record("rng.chance", [snappedf(_p, 0.0001)])
+	return policy == "first" or policy == "last"
+
+
+## One of a list, likewise decided by the policy rather than by a draw.
+func pick(list: Array) -> Variant:
+	_record("rng.pick", [list.size()])
+	if list.is_empty():
+		return null
+	return list[0] if policy != "last" else list[list.size() - 1]
+
+
+## Everyone in the roster, as members. One scene walks it to take an esper back.
+func roster_members() -> Array:
+	var out: Array = []
+	for id in active_ids():
+		out.append(_member(id))
+	return out
+
+
+func remove_esper(id: String) -> void:
+	_record("party.espers.delete", [id])
+
+
+## Take the magicite off a member, so it can be handed to somebody who asked for it.
+func clear_esper(member_id: String) -> void:
+	_record("member.clearEsper", [member_id])
+
+
+## The first of these the party already carries, or an empty string.
+func first_esper(candidates: Array) -> String:
+	for id in candidates:
+		if has_esper(String(id)):
+			return String(id)
+	return ""
+
+
+## An esper's display name, for the line a scene says about it.
+##
+## Read from the exported table rather than restated, so the name in a scene is the
+## name on the magicite.
+func esper_name(id: String) -> String:
+	if database == null:
+		return id
+	return String(database.espers.get(id, {}).get("name", id))
+
+
+## The music the current map wants back after a scene has borrowed the score.
+func map_music() -> String:
+	return ""
+
+
+func restore_theme(fade: float = 1.6) -> void:
+	var track := map_music()
+	if not track.is_empty():
+		play_music(track, {"fade": fade})
+
+
+## The display names of a list of members, for a menu of who might sit down.
+func names_of(members: Array) -> Array:
+	var out: Array = []
+	for m in members:
+		out.append(String(m.get("name", "?")))
+	return out
+
+
+## The first of these who is in the party, or an empty dictionary. Several scenes give
+## a line to whoever happens to be along, in a fixed order of preference.
+func present(ids: Array) -> Dictionary:
+	for id in ids:
+		var found := member(String(id))
+		if not found.is_empty():
+			return found
+	return {}
 
 
 func add_item(id: String, count: Variant = null) -> void:

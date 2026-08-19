@@ -22,7 +22,7 @@ const DATA_DIR := "res://data"
 const TABLES := [
 	"enemies", "encounters", "items", "shops", "spells", "espers", "quests",
 	"tracks", "characters", "maps", "cast_order", "palette", "input", "legend",
-	"footprints", "statuses", "commands",
+	"footprints", "statuses", "commands", "boss_events",
 ]
 
 var enemies: Dictionary = {}
@@ -44,6 +44,8 @@ var legend: Dictionary = {}
 var statuses: Dictionary = {}
 ## The fourteen per-character commands and the options each offers.
 var commands: Dictionary = {}
+## The optional bosses, as specs the one factory in `events/bosses.gd` runs.
+var boss_events: Dictionary = {}
 ## Authored prop colliders, harvested from the reference because they are measured
 ## from built geometry and cannot be derived. See `tools/harvest-reference.mjs`.
 var footprints: Dictionary = {}
@@ -87,6 +89,7 @@ func load_all() -> bool:
 	footprints = _read("footprints")
 	statuses = _read("statuses")
 	commands = _read("commands")
+	boss_events = _read("boss_events")
 
 	var actual := {}
 	for name in TABLES:

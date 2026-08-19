@@ -44,6 +44,8 @@ const ALL = {
 };
 
 const POLICIES = ['first', 'second', 'last', 'lost', 'flagged'];
+/** Who the opening party is, for the scenes that ask who came along. */
+const STARTERS = new Set(['vesna', 'corvin', 'wick']);
 /** A scene that yields this many times without finishing is not a scene. */
 const STEP_CAP = 20000;
 
@@ -99,14 +101,23 @@ function recorder(policy) {
     completeQuest: (id) => record('party.completeQuest', id),
     questStage: (id) => { record('party.questStage', id); return policy === 'flagged' ? 99 : 0; },
     recruit: (id, level) => { record('party.recruit', id, level); return member(id); },
-    member: (id) => { record('party.member', id); return member(id); },
+    // Only the starting three are in the roster unless the policy says everything
+    // has already happened. Several scenes branch on which of the cast is present —
+    // `present(party, ids)` walks a list until one answers — and a mock that hands
+    // back a member for every id would only ever exercise the first branch.
+    member: (id) => {
+      record('party.member', id);
+      return STARTERS.has(id) || policy === 'flagged' ? member(id) : null;
+    },
     addItem: (id, count) => record('party.addItem', id, count),
     addGold: (amount) => record('party.addGold', amount),
     learnSpell: (id) => record('party.learnSpell', id),
     fullRestore: () => record('party.fullRestore'),
     averageLevel: () => 6,
     hasEncounterWard: () => false,
-    activeMembers: [{ id: 'vesna', name: 'Vesna', level: 6 }],
+    // The opening three, so the scenes that ask who came along get the same answer
+    // on both sides. One member would only ever exercise the first branch.
+    activeMembers: [...STARTERS].map(member),
     espers: { has: (id) => { record('party.espers.has', id); return policy === 'flagged'; },
       add: (id) => record('party.espers.add', id) },
     roster: { has: (id) => { record('party.roster.has', id); return policy === 'flagged'; },

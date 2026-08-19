@@ -14,5 +14,6 @@
  "input": 3,
  "legend": 4,
  "statuses": 2,
- "commands": 14
+ "commands": 14,
+ "boss_events": 16
 }

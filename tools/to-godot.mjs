@@ -43,6 +43,7 @@ import { RAMPS, INK, PAPER, UI, ELEMENT_COLOR } from '../src/engine/palette.js';
 import { TILE, LEGEND, WALL_EXPOSURE, GLYPH_PROP_RADII } from '../src/world/map.js';
 import { STATUSES, TICK_RATES } from '../src/battle/formulas.js';
 import { COMMANDS } from '../src/battle/commands.js';
+import { BOSS_SPECS } from '../src/data/events-bosses.js';
 import { ACTIONS, DEFAULT_BINDINGS, PAD_BUTTONS } from '../src/engine/input.js';
 
 const root = path.dirname(fileURLToPath(new URL('../package.json', import.meta.url)));
@@ -161,6 +162,10 @@ const written = [
   // Rusk's tiers cost a quarter, a half and nine tenths of his health for 2.2, 4.0
   // and 7.5 times a swing. The port reads these rather than a transcription.
   write('commands', COMMANDS),
+
+  // The optional bosses. Sixteen scenes differing only in their nouns is a table, and
+  // one factory over the same rows beats sixteen translations of the same six lines.
+  write('boss_events', BOSS_SPECS),
 ];
 
 // A manifest so the Godot side can assert it loaded everything it was given,

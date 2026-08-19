@@ -1,0 +1,732 @@
+class_name EventsVol2
+extends RefCounted
+##
+##
+## Scripted events, volume two — sidequests and optional scenes.
+##
+## Same contract as `EVENTS` in events.js: every entry is a generator receiving
+## `(game, ctx)` and written as a coroutine, so a scene reads top to bottom in
+## source the way it plays on screen. Nothing in here is on the critical path;
+## the main line runs identically whether or not a single one of these fires.
+##
+## Four shapes are deliberately mixed, because twenty-four boss doors would be
+## twenty-four of the same door:
+##
+## - a four-step errand that starts with a seized mill wheel (millwheel_*)
+## - a question answered by asking the right people in the right order
+## (surveyor_*), gated on quest stage rather than on flags, so the order
+## is enforced by the informants themselves
+## - one decision with two outcomes that both take something off the player
+## (the_last_measure)
+## - personal scenes for the cast members the main line has no room for,
+## most of which never start a battle
+##
+## Several are gated on `party.worldState === 'ruin'`, the same way the recruit
+## scenes in events.js are — the ruined world is a different set of
+## conversations held in the same places.
+##
+##
+## Translated from `src/data/events-vol2.js` by `tools/translate-events.mjs`, which copies the
+## dialogue rather than retyping it and rewrites only the shape around it. Every scene
+## here is compared against the reference's own transcript by
+## `tools/events-parity.mjs`, under five branch policies.
+
+const IDS := [
+	"millwheel_errand", "forge_brass", "quartermaster_trade", "millwheel_turns",
+	"surveyor_question", "surveyor_ledger", "surveyor_rota", "surveyor_answer",
+	"corvin_debt", "wick_eighth_name", "osric_ledger_game", "idris_second_sword",
+	"oda_ninth_form", "kestrel_sixty_one", "rusk_stand_down", "tam_quiet_lesson",
+	"ilsabet_long_look", "bastian_heavy_end", "maret_countersign", "mask_reflection",
+	"the_last_measure", "choir_under_ashenhall", "the_well_reads_back", "vesna_still_here",
+]
+
+
+static func run(id: String, ctx: EventContext) -> void:
+	match id:
+		"millwheel_errand": await millwheel_errand(ctx)
+		"forge_brass": await forge_brass(ctx)
+		"quartermaster_trade": await quartermaster_trade(ctx)
+		"millwheel_turns": await millwheel_turns(ctx)
+		"surveyor_question": await surveyor_question(ctx)
+		"surveyor_ledger": await surveyor_ledger(ctx)
+		"surveyor_rota": await surveyor_rota(ctx)
+		"surveyor_answer": await surveyor_answer(ctx)
+		"corvin_debt": await corvin_debt(ctx)
+		"wick_eighth_name": await wick_eighth_name(ctx)
+		"osric_ledger_game": await osric_ledger_game(ctx)
+		"idris_second_sword": await idris_second_sword(ctx)
+		"oda_ninth_form": await oda_ninth_form(ctx)
+		"kestrel_sixty_one": await kestrel_sixty_one(ctx)
+		"rusk_stand_down": await rusk_stand_down(ctx)
+		"tam_quiet_lesson": await tam_quiet_lesson(ctx)
+		"ilsabet_long_look": await ilsabet_long_look(ctx)
+		"bastian_heavy_end": await bastian_heavy_end(ctx)
+		"maret_countersign": await maret_countersign(ctx)
+		"mask_reflection": await mask_reflection(ctx)
+		"the_last_measure": await the_last_measure(ctx)
+		"choir_under_ashenhall": await choir_under_ashenhall(ctx)
+		"the_well_reads_back": await the_well_reads_back(ctx)
+		"vesna_still_here": await vesna_still_here(ctx)
+
+
+## /** Tolliver, by the mill. The start of the errand. */
+static func millwheel_errand(ctx: EventContext) -> void:
+	if ctx.has_flag("mill_running"):
+		if ctx.world_state == "ruin":
+			await ctx.say("Tolliver", ["Four parishes send me grain now. Solmere sends carts down for it, and Solmere has never sent me anything in its life.", "The wheel does not know what the sky is doing. That is the whole of my thinking on the matter and I have had a lot of time for it."])
+		else:
+			await ctx.say("Tolliver", ["It has not stopped since. I go out at night to listen to it, which my wife has views about."])
+		return
+	if ctx.quest_stage("millwheel") >= 0:
+		if ctx.has_flag("mill_brass"):
+			await ctx.say("Tolliver", ["You have the brass on you. I can hear it knocking. Put it in Halloran's hand before you put it down anywhere."])
+		else:
+			await ctx.say("Tolliver", ["Halloran has known the size for a fortnight. It is the brass he has not got."])
+		return
+	ctx.start_quest_at("millwheel", 0)
+	await ctx.say("Tolliver", ["Wheel is seized. Second time this month, and the second time is never the river.", "Bearing has gone oval. You feel it through the floor when it turns, like a man walking with a stone in his boot.", "Halloran would cast me a new one and he cannot. There is no brass in this village and has not been since the requisitions."])
+	await ctx.say("Vesna", ["We pass the forge anyway."])
+	await ctx.say("Tolliver", ["Then pass it slowly. Tell him it grinds for the whole parish and not only my flour, which is a thing he said to me once about horseshoes."])
+
+
+## /** Halloran at the forge. He has the pattern and no metal. */
+static func forge_brass(ctx: EventContext) -> void:
+	if ctx.has_flag("mill_running"):
+		await ctx.say("Halloran", ["Bearing is holding. I have made worse out of better metal and charged for it."])
+		return
+	if ctx.quest_stage("millwheel") < 0:
+		await ctx.say("Halloran", ["Scrap and seconds today. Come back when you want something that will not bend."])
+		return
+	if ctx.has_flag("mill_brass"):
+		await ctx.say("Halloran", ["Ferran brass. Give it here.", "Sand is already rammed. Tell Tolliver to have the sluice up at first light and to stand well back from it."])
+		return
+	if ctx.quest_stage("millwheel") < 1:
+		ctx.advance_quest("millwheel", 1)
+	await ctx.say("Halloran", ["Tolliver's bearing. I have the pattern cut and the sand rammed and no brass, which is the order those three things usually arrive in.", "Ferran took every ingot in the district for lamp housings. The quartermaster at the outpost is sitting on four hundredweight of it and a sentry who counts."])
+	await ctx.say("Halloran", ["Vell will not sell. Vell trades. I drank with him at the spring fair and he talked about one thing for two hours.", "Ask him what he is short of. He will tell you before you have finished asking."])
+
+
+## /** Quartermaster Vell. The trade, and the cost of it. */
+static func quartermaster_trade(ctx: EventContext) -> void:
+	if ctx.has_flag("mill_brass") or ctx.has_flag("mill_running"):
+		await ctx.say("Quartermaster Vell", ["Brass went out on nobody's manifest and the stout came in on nobody's manifest. We are square and we are both deniable."])
+		return
+	if ctx.quest_stage("millwheel") < 1:
+		await ctx.say("Quartermaster Vell", ["Requisitions. No chit, no stock. What you have instead is a conversation, and I am not paid for those."])
+		return
+	await ctx.say("Quartermaster Vell", ["Brass. Everyone wants brass. I have four hundredweight of it and I cannot get one bottle of anything drinkable past my own checkpoint.", "The Kettle & Cinder at Harrowmere keeps a stout the requisition list has never heard of. A case of that, and I will weigh out what the mill needs."])
+	var choice := await ctx.ask("A case is six hundred gil, and Vell sends his own runner for it — a civilian at that gate with a crate is a different sort of paperwork.", ["Pay the six hundred", "Not today"], {"speaker": "Quartermaster Vell", "cancelable": true})
+	ctx.close_dialogue()
+	if choice != 0:
+		return
+	if not ctx.spend_gold(600):
+		await ctx.say("Quartermaster Vell", ["You are short, and counting is the one thing I am actually employed to do. Come back heavier."])
+		return
+	ctx.set_flag("mill_brass")
+	ctx.advance_quest("millwheel", 2)
+	await ctx.say(null, ["Vell weighs out an ingot, wraps it in oilcloth, and writes nothing down."])
+	await ctx.say("Quartermaster Vell", ["If anyone stops you, that is a lamp fitting and you are a pilgrim."])
+
+
+## The wheel turns. The errand was about a bearing right up until the metal
+## came out of the sand.
+static func millwheel_turns(ctx: EventContext) -> void:
+	if ctx.has_flag("mill_running"):
+		await ctx.say(null, ["The wheel turns. Under the rumble there is a note that does not belong to a wheel."])
+		return
+	if not ctx.has_flag("mill_brass"):
+		await ctx.say(null, ["The wheel stands in the water at an angle it should not stand at. Nothing about it moves."])
+		return
+	await ctx.cinematic(true)
+	await ctx.say(null, ["Halloran pours at dusk. The bearing comes out of the sand the colour of a new coin, and he taps it, and then he taps it again because the first note was wrong."])
+	await ctx.say("Halloran", ["That is not brass the whole way through.", "There is something in the middle of the sprue that took the heat and did not run. Ferran cast this ingot out of something they had already used for something else."])
+	await ctx.say("Vesna", ["There is a name in it."])
+	await ctx.say("Halloran", ["Then the parish bread gets ground by somebody. I have heard worse arrangements and put my mark on two of them.", "The bearing goes in the wheel regardless. Tolliver has been eating out of a sack since the thaw."])
+	await ctx.say(null, ["The sluice comes up at first light. The wheel takes the water, sticks, and then goes.", "It runs the whole morning without knocking once."])
+	await ctx.say("Halloran", ["Take the offcut. I am not putting that in a scrap barrel and I am not putting it in anybody's wheel.", "It has been warm since it came off the saw and the forge has been out since Tuesday."])
+	await ctx.grant_chest({"kind": "item", "id": "lastlight", "label": "a Last Light"}, ctx.field)
+	ctx.set_flag("mill_running")
+	ctx.complete_quest("millwheel")
+	await ctx.cinematic(false)
+
+
+## /** The Regular, in the Kettle & Cinder. He has been going over it since spring. */
+static func surveyor_question(ctx: EventContext) -> void:
+	if ctx.has_flag("surveyor_answered"):
+		await ctx.say("Regular", ["I know now. I have not settled whether knowing was the improvement I was after."])
+		return
+	if ctx.quest_stage("surveyor") >= 0:
+		await ctx.say("Regular", ["Odo keeps a ledger and Ivo keeps a rota. Between them this village writes down everything except the part that matters."])
+		return
+	ctx.start_quest_at("surveyor", 0)
+	await ctx.say("Regular", ["Ferran surveyor, spring, sat where you are standing. Bought a round for the room and asked where the old barrow was.", "Everybody told him. Me first, because I was nearest and I like being useful."])
+	await ctx.say("Regular", ["He did not write any of it down. Nine people gave him nine sets of directions and he never once reached for a pencil.", "A man who does not write down the thing he came to ask has already got it."])
+	await ctx.say("Vesna", ["Then why ask."])
+	await ctx.say("Regular", ["That is the bit I go over.", "Ask Odo what the man bought. Odo writes everything down; it is the only habit of his I admire and he knows it."])
+
+
+## /** Odo's ledger. The map case was full when it was sold. */
+static func surveyor_ledger(ctx: EventContext) -> void:
+	if ctx.has_flag("surveyor_answered") or ctx.quest_stage("surveyor") < 0:
+		await ctx.say("Odo", ["Salt, tinder, tonics, and a ledger nobody reads but me."])
+		return
+	if ctx.quest_stage("surveyor") >= 1:
+		await ctx.say("Odo", ["It is our parish mark on the corner of that case. Go and ask Ivo which gate the man used."])
+		return
+	await ctx.say("Odo", ["The Ferran. Spring, yes. Lamp oil, a tin of blacking, and a map case.", "He paid in Solmere coin and I had to weigh it, which is why the line is in ink and not pencil."])
+	await ctx.say("Odo", ["Here is the part I have not said out loud in four months. The case was full when he bought it.", "He bought a case for what was already inside it. And that case had our parish mark stamped in the corner, so it did not come up the road with him."])
+	ctx.advance_quest("surveyor", 1)
+	await ctx.say("Odo", ["Somebody here drew what is in it. Ivo keeps the gate rota. Ask him which way the man went."])
+
+
+## /** Watchman Ivo's rota. Both nights, the wrong gate. */
+static func surveyor_rota(ctx: EventContext) -> void:
+	if ctx.has_flag("surveyor_answered") or ctx.quest_stage("surveyor") < 1:
+		await ctx.say("Watchman Ivo", ["The rota is the rota. Nobody reads it but me, and I read it twice."])
+		return
+	if ctx.quest_stage("surveyor") >= 2:
+		await ctx.say("Watchman Ivo", ["I have told you where he went. I am not walking up the hill with you and I would rather you did not say I sent you."])
+		return
+	await ctx.say("Watchman Ivo", ["The surveyor. Two nights, both logged, because I log everything and it has never once been useful until this week.", "In at the north gate at dusk. Out at the north gate at dawn. The same both nights."])
+	await ctx.say("Vesna", ["The barrow is south-west."])
+	await ctx.say("Watchman Ivo", ["It is. And there is nothing north of that gate but the ridge path and the elder's garden wall.", "I wrote it down twice and I have not looked at it since, and I would like that on the record as a thing I chose."])
+	ctx.advance_quest("surveyor", 2)
+
+
+## /** Elder Sabbath, who drew the map. */
+static func surveyor_answer(ctx: EventContext) -> void:
+	if ctx.has_flag("surveyor_answered"):
+		await ctx.say("Elder Sabbath", ["You know. I am not going to be lighter about it now that you know."])
+		return
+	if ctx.quest_stage("surveyor") < 2:
+		await ctx.say("Elder Sabbath", ["Whatever you are working round to, work round to it faster. I am old and the kettle is on."])
+		return
+	await ctx.cinematic(true)
+	await ctx.say("Elder Sabbath", ["You have been asking Ivo about his rota. Ivo tells me everything he is asked, which is why in forty years I have never asked him for anything."])
+	await ctx.say("Elder Sabbath", ["Yes. I drew it. At that table, from memory, in one evening, and I put the third door in the wrong place on purpose.", "They had the writ and the lamps and eleven years of practice. They were going to dig. The only thing left in the world to decide was where."])
+	await ctx.say("Vesna", ["So you decided."])
+	await ctx.say("Elder Sabbath", ["I sent them to the one chamber I was certain was empty. I had been in it as a boy. I put my hand flat on the floor of it."])
+	await ctx.say("Vesna", ["It was not empty."])
+	await ctx.say("Elder Sabbath", ["No.", "I have been sitting with that since the thaw. There is room on the bench if you would like to sit with it as well."])
+	ctx.set_flag("surveyor_answered")
+	ctx.complete_quest("surveyor")
+	await ctx.cinematic(false)
+
+
+## Corvin's fence catches up with him. Pay or fight; the glove comes back
+## either way, and so does the fact that the lid was a fake.
+static func corvin_debt(ctx: EventContext) -> void:
+	if ctx.has_flag("corvin_settled"):
+		await ctx.say("Corvin", ["Ashby will find someone else to be owed by. It is a growth trade."])
+		return
+	if not ctx.in_roster("corvin"):
+		await ctx.say(null, ["A man sits on the milestone with a ledger open on his knee. He looks at each of you in turn and loses interest."])
+		return
+	await ctx.cinematic(true)
+	await ctx.say(null, ["A man is sitting on the milestone with a ledger open on his knee. He does not get up."])
+	await ctx.say("Corvin", ["That is Ashby. Do not look at him. Looking is a bid."])
+	await ctx.say("Ashby", ["Four years, Corvin. A reliquary lid, off the Ashenhall dig, sold to a gentleman in Solmere who had it valued on the Tuesday.", "It was cast last spring. The verdigris was painted on, and painted well, which is the only compliment in this ledger."])
+	await ctx.say("Corvin", ["It was a good lid.", "I have walked a different road every year since, and every year it is the same road with him sitting on it."])
+	await ctx.say("Ashby", ["Two thousand five hundred, or the glove.", "You left the glove as surety and you have not asked after it once, which tells me exactly what it is worth to you and exactly what it is worth to me."])
+	await ctx.cinematic(false)
+
+	var choice := await ctx.ask("Ashby turns the ledger round so the line can be read.", ["Pay the 2500 gil", "Tell him to take it up with the road"], {"speaker": "Ashby", "cancelable": false})
+	ctx.close_dialogue()
+
+	var paid = false
+	if choice == 0:
+		paid = ctx.spend_gold(2500)
+		if not paid:
+			await ctx.say("Ashby", ["You are short. I have taken worse offers than a short one and I have never taken that one."])
+
+	if not paid:
+		await ctx.say("Ashby", ["Then we are doing the other thing. I brought the other thing with me."])
+		var result := await ctx.battle({"enemies": ["tollman", "brigand", "brigand"]}, {"boss": true, "terrain": "dirt", "scenery": "field", "canFlee": false})
+		if result != "victory":
+			return
+		await ctx.say(null, ["Ashby is face down in the road with the ledger under him.", "Corvin takes the glove out of the coat, and then puts the ledger back where it was, squared up."])
+	else:
+		await ctx.say(null, ["Ashby counts it twice, marks the line through, and hands the glove over without looking at Corvin."])
+
+	await ctx.grant_chest({"kind": "item", "id": "hoardersglove", "label": "a Hoarder's Glove"}, ctx.field)
+	await ctx.say("Corvin", ["He was right about the lid."])
+	ctx.set_flag("corvin_settled")
+	ctx.complete_quest("ashby")
+
+
+## Wick at the burnt alcoves of Ashenhall. He was taught eight names and one
+## of them belongs to the wrong person. No combat.
+static func wick_eighth_name(ctx: EventContext) -> void:
+	var wick = ctx.member("wick")
+	if not wick:
+		await ctx.say(null, ["Eight alcoves, burnt to the brick, with a name cut under each. Seven of the cuts have been deepened at some point. One has not."])
+		return
+	if ctx.has_flag("eighth_named"):
+		await ctx.say("Wick", ["I check it every time we pass. It is still the right name. That is the whole of the errand."])
+		return
+	await ctx.cinematic(true)
+	await ctx.say(null, ["Eight alcoves, burnt to the brick, with a name cut under each."])
+	await ctx.say("Wick", ["I had these before I could write my own. Corran. Melle. Ossa. Hew. Dain. Ferrow. Ivet.", "And the eighth is Anselm."])
+	await ctx.say(null, ["The name under the eighth alcove is not Anselm. It is a woman's name, and the cut is shallower than the other seven."])
+	await ctx.say("Wick", ["Anselm carried her here. Four days on a cart with the axle bound in rag — I had that by heart as well, and I never once asked who was on the cart.", "Somebody decided the porter was the tidier answer, and then everybody after them was taught the tidy version, including me, at six."])
+	await ctx.say(null, ["He takes a nail out of his cuff and works at the shallow cut until it is as deep as the other seven.", "It takes most of an hour. Nobody hurries him and nobody offers to take a turn."])
+	await ctx.say("Wick", ["Right. Say it back to me. I want it in more than one head this time."])
+	ctx.member_learn_spell(wick["id"], "reprise")
+	ctx.set_flag("eighth_named")
+	await ctx.say(null, ["Wick learned Reprise."])
+	ctx.complete_quest("eighth")
+	await ctx.cinematic(false)
+
+
+## Osric plays the Beachcomber for his own ship's papers. A real gamble on
+## the world stream — the player can walk away between cuts, and the stake
+## is gone whether or not the cut lands.
+static func osric_ledger_game(ctx: EventContext) -> void:
+	if ctx.has_flag("vagrant_won"):
+		await ctx.say("Beachcomber", ["There is a hole on my shelf where those papers were. I keep looking at the hole."])
+		return
+	if not ctx.in_roster("osric"):
+		await ctx.say("Beachcomber", ["Ship's papers came up in the wrack last month. Good hand on them.", "They are on the shelf with the other things nobody has come for."])
+		return
+	await ctx.cinematic(true)
+	await ctx.say("Osric", ["Those are mine. That is my registry, that is my tonnage, and that is my signature under a fold I put in it myself."])
+	await ctx.say("Beachcomber", ["Then they are yours and I am not selling them. I do not sell what the tide brings up. I put it back.", "But you are standing here and the tide is not, so we will do it the other way."])
+	await ctx.say("Osric", ["His deck is complete. Look at it. Fifty-two cards on a beach."])
+	await ctx.cinematic(false)
+
+	var losses = 0
+	while true:
+		var prompt = "The Beachcomber sets the deck on an upturned barrel and does not touch it again." if losses == 0 else "The deck goes back on the barrel. There is chalk on the wood from the last cut, and from a good many before yours."
+		var choice := await ctx.ask(prompt, ["Cut for the papers — 1500 gil", "Leave it on the shelf"], {"speaker": "Beachcomber", "cancelable": true})
+		ctx.close_dialogue()
+		if choice != 0:
+			if losses > 0:
+				await ctx.say("Osric", ["Sensible. I have never once been that."])
+			return
+		if not ctx.spend_gold(1500):
+			await ctx.say("Osric", ["We are light. That is a sentence I have said in four countries and it has never improved with practice."])
+			return
+		if ctx.chance(0.5):
+			break
+		losses += 1
+		await ctx.say(null, ["You cut the two of cups. He turns his own and does not look at it for long.", "He chalks the result on the barrel underneath the others."])
+		if losses == 2:
+			await ctx.say("Osric", ["Again. The odds have not changed, which is the part people get wrong about odds."])
+		else:
+			await ctx.say("Osric", ["Again."])
+
+	await ctx.cinematic(true)
+	await ctx.say(null, ["You cut the nine of coins. The Beachcomber turns the four, holds it up so everyone can see it, and puts the deck away."])
+	await ctx.say("Beachcomber", ["Papers. And take the weight off my net with them — it has been on that line four years and it has never once been cold."])
+	await ctx.grant_chest({"kind": "esper", "id": "vagrantstar", "label": "a shard of magicite"}, ctx.field)
+	await ctx.say("Osric", ["A registry, a tonnage and a star, for %s gil and an afternoon." % [(losses + 1) * 1500], "Do not tell me what the odds on that were. I know what the odds on that were."])
+	ctx.set_flag("vagrant_won")
+	ctx.complete_quest("vagrant")
+	await ctx.cinematic(false)
+
+
+## Idris buries the sword he never drew. Ruined world only, at the shrine
+## where he sat for forty years. No combat.
+static func idris_second_sword(ctx: EventContext) -> void:
+	if not ctx.in_roster("idris"):
+		await ctx.say(null, ["Somebody has dug a narrow hole beside the shrine step and has not filled it in."])
+		return
+	if ctx.world_state != "ruin":
+		await ctx.say("Idris", ["Not here and not yet. I will know the day when it arrives and I will not need telling."])
+		return
+	if ctx.has_flag("idris_buried"):
+		await ctx.say("Idris", ["It is where I put it. I have not been back to check, and I have thought about going back to check."])
+		return
+	await ctx.cinematic(true)
+	await ctx.say(null, ["Idris stops at the shrine step without saying he is stopping, and takes the second sword off his back."])
+	await ctx.say("Idris", ["Forty years on this step with two blades. One of them I have used.", "The other one is his. I have kept it sharp for a man who has been a mark on a wall in Ashenhall since the year the school burned."])
+	await ctx.say("Idris", ["I sharpened it in the mornings. That was the shape of the day. That was most of the shape of the day."])
+	await ctx.say("Vesna", ["What will the mornings be now."])
+	await ctx.say("Idris", ["Shorter."])
+	await ctx.say(null, ["He digs with the flat of the one he uses, which is not what it is for, and puts the other one in, and fills the hole with his hands.", "He does not mark it. Then he sits down on the step out of habit and gets straight back up."])
+	await ctx.say(null, ["Nobody suggests moving until the light has gone. The party rests at the shrine."])
+	ctx.rest_all()
+	ctx.set_flag("idris_buried")
+	await ctx.say(null, ["HP and MP fully restored."])
+	ctx.complete_quest("vance")
+	await ctx.cinematic(false)
+
+
+## /** Oda, on the ninth form, which does not exist. No combat. */
+static func oda_ninth_form(ctx: EventContext) -> void:
+	if not ctx.in_roster("oda"):
+		await ctx.say(null, ["A worn patch on the flagstones, roughly the size of a man standing still for a very long time."])
+		return
+	if ctx.has_flag("ninth_form"):
+		await ctx.say("Oda", ["Eleven seconds. You are no better at it and you have stopped pretending, which is better."])
+		return
+	await ctx.cinematic(true)
+	await ctx.say("Oda", ["Stand there. Do not move. I will tell you when."])
+	ctx.close_dialogue()
+	await ctx.wait(5.5)
+	await ctx.say("Oda", ["When."])
+	await ctx.say("Vesna", ["How long was that."])
+	await ctx.say("Oda", ["Eleven seconds. You looked at your boots twice, and you came off your back foot at nine.", "The school taught eight forms and I have told you there is no ninth. That was not modesty."])
+	await ctx.say("Oda", ["There is no ninth because the ninth is the part between the other eight, and nobody has ever worked out how to teach somebody to be between things.", "Then the hall burned and took the school with it, and I have been between things ever since, at a professional standard."])
+	await ctx.say("Oda", ["Take these. They were my master's, I have not put wrappings on since the year it burned, and you are travelling with at least one man who hits things."])
+	await ctx.grant_chest({"kind": "item", "id": "stormfists", "label": "the Storm Fists"}, ctx.field)
+	ctx.set_flag("ninth_form")
+	ctx.complete_quest("stillwater")
+	await ctx.cinematic(false)
+
+
+## Kestrel reads the list. Ruined world only. No combat, no reward, and it
+## takes until dark.
+static func kestrel_sixty_one(ctx: EventContext) -> void:
+	if not ctx.in_roster("kestrel"):
+		await ctx.say(null, ["A ledger box, roped shut, with a chalk number on the lid that has been rubbed out and rewritten sixty times."])
+		return
+	if ctx.world_state != "ruin":
+		await ctx.say("Kestrel", ["Not while the branch is still a branch. I am not reading anything aloud in a building with a roll on it."])
+		return
+	if ctx.has_flag("names_read"):
+		await ctx.say("Kestrel", ["Sixty. I will do the sixty-first when there is somewhere to do it."])
+		return
+	await ctx.cinematic(true)
+	await ctx.say("Kestrel", ["Sit down. All of you. This runs until dark and I am not doing it twice."])
+	await ctx.say(null, ["She reads from the top. Every name gets the same weight — the ones with a town after them and the ones with only a draw date.", "Somewhere in the thirties her voice goes. She drinks, and then starts the line again from the beginning rather than from where she stopped."])
+	await ctx.say(null, ["It is fully dark by the time she reaches the bottom of the fourth sheet. There is a fifth sheet and she puts her hand flat on it."])
+	await ctx.say("Kestrel", ["Sixty. I am not reading the sixty-first."])
+	await ctx.say("Vesna", ["Why."])
+	await ctx.say("Kestrel", ["Because the sixty-first is still working.", "It is turning under the Engine House at this moment, four measures an hour, and I will not say a name out loud over the sound of it being used."])
+	ctx.set_flag("names_read")
+	ctx.complete_quest("names")
+	await ctx.cinematic(false)
+
+
+## Somebody with a rank finally says it. Rusk needs an officer present — the
+## order went in at a rank and has to come out at one.
+static func rusk_stand_down(ctx: EventContext) -> void:
+	if not ctx.in_roster("rusk"):
+		await ctx.say(null, ["A wall, and a rectangle of clean brick on it two heads taller than anyone here."])
+		return
+	if ctx.has_flag("rusk_relieved"):
+		await ctx.say("Rusk", ["I AM ON THIS ROAD BECAUSE I CHOSE THE ROAD. THE CHOOSING IS THE PART THAT IS NEW AND I AM STILL GETTING THE HANG OF IT."])
+		return
+	var officer = ctx.present(["maret", "aurelian", "idris"])
+	await ctx.say("Rusk", ["QUERY: HAS THE RELIEF COME."])
+	if not officer:
+		await ctx.say("Vesna", ["You can stand down."])
+		await ctx.say("Rusk", ["IT IS NOT THAT I DO NOT BELIEVE YOU.", "THE ORDER WENT IN AT A RANK. IT HAS TO COME OUT AT A RANK. I HAVE TRIED IT THE OTHER WAY FOR ELEVEN YEARS AND IT DOES NOT TAKE."])
+		return
+	await ctx.cinematic(true)
+	var lines = {"maret": ["Rusk. Stand down.", "Maret Sunder. General of a standard that does not exist, of an army that does not exist, on a road that does. It is the only rank on the road and it will have to do."], "aurelian": ["Rusk. Stand down.", "Aurelian Marchetti, Engineer-King of Solmere, of which there is currently about a third. The seal is in my coat and the coat is the same coat."], "idris": ["Rusk. Stand down.", "Ser Idris Vance, Last Blade of Ashenhall. There is no house behind that and there has not been for forty years, and it was still a rank when they gave it to me."]}
+	await ctx.say(officer["name"], [lines[officer["id"]][0]])
+	await ctx.say("Rusk", ["ORDER RECEIVED. QUERY: ORDER FROM WHOM."])
+	await ctx.say(officer["name"], [lines[officer["id"]][1]])
+	await ctx.say("Rusk", ["ORDER LOGGED. ORDER ACKNOWLEDGED."])
+	await ctx.say(null, ["The core dims by about a third. It stays there for four seconds and comes back up."])
+	await ctx.say("Rusk", ["I HAVE STOOD DOWN. I AM NOW STANDING BACK UP, WHICH IS A DIFFERENT THING, AND I WOULD LIKE IT ENTERED IN THE LOG."])
+	await ctx.say(officer["name"], ["There is no log."])
+	await ctx.say("Rusk", ["NO. THERE HAS NOT BEEN A LOG SINCE YEAR FORTY-ONE.", "I WILL KEEP IT MYSELF. ENTRY ONE."])
+	ctx.set_flag("rusk_relieved")
+	ctx.complete_quest("relief")
+	await ctx.cinematic(false)
+
+
+## /** Tam teaches the party to walk. Ruined world only. No combat. */
+static func tam_quiet_lesson(ctx: EventContext) -> void:
+	if not ctx.in_roster("tam"):
+		await ctx.say(null, ["Something has been lying on the ridge long enough to press the grass flat. The grass has not come back up."])
+		return
+	if ctx.has_flag("tam_taught"):
+		await ctx.say("Tam", ["Still loud. Less loud. Keep the heel last."])
+		return
+	await ctx.cinematic(true)
+	await ctx.say("Tam", ["Stop. All of you stop.", "There is one on the ridge. Has been since the mile before last. You went past it three times and it let you."])
+	await ctx.say("Vesna", ["Why did it let us."])
+	await ctx.say("Tam", ["Because it is full. Not because you are clever.", "Walk like the ground is asleep. Heel last. Do not look up at the ridge — looking is loud."])
+	await ctx.say(null, ["The party covers half a mile at nobody's natural pace. Nothing on the ridge moves, and the wind does not change."])
+	await ctx.say("Tam", ["There. Keep it.", "Take the cord. Was on a man in the reeds, and he was quiet after, so it works."])
+	await ctx.grant_chest({"kind": "item", "id": "quietstep", "label": "a Quiet Step"}, ctx.field)
+	ctx.set_flag("tam_taught")
+	ctx.complete_quest("quiet")
+	await ctx.cinematic(false)
+
+
+## /** Ilsabet paints one of the party. The player picks who sits. No combat. */
+static func ilsabet_long_look(ctx: EventContext) -> void:
+	if not ctx.in_roster("ilsabet"):
+		await ctx.say(null, ["A board propped against a wall with three ground colours laid in and nothing on top of them yet."])
+		return
+	if ctx.has_flag("portrait_done"):
+		await ctx.say("Ilsabet", ["It is drying. Do not look at it wet — wet is a lie about what colour a thing is going to be."])
+		return
+	var sitters = ctx.active_except(["ilsabet"])
+	if not sitters.size():
+		await ctx.say("Ilsabet", ["I need somebody who is not me. I have done me and it was not interesting."])
+		return
+	await ctx.say("Ilsabet", ["I have a board and about two hours of light and I am not wasting either on the scenery.", "One of you sits. Not for a portrait. I want somebody's face doing nothing."])
+	var choice := await ctx.ask("Who sits?", ctx.names_of(sitters) + ["Nobody sits"], {"speaker": "Ilsabet", "cancelable": true})
+	ctx.close_dialogue()
+	if choice < 0 or choice >= sitters.size():
+		await ctx.say("Ilsabet", ["Fine. I will do the road, and the road will hold still, which is one thing the road has over all of you."])
+		return
+	var sitter = sitters[choice]
+	await ctx.cinematic(true)
+	await ctx.say("Ilsabet", ["%s. On the crate. Face that way and stop arranging it." % [sitter["name"]], "Put your face where it goes when you are not doing anything with it. That is the one I want. Everybody assumes I want the other one."])
+	await ctx.say(null, ["It takes the whole two hours. She works from the eyes outward and leaves the mouth until the light is nearly gone.", "She turns the board round without any announcement."])
+	await ctx.say("Vesna", ["It is not kind."])
+	await ctx.say("Ilsabet", ["No. Kind is a separate commission and it pays considerably better. This one is right.", "Later on there will be an argument about what all of us looked like. I am settling it now."])
+	ctx.set_flag("portrait_done")
+	ctx.set_flag("portrait_%s" % [sitter["id"]])
+	ctx.complete_quest("portrait")
+	await ctx.cinematic(false)
+
+
+## The collapsed gallery under Solmere. Bastian lifts the beam; nothing
+## fights back. What is underneath is what the nine days were about.
+static func bastian_heavy_end(ctx: EventContext) -> void:
+	if ctx.has_flag("gallery_lifted"):
+		await ctx.say(null, ["The gallery mouth is open. Somebody has set a bench across it, which would stop nobody and is not meant to."])
+		return
+	if not ctx.in_roster("bastian"):
+		await ctx.say(null, ["A gallery mouth, shut by a fallen beam and eleven years of brick dust.", "There is a brass plate screwed to the beam with two names on it and no dates."])
+		return
+	await ctx.cinematic(true)
+	await ctx.say(null, ["A fallen beam across the gallery mouth, with a brass plate screwed to it. Two names, no dates."])
+	await ctx.say("Bastian", ["Ross and Kelmy. They were in there when it came down and they were in there nine days after.", "He came down on the ninth day and did the sums out loud, in front of the shift, and the sums were right."])
+	if ctx.in_roster("aurelian"):
+		await ctx.say("Aurelian", ["I would have signed it on the seventh. Every hour past the seventh was arithmetic I already had.", "I waited two days and I have never once been able to say what for."])
+	await ctx.say("Bastian", ["Move."])
+	await ctx.say(null, ["It takes him a long time. It is not a lift so much as an argument with a beam, conducted in stages, with rests in it.", "The brick dust comes off the top in one sheet and then the beam goes over."])
+	await ctx.say("Bastian", ["They were brought up years ago, before you ask. Their people had them out inside the month, without a writ, at night.", "Somebody had to carry the heavy end and it was not the Engine House."])
+	await ctx.say(null, ["What is under the beam is the face the gallery was driven at. Set in it, at chest height, is something that is not stone."])
+	await ctx.grant_chest({"kind": "esper", "id": "quarryhound", "label": "a shard of magicite"}, ctx.field)
+	await ctx.say("Bastian", ["Nine days from that. Nine days."])
+	await ctx.say(null, ["He sets the beam down where it will not roll, and then stands looking at the plate for longer than the lift took."])
+	ctx.set_flag("gallery_lifted")
+	ctx.complete_quest("gallery")
+	await ctx.cinematic(false)
+
+
+## Maret writes out what she countersigned. Quiet, and it puts the Engine Key
+## in the party's hands — which is what opens the low door under the Well.
+static func maret_countersign(ctx: EventContext) -> void:
+	if not ctx.in_roster("maret"):
+		await ctx.say(null, ["A standing order board, and a rectangle on it where the damp has not got in because something used to hang there."])
+		return
+	if ctx.has_flag("maret_confession"):
+		await ctx.say("Maret", ["It is pinned where I said it would be. Nobody has read it.", "That is not the point, and I have had to tell myself that it is not the point on four separate occasions."])
+		return
+	await ctx.cinematic(true)
+	await ctx.say("Maret", ["I have written it out. Every requisition I countersigned, in order, with the tonnage, the date, and what the tonnage actually was.", "It runs to four pages. I expected it to be longer, and I have been sitting with the fact that it is not."])
+	await ctx.say("Maret", ["Vesna. Read the last page and tell me whether I have spelled the name right. I have only ever seen it stamped."])
+	await ctx.say("Vesna", ["You have missed a letter."])
+	await ctx.say("Maret", ["Then I will do the page again."])
+	await ctx.say(null, ["She does the page again. It takes a quarter of an hour and nobody fills the quarter of an hour with anything."])
+	await ctx.say("Maret", ["It goes on the outpost board, under the standing orders, where it will be the only thing on that board written by hand.", "And you had better take this now, because I am not walking back out through that gate afterwards."])
+	await ctx.grant_chest({"kind": "key", "id": "enginekey", "label": "the Engine Key"}, ctx.field)
+	await ctx.say("Maret", ["The low door under the Well. It has been down as lost on the inventory since year forty-one, and it has been in my coat since year forty-one.", "I have taken it out perhaps twice. Both times I put it back."])
+	ctx.set_flag("maret_confession")
+	ctx.complete_quest("countersign")
+	await ctx.cinematic(false)
+
+
+## /** The Mask has picked up somebody's habit. Ruined world only. No combat. */
+static func mask_reflection(ctx: EventContext) -> void:
+	if not ctx.in_roster("themask"):
+		await ctx.say(null, ["Two sets of prints in the ash, the same size, one exactly inside the other."])
+		return
+	if ctx.world_state != "ruin":
+		await ctx.say(null, ["Nobody is standing there. Somebody was standing there."])
+		return
+	if ctx.has_flag("mask_seen"):
+		await ctx.say("The Mask", ["…"])
+		return
+	# Vesna is excluded: she is the one who tells it to stop, and the habit it
+	# drops has to belong to somebody other than the habit it picks up next.
+	var others = ctx.active_except(["themask", "vesna"])
+	var subject = ctx.pick(others) if others.size() else null
+	await ctx.cinematic(true)
+	await ctx.say(null, ["For three days the Mask has been doing one particular thing.", "It checks a strap it is not wearing, twice, at the same two points of the morning, and then puts its hand back down."])
+	if subject:
+		await ctx.say(null, ["%s has done that for years. Nobody has ever mentioned it, because it is not the sort of thing anybody mentions." % [subject["name"]]])
+		await ctx.say("Vesna", ["Stop doing that."])
+		await ctx.say(null, ["It stops. It stops between one motion and the next, mid-reach, and puts the hand down.", "By the afternoon it is standing the way Vesna stands when she is listening to something the others cannot hear."])
+		await ctx.say("Vesna", ["Do the strap. Go back to the strap."])
+		await ctx.say("The Mask", ["…"])
+		await ctx.say(null, ["It goes back to the strap."])
+	else:
+		await ctx.say(null, ["There is nobody in the party it could have taken that from. It does it again in the morning."])
+	ctx.set_flag("mask_seen")
+	ctx.complete_quest("mask_habit")
+	await ctx.cinematic(false)
+
+
+## The last working lattice on the continent is heating what is left of
+## Solmere. Stopping it frees a name and costs the party the money it takes
+## to move sixty households south before winter; leaving it running keeps
+## the city alive and costs the party a shard of magicite, because the draw
+## has to come from somewhere and the party is the only somewhere left.
+##
+## There is no third option and neither of the two is free.
+static func the_last_measure(ctx: EventContext) -> void:
+	if ctx.has_flag("measure_decided"):
+		if ctx.has_flag("solmere_dark"):
+			await ctx.say(null, ["The cradle is empty. The pipes above it tick as they cool, and they have been ticking for days."])
+		else:
+			await ctx.say(null, ["The lattice turns. Four measures an hour, and the long room is the only warm room on this coast."])
+		return
+	if ctx.world_state != "ruin":
+		await ctx.say(null, ["The lattice turns in its brass cradle, very slowly, the way it has turned for eleven years."])
+		return
+	await ctx.cinematic(true)
+	ctx.play_music("memory", {"fade": 1.0})
+	await ctx.say(null, ["There is no roof over the east end of the Engine House any more. The cradle is untouched.", "The lattice is still turning. Four measures an hour, and every one of them goes out through the floor to the streets that are left."])
+	await ctx.say("Under-Clerk", ["Sixty-one households. Water at the standpipe, heat in the long room, and the Governor's Rest takes anyone who walks in and does not ask.", "I am still signing for it. There is nobody to hand the sheets to, so they go in the drawer."])
+	await ctx.say("Vesna", ["And it is a person."])
+	await ctx.say("Under-Clerk", ["Yes."])
+	if ctx.in_roster("kestrel"):
+		if ctx.has_flag("names_read"):
+			await ctx.say("Kestrel", ["That is the sixty-first. That is the one I would not read out."])
+		else:
+			await ctx.say("Kestrel", ["Sixty-one on my list. Sixty are finished. This is the one that is not."])
+
+	var choice := await ctx.ask("The inner ring has a name cut into it. You are close enough to read it.", ["Stop the draw", "Leave it running"], {"cancelable": false})
+	ctx.close_dialogue()
+
+	if choice == 0:
+		# --- stop it -------------------------------------------------------
+		await ctx.say(null, ["The cradle takes about a minute to run down. The lattice comes apart in the last few seconds of it and the pieces are cold before they reach the floor."])
+		await ctx.say(null, ["Vesna says the name once, at speaking volume, the way you would say it across a table."])
+		await ctx.say(null, ["The standpipe stops that afternoon. By the second night the long room is colder than the street, the way a room with no fire in it always is."])
+		var owed = mini(ctx.gold(), 4000)
+		ctx.spend_gold(owed)
+		if owed > 0:
+			await ctx.say(null, ["The party puts %s gil into carts, coal and a fortnight of somebody else's grain, and it is not enough, and it goes anyway." % [owed]])
+		else:
+			await ctx.say(null, ["The party has nothing to put into carts or coal. What goes south with the households instead is most of what the party was carrying to eat."])
+		await ctx.say("Under-Clerk", ["Sixty-one households on the Harrowmere road before the frost. I will walk at the back with the sheets.", "I would like it noted that I have not asked you whether it was worth it. I have decided not to ask."])
+		ctx.set_flag("solmere_dark")
+		ctx.set_flag("name_returned")
+	else:
+		# --- leave it running ----------------------------------------------
+		await ctx.say("Under-Clerk", ["Then it holds until the frost and not past it. The seam it draws on is nearly out — you can hear the change in the pitch at night.", "To carry the city to spring, the cradle takes another measure. There is nowhere on this continent left to get one."])
+		await ctx.say("Vesna", ["There is one place."])
+		var candidates = ["brasswright", "saltwidow", "quarryhound", "stormcaller", "hoarking", "greenmother"]
+		var given = ctx.first_esper(candidates)
+		if given:
+			ctx.remove_esper(given)
+			for m in ctx.roster_members():
+				if m["esper"] and m["esper"]["id"] == given:
+					ctx.clear_esper(m["id"])
+			await ctx.say(null, ["The shard goes into the cradle beside the lattice and takes about four seconds to settle.", "%s is gone from the party's magicite." % [ctx.esper_name(given)]])
+			await ctx.say("Vesna", ["There was a name in that one as well.", "I have read this one off the ring. I am not going to say it while the thing is still turning."])
+		else:
+			var owed = mini(ctx.gold(), 6000)
+			ctx.spend_gold(owed)
+			if owed > 0:
+				await ctx.say(null, ["The party has no shard to give. What goes into the ledger instead is %s gil, against a draw the city cannot pay for and will not stop." % [owed]])
+			else:
+				await ctx.say(null, ["The party has no shard to give and nothing in the purse to give instead. The Under-Clerk writes the line anyway and leaves the figure blank."])
+		await ctx.say("Under-Clerk", ["The standpipe runs. The long room is warm. I have written down what it cost and there is still nobody to hand the sheet to."])
+		ctx.set_flag("solmere_lit")
+		ctx.set_flag("measure_given")
+
+	ctx.set_flag("measure_decided")
+	ctx.complete_quest("measure")
+	# Every other scene that changes the music ends in a battle or a new map,
+	# either of which re-enters the field and restores the theme. This one does
+	# neither, so it has to hand the map its own music back.
+	if ctx.map_music():
+		ctx.play_music(ctx.map_music(), {"fade": 1.6})
+	await ctx.cinematic(false)
+
+
+## The eight burnt alcoves of Ashenhall light again once the ninth lantern
+## has been carried off. They are keeping her place.
+static func choir_under_ashenhall(ctx: EventContext) -> void:
+	if ctx.has_flag("choir_slain"):
+		await ctx.say(null, ["Nine alcoves, nine dark. The hall does not echo any more, which for a hall this size takes some doing."])
+		return
+	if ctx.world_state != "ruin" or not ctx.has_flag("lantern_slain"):
+		await ctx.say(null, ["The burnt alcoves are cold. Something behind the brickwork clicks, twice, and stops."])
+		return
+	await ctx.cinematic(true)
+	ctx.play_music("boss_final", {"fade": 0.8})
+	await ctx.say(null, ["The eight burnt alcoves are lit.", "They were burnt a thousand years ago and they are burnt now and they are lit, and the light is coming from behind the brick rather than out of it."])
+	await ctx.say("Vesna", ["Eight of them, and the ninth alcove is the loud one, and there is nothing in the ninth alcove.", "They are keeping her place. They have been keeping her place since we took her out of it."])
+	await ctx.tremor(1.4, 0.55)
+	await ctx.cinematic(false)
+
+	# Not the Eighth Lantern: this scene is gated on her already being dead,
+	# and the whole point of it is that the other eight are holding her place.
+	var result := await ctx.battle({"enemies": ["chorister", "lanternbearer", "lanternbearer"]}, {"boss": true, "terrain": "marble", "scenery": "none", "canFlee": false})
+	if result != "victory":
+		return
+
+	ctx.set_flag("choir_slain")
+	await ctx.cinematic(true)
+	await ctx.say(null, ["They go out in order, from the eighth back to the first, at about the pace a person walks the length of a hall."])
+	await ctx.say("Vesna", ["That was the last of the vigil. Nobody is standing over anything in here now."])
+	await ctx.grant_chest({"kind": "item", "id": "megalixir", "count": 3, "label": "3 Megalixirs"}, ctx.field)
+	ctx.add_gold(9000)
+	await ctx.say(null, ["The offering plates hold 9000 gil in coin that stopped being legal four hundred years ago, stacked, and counted, and counted recently."])
+	ctx.complete_quest("choir")
+	await ctx.cinematic(false)
+
+
+## The low door under the Well. The Engine Key opens it; what is behind it is
+## the record, and the last things the Well took are standing up in it.
+static func the_well_reads_back(ctx: EventContext) -> void:
+	if ctx.has_flag("record_slain"):
+		await ctx.say(null, ["The low door stands open on a room with nothing in it but shelving.", "The shelving is empty and the room is a very great deal longer than the shaft it is cut into."])
+		return
+	if ctx.world_state != "ruin":
+		await ctx.say(null, ["A low door, flush with the shaft wall, no handle, and a keyway worn bright by use."])
+		return
+	if ctx.count_item("enginekey") < 1:
+		await ctx.say(null, ["The low door has a keyway worn bright by use and nothing else on it. It does not move."])
+		if ctx.in_roster("maret"):
+			await ctx.say("Maret", ["I know that keyway. Ask me about it when I am sitting down and have had a moment."])
+		return
+	await ctx.cinematic(true)
+	ctx.play_music("boss_final", {"fade": 0.8})
+	await ctx.say(null, ["The key turns without any argument at all. Behind the door is shelving, and the shelving runs further back than the rock does.", "Every shelf is full. Nothing on any of them is a book."])
+	await ctx.say("Vesna", ["It is not guarding this. It is reading it.", "It has been reading us since the stair, and the three at the front are the three it read most recently."])
+	await ctx.tremor(1.8, 0.7)
+	await ctx.cinematic(false)
+
+	# Not the Warden again — Vesna has just said this thing is reading rather
+	# than guarding, and the Warden died at the shaft head on the main line.
+	var result := await ctx.battle({"enemies": ["deadreckoner", "stoppedman", "stoppedman"]}, {"boss": true, "terrain": "cobble", "scenery": "cave", "canFlee": false})
+	if result != "victory":
+		return
+
+	ctx.set_flag("record_slain")
+	await ctx.cinematic(true)
+	await ctx.say(null, ["The shelving goes dark one bay at a time, from the door inward, and does not stop when it reaches the wall."])
+	await ctx.say("Vesna", ["It had all of them. Every name it ever drew, in order, and it was still taking them down when we came through the door.", "Somebody built a room to remember this in, and then put a lock on it and lost the key on purpose."])
+	await ctx.grant_chest({"kind": "item", "id": "elixir", "count": 5, "label": "5 Elixirs"}, ctx.field)
+	ctx.add_gold(15000)
+	await ctx.say(null, ["Behind the last bay is a strongbox with 15000 gil in it, and a requisition slip made out to nobody."])
+	ctx.complete_quest("record")
+	await ctx.cinematic(false)
+
+
+## /** The roadside well, after. The quietest thing in the game. */
+static func vesna_still_here(ctx: EventContext) -> void:
+	if ctx.world_state != "ruin":
+		await ctx.say(null, ["Cold, clean, and somebody has left a tin cup on the rim."])
+		return
+	if ctx.has_flag("tin_cup"):
+		await ctx.say(null, ["The cup is on the rim, upside down, drying. It has been moved since you were last here."])
+		return
+	await ctx.cinematic(true)
+	await ctx.say(null, ["The windlass has gone. Somebody has rigged a rope over the beam with a knot in it every arm's length.", "The tin cup is still on the rim. It is upside down, which is not how you leave a cup you have finished with."])
+	await ctx.say("Vesna", ["Somebody is still filling it."])
+	await ctx.say(null, ["She draws a cup and drinks it and sets it back upside down, and then stands with her hand flat on the stone for a while."])
+	await ctx.say("Vesna", ["It is cold. It is exactly as cold as it was.", "I keep waiting for something to have changed. It was never going to be the water."])
+	await ctx.say(null, ["The party fills what it is carrying and sits on the wall until the light goes."])
+	ctx.rest_all()
+	ctx.set_flag("tin_cup")
+	await ctx.say(null, ["HP and MP fully restored."])
+	ctx.complete_quest("tincup")
+	await ctx.cinematic(false)
+
