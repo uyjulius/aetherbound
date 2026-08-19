@@ -104,6 +104,10 @@ jobs:
       # score through the reference's own Web Audio engine to prove the shipped
       # files are still that score, and it needs a page to do it in.
       - name: Install the browser
+        # Bounded, because this step once sat for half an hour on a runner whose apt
+        # mirror had stopped answering. A hang that fails in ten minutes is a hang
+        # somebody can read; one that fails at the six-hour job limit is not.
+        timeout-minutes: 12
         run: npx playwright install --with-deps chromium
 
       # The parity suite is the port's entire guarantee — 3,804 formula values,
