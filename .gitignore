@@ -37,3 +37,9 @@ __pycache__/
 # Godot web export output. Rebuilt by `npm run export:godot`, ~63MB, and the CI
 # job that publishes it to /godot/ builds it from scratch every time.
 build/
+
+# The scenery survey: 316KB of every candidate poly.pizza returned for twenty search
+# terms, with its real bounding box. It is how the models in `manifest.json` were chosen
+# and it is reproducible — `npm run props -- --survey` writes it again — so the choices are
+# committed and the working notes are not.
+godot/assets/props/survey.json

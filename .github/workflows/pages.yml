@@ -103,12 +103,20 @@ jobs:
       # Before the parity suite, not after: audio parity re-renders part of the
       # score through the reference's own Web Audio engine to prove the shipped
       # files are still that score, and it needs a page to do it in.
+      # Cached, and deliberately without `--with-deps`. The apt half of that flag sat
+      # for half an hour on two runners in a row while finding every library already
+      # installed — the ubuntu-latest image ships them — so it buys nothing here and
+      # costs the whole job when a mirror stops answering. If a future image drops a
+      # library, the browser check below fails loudly at launch rather than silently.
+      - name: Cache the browser
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/ms-playwright
+          key: playwright-${{ runner.os }}-${{ hashFiles('package-lock.json') }}
+
       - name: Install the browser
-        # Bounded, because this step once sat for half an hour on a runner whose apt
-        # mirror had stopped answering. A hang that fails in ten minutes is a hang
-        # somebody can read; one that fails at the six-hour job limit is not.
-        timeout-minutes: 12
-        run: npx playwright install --with-deps chromium
+        timeout-minutes: 8
+        run: npx playwright install chromium
 
       # The parity suite is the port's entire guarantee — 3,804 formula values,
       # 40,855 table numbers, 24,000 AI decisions, 1,719 RNG draws, 897 glue

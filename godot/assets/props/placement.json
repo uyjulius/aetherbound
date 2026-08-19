@@ -1,0 +1,498 @@
+{
+ "tile": 2,
+ "kits": {
+  "chest": {
+   "file": "chest.glb",
+   "scale": 0.6739,
+   "y": 0.0138,
+   "yaw": 0,
+   "fit": "width",
+   "footprint": {
+    "w": 0.94,
+    "d": 0.65
+   },
+   "model": [
+    1.3948,
+    0.8813,
+    0.8874
+   ]
+  },
+  "barrel": {
+   "file": "barrel.glb",
+   "scale": 0.9047,
+   "y": -0.0015,
+   "yaw": 0,
+   "fit": "width",
+   "footprint": {
+    "w": 0.637,
+    "d": 0.67
+   },
+   "model": [
+    0.7041,
+    1.1449,
+    0.7041
+   ]
+  },
+  "crate": {
+   "file": "crate.glb",
+   "scale": 0.5176,
+   "y": 0.523,
+   "yaw": 0,
+   "fit": "width",
+   "footprint": {
+    "w": 1.046,
+    "d": 1.053
+   },
+   "model": [
+    2.0208,
+    2.0208,
+    2.0208
+   ]
+  },
+  "bench": {
+   "file": "bench.glb",
+   "scale": 2.0555,
+   "y": 0,
+   "yaw": 0,
+   "fit": "width",
+   "footprint": {
+    "w": 1.8,
+    "d": 0.507
+   },
+   "model": [
+    0.8757,
+    0.7442,
+    1.5714
+   ]
+  },
+  "cart": {
+   "file": "cart.glb",
+   "scale": 0.7952,
+   "y": 1.1167,
+   "yaw": 0,
+   "fit": "width",
+   "footprint": {
+    "w": 3.268,
+    "d": 1.832
+   },
+   "model": [
+    4.1098,
+    3.4256,
+    3.8665
+   ]
+  },
+  "stall": {
+   "file": "stall.glb",
+   "scale": 2.5239,
+   "y": 0.0119,
+   "yaw": 0,
+   "fit": "width",
+   "footprint": {
+    "w": 2.4,
+    "d": 1.2
+   },
+   "model": [
+    0.9509,
+    1.0492,
+    1.1898
+   ]
+  },
+  "well": {
+   "file": "well.glb",
+   "scale": 3.6014,
+   "y": 0.9086,
+   "yaw": 0,
+   "fit": "width",
+   "footprint": {
+    "w": 2.4,
+    "d": 2.4
+   },
+   "model": [
+    0.6664,
+    1.2504,
+    1.0036
+   ]
+  },
+  "fence": {
+   "file": "fence.glb",
+   "scale": 1.039,
+   "y": 0.0112,
+   "yaw": 0,
+   "fit": "width",
+   "footprint": {
+    "w": 6.12,
+    "d": 0.12
+   },
+   "model": [
+    5.8901,
+    1.0971,
+    0.1655
+   ]
+  },
+  "flowerbox": {
+   "file": "flowerbox.glb",
+   "scale": 0.6187,
+   "y": 0.0514,
+   "yaw": 0,
+   "fit": "width",
+   "footprint": {
+    "w": 1.152,
+    "d": 0.372
+   },
+   "model": [
+    1.8619,
+    1.5848,
+    0.6274
+   ]
+  },
+  "bush": {
+   "file": "bush.glb",
+   "scale": 0.8643,
+   "y": -0.1005,
+   "yaw": 0,
+   "fit": "width",
+   "footprint": {
+    "w": 2.667,
+    "d": 3.019
+   },
+   "model": [
+    3.0857,
+    1.9601,
+    3.0857
+   ]
+  },
+  "rock": {
+   "file": "rock.glb",
+   "scale": 1.0889,
+   "y": -0.1004,
+   "yaw": 0,
+   "fit": "width",
+   "footprint": {
+    "w": 3.596,
+    "d": 3.742
+   },
+   "model": [
+    3.3024,
+    3.8322,
+    3.0119
+   ]
+  },
+  "bridge": {
+   "file": "bridge.glb",
+   "scale": 1,
+   "y": 0.2755,
+   "yaw": 0,
+   "fit": "width",
+   "footprint": null,
+   "model": [
+    6.9381,
+    2.6175,
+    2.6376
+   ]
+  },
+  "lamppost": {
+   "file": "lamppost.glb",
+   "scale": 1.1357,
+   "y": 0,
+   "yaw": 0,
+   "fit": "height",
+   "footprint": {
+    "w": 0.6,
+    "d": 0.6
+   },
+   "model": [
+    0.7734,
+    2.9938,
+    0.8132
+   ]
+  },
+  "tree": {
+   "file": "tree.glb",
+   "scale": 2.4188,
+   "y": 0.1028,
+   "yaw": 0,
+   "fit": "height",
+   "footprint": {
+    "w": 1.023,
+    "d": 0.8
+   },
+   "model": [
+    1.8891,
+    2.4806,
+    2.7731
+   ]
+  },
+  "signpost": {
+   "file": "signpost.glb",
+   "scale": 1.8407,
+   "y": -0.0311,
+   "yaw": 0,
+   "fit": "height",
+   "footprint": {
+    "w": 0.173,
+    "d": 0.2
+   },
+   "model": [
+    0.5696,
+    1.0322,
+    0.5225
+   ]
+  },
+  "savepoint": {
+   "file": "savepoint.glb",
+   "scale": 1.3296,
+   "y": 0.0029,
+   "yaw": 0,
+   "fit": "height",
+   "footprint": null,
+   "model": [
+    1.4758,
+    1.6546,
+    1.4819
+   ]
+  },
+  "airshipmast": {
+   "file": "airshipmast.glb",
+   "scale": 2.9467,
+   "y": -0.0245,
+   "yaw": 0,
+   "fit": "height",
+   "footprint": {
+    "w": 3.2,
+    "d": 3.2
+   },
+   "model": [
+    1.3041,
+    4.0723,
+    1.3041
+   ]
+  }
+ },
+ "buildings": {
+  "plaster": {
+   "file": "building_plaster.glb",
+   "model": [
+    3.7475,
+    4.6633,
+    2.7436
+   ],
+   "base": -0.0011
+  },
+  "stone": {
+   "file": "building_stone.glb",
+   "model": [
+    4.7052,
+    5.6774,
+    4.3906
+   ],
+   "base": -0.0134
+  },
+  "wood": {
+   "file": "building_wood.glb",
+   "model": [
+    4.3991,
+    2.8625,
+    3.2835
+   ],
+   "base": -0.0518
+  },
+  "marble": {
+   "file": "building_marble.glb",
+   "model": [
+    2.1034,
+    0.9369,
+    1.9569
+   ],
+   "base": 0
+  },
+  "magitek": {
+   "file": "building_magitek.glb",
+   "model": [
+    4.6438,
+    5.4865,
+    3.8558
+   ],
+   "base": -0.0146
+  },
+  "brick": {
+   "file": "building_brick.glb",
+   "model": [
+    3.89,
+    3.0034,
+    3.2835
+   ],
+   "base": -0.0039
+  }
+ },
+ "glyphs": {
+  "forest": {
+   "kit": "tree",
+   "file": "tree.glb",
+   "scale": 2.8219,
+   "y": 0.1199,
+   "radius": 0,
+   "standin": null
+  },
+  "tree": {
+   "kit": "tree",
+   "file": "tree.glb",
+   "scale": 2.4188,
+   "y": 0.1028,
+   "radius": 0.6,
+   "standin": null
+  },
+  "pine": {
+   "kit": "tree",
+   "file": "tree.glb",
+   "scale": 2.6203,
+   "y": 0.1114,
+   "radius": 0,
+   "standin": "no single pine in the catalogue"
+  },
+  "deadtree": {
+   "kit": "tree",
+   "file": "tree.glb",
+   "scale": 2.0156,
+   "y": 0.0857,
+   "radius": 0.5,
+   "standin": "the dead trees come as a group of five"
+  },
+  "palm": {
+   "kit": "tree",
+   "file": "tree.glb",
+   "scale": 2.2172,
+   "y": 0.0942,
+   "radius": 0.5,
+   "standin": "the palms come as a group of five"
+  },
+  "bush": {
+   "kit": "bush",
+   "file": "bush.glb",
+   "scale": 1,
+   "y": 0.0405,
+   "radius": 0,
+   "standin": null
+  },
+  "boulder": {
+   "kit": "rock",
+   "file": "rock.glb",
+   "scale": 0.5451,
+   "y": 0.2004,
+   "radius": 0.9,
+   "standin": null
+  },
+  "reeds": {
+   "kit": "bush",
+   "file": "bush.glb",
+   "scale": 0.7142,
+   "y": 0.0289,
+   "radius": 0,
+   "standin": "reeds are a bush at knee height"
+  }
+ },
+ "ground": {
+  "grass": {
+   "texture": "grass.png"
+  },
+  "dirt": {
+   "texture": "dirt_path.png"
+  },
+  "cobble": {
+   "texture": "cobblestone.png"
+  },
+  "sand": {
+   "texture": "sand.png"
+  },
+  "snow": {
+   "texture": "snow.png"
+  },
+  "wood": {
+   "texture": "wood_floor.png"
+  },
+  "marble": {
+   "texture": "marble_floor.png"
+  },
+  "rock": {
+   "texture": "rock_cliff.png"
+  },
+  "cave": {
+   "texture": "cave_rock.png"
+  },
+  "swamp": {
+   "texture": "dirt_path.png"
+  },
+  "aether": {
+   "texture": "aether_stone.png"
+  },
+  "magitek": {
+   "texture": "magitek_panel.png"
+  }
+ },
+ "walls": {
+  "grass": {
+   "texture": "stone_wall.png"
+  },
+  "dirt": {
+   "texture": "stone_wall.png"
+  },
+  "cobble": {
+   "texture": "brick_wall.png"
+  },
+  "sand": {
+   "texture": "plaster_wall.png"
+  },
+  "snow": {
+   "texture": "stone_wall.png"
+  },
+  "wood": {
+   "texture": "wood_planks.png"
+  },
+  "marble": {
+   "texture": "marble_floor.png"
+  },
+  "rock": {
+   "texture": "rock_cliff.png"
+  },
+  "cave": {
+   "texture": "cave_rock.png"
+  },
+  "swamp": {
+   "texture": "stone_wall.png"
+  },
+  "aether": {
+   "texture": "aether_stone.png"
+  },
+  "magitek": {
+   "texture": "magitek_panel.png"
+  },
+  "water": {
+   "texture": "rock_cliff.png"
+  }
+ },
+ "pieces": {
+  "floor": {
+   "file": "block.glb",
+   "model": [
+    2,
+    2,
+    2
+   ]
+  },
+  "wall": {
+   "file": "block.glb",
+   "model": [
+    2,
+    2,
+    2
+   ]
+  },
+  "paved": {
+   "file": "floor.glb",
+   "model": [
+    2.0048,
+    0.2503,
+    2.0006
+   ]
+  }
+ }
+}

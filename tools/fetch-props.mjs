@@ -55,7 +55,17 @@ const say = (s = '') => console.log(s);
 const KITS = [
   { kit: 'lamppost', count: 558, terms: ['lamp post', 'street lamp', 'lantern post'] },
   { kit: 'chest', count: 405, terms: ['chest', 'treasure chest'] },
-  { kit: 'building', count: 270, terms: ['house', 'medieval house', 'building'] },
+  // Six of them, because a building in this world declares a `style` and the reference
+  // builds a different thing for each. What is lost either way is the per-building
+  // variation the reference generates from `storeys`, `timbered`, `chimney`, `awning` and
+  // the rest — that is arithmetic, and arithmetic is what this port does not do for
+  // geometry. What is kept is that a plaster town does not look like a marble one.
+  { kit: 'building_plaster', count: 139, terms: ['town house', 'timbered house', 'house'] },
+  { kit: 'building_stone', count: 61, terms: ['stone house', 'building', 'stone building'] },
+  { kit: 'building_wood', count: 39, terms: ['wooden house', 'sawmill', 'barn'] },
+  { kit: 'building_marble', count: 21, terms: ['palace', 'temple', 'castle'] },
+  { kit: 'building_magitek', count: 6, terms: ['factory', 'workshop', 'industrial building'] },
+  { kit: 'building_brick', count: 4, terms: ['blacksmith', 'brick house', 'forge'] },
   { kit: 'signpost', count: 241, terms: ['signpost', 'wooden sign'] },
   { kit: 'barrel', count: 207, terms: ['barrel'] },
   { kit: 'crate', count: 202, terms: ['crate', 'wooden crate'] },
@@ -76,6 +86,11 @@ const KITS = [
   // — a plane and a box built in code — is the thing this project does not do.
   { kit: 'floor', count: 0, terms: ['floor tile', 'ground tile', 'stone floor'] },
   { kit: 'wall', count: 0, terms: ['wall modular', 'stone wall', 'modular wall'] },
+  // One textured cube, twelve triangles. Every open tile in the world carries a piece of
+  // ground and the overworld alone has 2,816 of them, so the ground has to be something a
+  // MultiMesh can draw thousands of without thinking about it. The look comes from the
+  // texture plates the reference already uses, not from this mesh.
+  { kit: 'block', count: 0, terms: ['stone block', 'cube', 'block'] },
 ];
 
 const api = async (p) => {
@@ -90,13 +105,57 @@ async function download(url) {
   return Buffer.from(await res.arrayBuffer());
 }
 
+/** Multiply two column-major 4×4 matrices, as glTF stores them. */
+function multiply(a, b) {
+  const out = new Array(16).fill(0);
+  for (let c = 0; c < 4; c++) {
+    for (let r = 0; r < 4; r++) {
+      let sum = 0;
+      for (let k = 0; k < 4; k++) sum += a[k * 4 + r] * b[c * 4 + k];
+      out[c * 4 + r] = sum;
+    }
+  }
+  return out;
+}
+
+/** A node's local matrix, from either `matrix` or its translation/rotation/scale. */
+function localMatrix(node) {
+  if (node.matrix) return node.matrix.slice();
+  const [x, y, z, w] = node.rotation ?? [0, 0, 0, 1];
+  const [sx, sy, sz] = node.scale ?? [1, 1, 1];
+  const [tx, ty, tz] = node.translation ?? [0, 0, 0];
+  // Quaternion to a rotation matrix, then scaled columns and the translation.
+  const r = [
+    1 - 2 * (y * y + z * z), 2 * (x * y + z * w), 2 * (x * z - y * w),
+    2 * (x * y - z * w), 1 - 2 * (x * x + z * z), 2 * (y * z + x * w),
+    2 * (x * z + y * w), 2 * (y * z - x * w), 1 - 2 * (x * x + y * y),
+  ];
+  return [
+    r[0] * sx, r[1] * sx, r[2] * sx, 0,
+    r[3] * sy, r[4] * sy, r[5] * sy, 0,
+    r[6] * sz, r[7] * sz, r[8] * sz, 0,
+    tx, ty, tz, 1,
+  ];
+}
+
+function apply(m, [x, y, z]) {
+  return [
+    m[0] * x + m[4] * y + m[8] * z + m[12],
+    m[1] * x + m[5] * y + m[9] * z + m[13],
+    m[2] * x + m[6] * y + m[10] * z + m[14],
+  ];
+}
+
 /**
  * What a GLB actually contains, from its own accessors.
  *
- * The bounding box comes from the POSITION accessors' `min` and `max`, which glTF requires
- * — so it is exact and needs no mesh maths here. It is transformed by each node's TRS on
- * the way up, because a model whose root node scales by 0.01 has a bounding box that means
- * nothing on its own, and that is the common case.
+ * The bounding box comes from the POSITION accessors' `min` and `max`, which glTF requires,
+ * so it is exact and needs no mesh maths — but it has to be carried up through the node
+ * hierarchy by the *full* transform. Ignoring rotation, which an earlier version of this did,
+ * reports a street light as two units tall and five deep: a fair number of models arrive with
+ * a quarter-turn on their root node from being authored Z-up, and a survey that mixes those
+ * up chooses assets by the wrong dimension. All eight corners are transformed for the same
+ * reason.
  */
 function inspectGLB(buf) {
   if (buf.length < 20 || buf.readUInt32LE(0) !== 0x46546c67) return { error: 'not a GLB' };
@@ -117,30 +176,32 @@ function inspectGLB(buf) {
     return out;
   };
 
-  // Node transforms, applied as scale and translation only: a rotation in the hierarchy
-  // would need the full corner set, and a bounding box off by a rotation is still the right
-  // order of magnitude, which is what this is for.
-  const walk = (nodeIndex, scale, offset) => {
+  const identity = [1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1];
+  const walk = (nodeIndex, parent) => {
     const node = json.nodes?.[nodeIndex];
     if (!node) return;
-    const s = node.scale ?? [1, 1, 1];
-    const t = node.translation ?? [0, 0, 0];
-    const nextScale = [scale[0] * s[0], scale[1] * s[1], scale[2] * s[2]];
-    const nextOffset = [
-      offset[0] + t[0] * scale[0], offset[1] + t[1] * scale[1], offset[2] + t[2] * scale[2],
-    ];
+    const world = multiply(parent, localMatrix(node));
     if (node.mesh !== undefined) {
       const mb = meshBox(node.mesh);
-      for (let i = 0; i < 3; i++) {
-        if (!Number.isFinite(mb.min[i])) continue;
-        box.min[i] = Math.min(box.min[i], mb.min[i] * nextScale[i] + nextOffset[i]);
-        box.max[i] = Math.max(box.max[i], mb.max[i] * nextScale[i] + nextOffset[i]);
+      if (Number.isFinite(mb.min[0])) {
+        for (const corner of [
+          [mb.min[0], mb.min[1], mb.min[2]], [mb.max[0], mb.min[1], mb.min[2]],
+          [mb.min[0], mb.max[1], mb.min[2]], [mb.max[0], mb.max[1], mb.min[2]],
+          [mb.min[0], mb.min[1], mb.max[2]], [mb.max[0], mb.min[1], mb.max[2]],
+          [mb.min[0], mb.max[1], mb.max[2]], [mb.max[0], mb.max[1], mb.max[2]],
+        ]) {
+          const p = apply(world, corner);
+          for (let i = 0; i < 3; i++) {
+            box.min[i] = Math.min(box.min[i], p[i]);
+            box.max[i] = Math.max(box.max[i], p[i]);
+          }
+        }
       }
     }
-    for (const child of node.children ?? []) walk(child, nextScale, nextOffset);
+    for (const child of node.children ?? []) walk(child, world);
   };
   const scene = json.scenes?.[json.scene ?? 0];
-  for (const nodeIndex of scene?.nodes ?? []) walk(nodeIndex, [1, 1, 1], [0, 0, 0]);
+  for (const nodeIndex of scene?.nodes ?? []) walk(nodeIndex, identity);
 
   const size = [0, 1, 2].map((i) => (Number.isFinite(box.max[i] - box.min[i])
     ? Number((box.max[i] - box.min[i]).toFixed(4)) : 0));
@@ -182,7 +243,11 @@ if (!KEY) {
 if (args.includes('--survey')) {
   const only = flag('kit');
   const wanted = only ? KITS.filter((k) => k.kit === only) : KITS;
-  const report = {};
+  // Kept from a previous run and written after every kit: surveying twenty kits is six
+  // hundred downloads, and a report that only lands at the end loses all of it to one
+  // interruption.
+  const reportPath = path.join(OUT, 'survey.json');
+  const report = fs.existsSync(reportPath) ? JSON.parse(fs.readFileSync(reportPath, 'utf8')) : {};
   for (const k of wanted) {
     const pool = new Map();
     for (const term of k.terms) {
@@ -231,10 +296,10 @@ if (args.includes('--survey')) {
         + `${(r.bytes / 1024).toFixed(0)}KB`);
     }
     report[k.kit] = rows;
+    fs.writeFileSync(reportPath, `${JSON.stringify(report, null, 1)}\n`);
   }
-  fs.writeFileSync(path.join(OUT, 'survey.json'), `${JSON.stringify(report, null, 1)}\n`);
   say();
-  say(`\x1b[32mOK\x1b[0m — full report in ${path.relative(root, path.join(OUT, 'survey.json'))}`);
+  say(`\x1b[32mOK\x1b[0m — full report in ${path.relative(root, reportPath)}`);
 }
 
 const gets = [];

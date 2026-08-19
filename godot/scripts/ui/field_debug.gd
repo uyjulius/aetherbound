@@ -24,6 +24,7 @@ const BattleScreen := preload("res://scripts/ui/battle_view.gd")
 const MenuScreen := preload("res://scripts/ui/menu.gd")
 const ShopScreen := preload("res://scripts/ui/shop.gd")
 const MapBuilder := preload("res://scripts/world/map_build.gd")
+const SceneryBuilder := preload("res://scripts/world/scenery.gd")
 
 ## Maps worth opening on first, in this order: a town, an interior, a continent,
 ## a dungeon. `M` walks the whole world from there.
@@ -50,6 +51,16 @@ var _index := 0
 var _label: Label
 ## The save this session opened with, so the first map is the one it was left on.
 var _loaded_from: Dictionary = {}
+## The world, in three dimensions. A Node3D under a Control still renders into the
+## viewport's own 3D world, so the diagnostic overlay can sit on top of it.
+var _world: Node3D
+var _scenery: Scenery
+var _camera: Camera3D
+var _walker: Node3D
+## The top-down grid, which is what this screen used to be. Kept behind a key: it is the
+## only view that shows collision and walkability at once, and that is worth having when the
+## scenery starts disagreeing with the simulation.
+var _show_grid := false
 
 
 func _ready() -> void:
@@ -141,7 +152,7 @@ func _ready() -> void:
 	# diagnostic that can only reach a fight by walking until one happens is a
 	# diagnostic nobody uses.
 	for action in ["debug_battle", "debug_boss", "debug_map", "debug_shop", "debug_inn",
-			"debug_lose"]:
+			"debug_lose", "debug_grid"]:
 		if InputMap.has_action(action):
 			InputMap.erase_action(action)
 		InputMap.add_action(action)
@@ -170,6 +181,12 @@ func _ready() -> void:
 	var o := InputEventKey.new()
 	o.physical_keycode = KEY_P
 	InputMap.action_add_event("debug_lose", o)
+	# The old top-down view, on demand. It is the only picture that shows walkability and
+	# collision together, which is exactly what is needed when the scenery and the
+	# simulation start disagreeing.
+	var g := InputEventKey.new()
+	g.physical_keycode = KEY_G
+	InputMap.action_add_event("debug_grid", g)
 
 	_ctx = Ctx.new("first", false)
 	_ctx.database = _db
@@ -188,6 +205,8 @@ func _ready() -> void:
 		Sound.play_music(String(track), float(opts.get("fade", 1.2)))
 	_ctx.on_goto_map = func(id, _spawn):
 		print("SCENE_GOTO %s" % id)
+
+	_build_world()
 
 	_label = Label.new()
 	_label.add_theme_font_size_override("font_size", 20)
@@ -209,6 +228,9 @@ func _open(index: int, spawn := "default") -> void:
 	_field = FieldSim.new(def, _db.legend, _db.footprints, spawn,
 		_db.encounters, RngStreams.encounter)
 	_last_event = ""
+	if _scenery != null:
+		_scenery.build(def, _field.built, _db.legend.get("glyphs", {}))
+	_follow_camera()
 	# The map's own theme, from the resolved definition — so a ruined town plays what the
 	# ruin says and not what the town used to.
 	_play_map_music(1.4)
@@ -218,6 +240,71 @@ func _open(index: int, spawn := "default") -> void:
 	print("FIELD_READY map=%s tiles=%dx%d colliders=%d triggers=%d" % [
 		id, _field.built.width, _field.built.height,
 		_field.grid.shapes.size(), _field.grid.triggers.size()])
+
+
+## The 3D world: a camera, a sun, and somewhere for the scenery to hang.
+##
+## The environment is deliberately plain. The reference's look came from a toon and ink
+## post-processing chain built for primitive geometry, and this port exists to replace that
+## geometry — so what is here is Godot's own lighting on hand-made models, and the art
+## direction is the palette and the reference's own texture plates.
+func _build_world() -> void:
+	_world = Node3D.new()
+	add_child(_world)
+
+	_scenery = SceneryBuilder.new()
+	_world.add_child(_scenery)
+
+	_camera = Camera3D.new()
+	_camera.fov = 55.0
+	_camera.far = 400.0
+	_world.add_child(_camera)
+	_camera.make_current()
+
+	var sun := DirectionalLight3D.new()
+	sun.rotation = Vector3(deg_to_rad(-52.0), deg_to_rad(-38.0), 0.0)
+	sun.light_energy = 1.35
+	sun.shadow_enabled = true
+	_world.add_child(sun)
+
+	var environment := Environment.new()
+	environment.background_mode = Environment.BG_COLOR
+	environment.background_color = Palette.ramp_at("water", 0.15)
+	environment.ambient_light_source = Environment.AMBIENT_SOURCE_COLOR
+	environment.ambient_light_color = Palette.ramp_at("stone", 0.75)
+	environment.ambient_light_energy = 0.55
+	environment.fog_enabled = true
+	environment.fog_light_color = Palette.ramp_at("stone", 0.6)
+	environment.fog_density = 0.004
+	var holder := WorldEnvironment.new()
+	holder.environment = environment
+	_world.add_child(holder)
+
+	# Somebody to be. The rigged model from the asset pipeline; if it is missing the world
+	# still builds and the camera still follows the simulation, which is the thing under
+	# test.
+	if ResourceLoader.exists("res://assets/models/vesna.glb"):
+		var scene: PackedScene = load("res://assets/models/vesna.glb")
+		_walker = scene.instantiate()
+		_world.add_child(_walker)
+	else:
+		push_warning("no walker model — the party is invisible")
+
+
+## Point the camera where the simulation says it is.
+##
+## The rig is the reference's, ported and checked: `Field.Camera` holds the bearing, the
+## detents, the smoothing and the lead, and `position()` is where that puts the eye. Nothing
+## about the view is invented here.
+func _follow_camera() -> void:
+	if _camera == null or _field == null:
+		return
+	var eye := _field.camera.position()
+	_camera.position = eye
+	_camera.look_at(_field.camera.look, Vector3.UP)
+	if _walker != null:
+		_walker.position = Vector3(_field.player.x, 0.0, _field.player.z)
+		_walker.rotation.y = _field.player.facing
 
 
 ## Whatever this map plays. Held in one place because five callers need to put it back:
@@ -270,6 +357,9 @@ func _process(delta: float) -> void:
 		# One of the optional bosses, so a boss fight can be seen without finding it.
 		_start_battle({"enemies": ["weighmaster"], "boss": true})
 		return
+	if Input.is_action_just_pressed("debug_grid"):
+		_show_grid = not _show_grid
+		queue_redraw()
 	if Input.is_action_just_pressed("debug_lose"):
 		_lose()
 		return
@@ -319,6 +409,7 @@ func _process(delta: float) -> void:
 		_talk_to(_interact["npc"])
 		return
 	_trigger = result["trigger"]
+	_follow_camera()
 	queue_redraw()
 	_update_label()
 
@@ -584,7 +675,7 @@ func _update_label() -> void:
 	if _battle != null and _battle.visible:
 		lines.append("in battle")
 	lines.append("move / run · Q,E orbit · C menu · M next map · V scene · B fight · N boss"
-		+ " · K shop · L inn · P wipe · Esc back")
+		+ " · K shop · L inn · P wipe · G grid · Esc back")
 	_label.text = "\n".join(lines)
 
 
@@ -592,7 +683,7 @@ func _update_label() -> void:
 ## the grid and the colliders at once, which a camera at the player's shoulder
 ## cannot do.
 func _draw() -> void:
-	if _field == null:
+	if _field == null or not _show_grid:
 		return
 	var tile := 2.0
 	var w := float(_field.built.width) * tile

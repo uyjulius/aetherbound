@@ -1,0 +1,574 @@
+{
+ "floor": {
+  "file": "floor.glb",
+  "id": "6baBuVGcyD",
+  "title": "Floor Tile",
+  "author": "Quaternius",
+  "licence": "CC0 1.0",
+  "attribution": "\"Floor Tile\" by Quaternius, https://poly.pizza/m/6baBuVGcyD. Licence at https://creativecommons.org/publicdomain/zero/1.0/",
+  "source": "https://poly.pizza/m/6baBuVGcyD",
+  "size": [
+   2.0048,
+   0.2503,
+   2.0006
+  ],
+  "base": -0.1252,
+  "centre": [
+   0.0051,
+   0.0003
+  ],
+  "meshes": 1,
+  "materials": 1,
+  "bytes": 63540
+ },
+ "block": {
+  "file": "block.glb",
+  "id": "ZKvgpQwJiY",
+  "title": "Stone Block",
+  "author": "Quaternius",
+  "licence": "CC0 1.0",
+  "attribution": "\"Stone Block\" by Quaternius, https://poly.pizza/m/ZKvgpQwJiY. Licence at https://creativecommons.org/publicdomain/zero/1.0/",
+  "source": "https://poly.pizza/m/ZKvgpQwJiY",
+  "size": [
+   2,
+   2,
+   2
+  ],
+  "base": -1,
+  "centre": [
+   0,
+   0
+  ],
+  "meshes": 1,
+  "materials": 1,
+  "bytes": 6460
+ },
+ "wall": {
+  "file": "wall.glb",
+  "id": "itasw0GWNf",
+  "title": "Wall Modular",
+  "author": "Quaternius",
+  "licence": "CC0 1.0",
+  "attribution": "\"Wall Modular\" by Quaternius, https://poly.pizza/m/itasw0GWNf. Licence at https://creativecommons.org/publicdomain/zero/1.0/",
+  "source": "https://poly.pizza/m/itasw0GWNf",
+  "size": [
+   2.0007,
+   2.0054,
+   0.4381
+  ],
+  "base": -1.0021,
+  "centre": [
+   0.0006,
+   0
+  ],
+  "meshes": 1,
+  "materials": 3,
+  "bytes": 91404
+ },
+ "lamppost": {
+  "file": "lamppost.glb",
+  "id": "9L6lLUl9sD",
+  "title": "Light Stand",
+  "author": "Quaternius",
+  "licence": "CC0 1.0",
+  "attribution": "\"Light Stand\" by Quaternius, https://poly.pizza/m/9L6lLUl9sD. Licence at https://creativecommons.org/publicdomain/zero/1.0/",
+  "source": "https://poly.pizza/m/9L6lLUl9sD",
+  "size": [
+   0.7734,
+   2.9938,
+   0.8132
+  ],
+  "base": 0,
+  "centre": [
+   0,
+   0
+  ],
+  "meshes": 1,
+  "materials": 2,
+  "bytes": 10920
+ },
+ "chest": {
+  "file": "chest.glb",
+  "id": "AngpV0HxD8",
+  "title": "Chest Closed",
+  "author": "Quaternius",
+  "licence": "CC0 1.0",
+  "attribution": "\"Chest Closed\" by Quaternius, https://poly.pizza/m/AngpV0HxD8. Licence at https://creativecommons.org/publicdomain/zero/1.0/",
+  "source": "https://poly.pizza/m/AngpV0HxD8",
+  "size": [
+   1.3948,
+   0.8813,
+   0.8874
+  ],
+  "base": -0.0205,
+  "centre": [
+   0,
+   0
+  ],
+  "meshes": 1,
+  "materials": 1,
+  "bytes": 102544
+ },
+ "barrel": {
+  "file": "barrel.glb",
+  "id": "MraIiFnpAY",
+  "title": "Barrel",
+  "author": "Quaternius",
+  "licence": "CC0 1.0",
+  "attribution": "\"Barrel\" by Quaternius, https://poly.pizza/m/MraIiFnpAY. Licence at https://creativecommons.org/publicdomain/zero/1.0/",
+  "source": "https://poly.pizza/m/MraIiFnpAY",
+  "size": [
+   0.7041,
+   1.1449,
+   0.7041
+  ],
+  "base": 0.0017,
+  "centre": [
+   0,
+   0
+  ],
+  "meshes": 1,
+  "materials": 1,
+  "bytes": 44640
+ },
+ "crate": {
+  "file": "crate.glb",
+  "id": "YAghI6GBls",
+  "title": "Cube Crate",
+  "author": "Quaternius",
+  "licence": "CC0 1.0",
+  "attribution": "\"Cube Crate\" by Quaternius, https://poly.pizza/m/YAghI6GBls. Licence at https://creativecommons.org/publicdomain/zero/1.0/",
+  "source": "https://poly.pizza/m/YAghI6GBls",
+  "size": [
+   2.0208,
+   2.0208,
+   2.0208
+  ],
+  "base": -1.0104,
+  "centre": [
+   0,
+   0
+  ],
+  "meshes": 1,
+  "materials": 2,
+  "bytes": 12960
+ },
+ "rock": {
+  "file": "rock.glb",
+  "id": "34W5ymEePk",
+  "title": "Rock",
+  "author": "Quaternius",
+  "licence": "CC0 1.0",
+  "attribution": "\"Rock\" by Quaternius, https://poly.pizza/m/34W5ymEePk. Licence at https://creativecommons.org/publicdomain/zero/1.0/",
+  "source": "https://poly.pizza/m/34W5ymEePk",
+  "size": [
+   3.3024,
+   3.8322,
+   3.0119
+  ],
+  "base": -0.3677,
+  "centre": [
+   -0.2252,
+   -0.0234
+  ],
+  "meshes": 1,
+  "materials": 1,
+  "bytes": 18224
+ },
+ "tree": {
+  "file": "tree.glb",
+  "id": "2paAm1ja4w",
+  "title": "Tree",
+  "author": "Quaternius",
+  "licence": "CC0 1.0",
+  "attribution": "\"Tree\" by Quaternius, https://poly.pizza/m/2paAm1ja4w. Licence at https://creativecommons.org/publicdomain/zero/1.0/",
+  "source": "https://poly.pizza/m/2paAm1ja4w",
+  "size": [
+   1.8891,
+   2.4806,
+   2.7731
+  ],
+  "base": -0.0425,
+  "centre": [
+   0.0267,
+   0.2122
+  ],
+  "meshes": 1,
+  "materials": 2,
+  "bytes": 158708
+ },
+ "bench": {
+  "file": "bench.glb",
+  "id": "nARUaxtRHA",
+  "title": "Bench",
+  "author": "Quaternius",
+  "licence": "CC0 1.0",
+  "attribution": "\"Bench\" by Quaternius, https://poly.pizza/m/nARUaxtRHA. Licence at https://creativecommons.org/publicdomain/zero/1.0/",
+  "source": "https://poly.pizza/m/nARUaxtRHA",
+  "size": [
+   0.8757,
+   0.7442,
+   1.5714
+  ],
+  "base": 0,
+  "centre": [
+   0.0004,
+   0.0541
+  ],
+  "meshes": 1,
+  "materials": 1,
+  "bytes": 21044
+ },
+ "savepoint": {
+  "file": "savepoint.glb",
+  "id": "pf5lzmgr2J",
+  "title": "Big Crystal",
+  "author": "Quaternius",
+  "licence": "CC0 1.0",
+  "attribution": "\"Big Crystal\" by Quaternius, https://poly.pizza/m/pf5lzmgr2J. Licence at https://creativecommons.org/publicdomain/zero/1.0/",
+  "source": "https://poly.pizza/m/pf5lzmgr2J",
+  "size": [
+   1.4758,
+   1.6546,
+   1.4819
+  ],
+  "base": -0.0022,
+  "centre": [
+   -0.042,
+   -0.0304
+  ],
+  "meshes": 1,
+  "materials": 1,
+  "bytes": 33576
+ },
+ "flowerbox": {
+  "file": "flowerbox.glb",
+  "id": "ZYHKojmtPW",
+  "title": "Bush",
+  "author": "Quaternius",
+  "licence": "CC0 1.0",
+  "attribution": "\"Bush\" by Quaternius, https://poly.pizza/m/ZYHKojmtPW. Licence at https://creativecommons.org/publicdomain/zero/1.0/",
+  "source": "https://poly.pizza/m/ZYHKojmtPW",
+  "size": [
+   1.8619,
+   1.5848,
+   0.6274
+  ],
+  "base": -0.083,
+  "centre": [
+   0.0405,
+   -0.2639
+  ],
+  "meshes": 1,
+  "materials": 1,
+  "bytes": 28500
+ },
+ "fence": {
+  "file": "fence.glb",
+  "id": "e02PFKKhbr",
+  "title": "Fence",
+  "author": "Quaternius",
+  "licence": "CC0 1.0",
+  "attribution": "\"Fence\" by Quaternius, https://poly.pizza/m/e02PFKKhbr. Licence at https://creativecommons.org/publicdomain/zero/1.0/",
+  "source": "https://poly.pizza/m/e02PFKKhbr",
+  "size": [
+   5.8901,
+   1.0971,
+   0.1655
+  ],
+  "base": -0.0108,
+  "centre": [
+   0,
+   0
+  ],
+  "meshes": 1,
+  "materials": 1,
+  "bytes": 10616
+ },
+ "cart": {
+  "file": "cart.glb",
+  "id": "NBDHe8J7f9",
+  "title": "Broken Cart",
+  "author": "Quaternius",
+  "licence": "CC0 1.0",
+  "attribution": "\"Broken Cart\" by Quaternius, https://poly.pizza/m/NBDHe8J7f9. Licence at https://creativecommons.org/publicdomain/zero/1.0/",
+  "source": "https://poly.pizza/m/NBDHe8J7f9",
+  "size": [
+   4.1098,
+   3.4256,
+   3.8665
+  ],
+  "base": -1.4043,
+  "centre": [
+   0.1791,
+   -0.198
+  ],
+  "meshes": 1,
+  "materials": 3,
+  "bytes": 57952
+ },
+ "stall": {
+  "file": "stall.glb",
+  "id": "DGIM5HGISb",
+  "title": "Market Stand",
+  "author": "Quaternius",
+  "licence": "CC0 1.0",
+  "attribution": "\"Market Stand\" by Quaternius, https://poly.pizza/m/DGIM5HGISb. Licence at https://creativecommons.org/publicdomain/zero/1.0/",
+  "source": "https://poly.pizza/m/DGIM5HGISb",
+  "size": [
+   0.9509,
+   1.0492,
+   1.1898
+  ],
+  "base": -0.0047,
+  "centre": [
+   0,
+   -0.0016
+  ],
+  "meshes": 1,
+  "materials": 4,
+  "bytes": 84992
+ },
+ "bush": {
+  "file": "bush.glb",
+  "id": "BVYSNurXMV",
+  "title": "Bush",
+  "author": "Quaternius",
+  "licence": "CC0 1.0",
+  "attribution": "\"Bush\" by Quaternius, https://poly.pizza/m/BVYSNurXMV. Licence at https://creativecommons.org/publicdomain/zero/1.0/",
+  "source": "https://poly.pizza/m/BVYSNurXMV",
+  "size": [
+   3.0857,
+   1.9601,
+   3.0857
+  ],
+  "base": -0.0405,
+  "centre": [
+   0,
+   0
+  ],
+  "meshes": 1,
+  "materials": 1,
+  "bytes": 79592
+ },
+ "well": {
+  "file": "well.glb",
+  "id": "QlqncKYxXb",
+  "title": "Well",
+  "author": "Quaternius",
+  "licence": "CC0 1.0",
+  "attribution": "\"Well\" by Quaternius, https://poly.pizza/m/QlqncKYxXb. Licence at https://creativecommons.org/publicdomain/zero/1.0/",
+  "source": "https://poly.pizza/m/QlqncKYxXb",
+  "size": [
+   0.6664,
+   1.2504,
+   1.0036
+  ],
+  "base": -0.2523,
+  "centre": [
+   -0.0043,
+   0.1367
+  ],
+  "meshes": 1,
+  "materials": 5,
+  "bytes": 110340
+ },
+ "bridge": {
+  "file": "bridge.glb",
+  "id": "j4KsIuJYnq",
+  "title": "Small Bridge",
+  "author": "Quaternius",
+  "licence": "CC0 1.0",
+  "attribution": "\"Small Bridge\" by Quaternius, https://poly.pizza/m/j4KsIuJYnq. Licence at https://creativecommons.org/publicdomain/zero/1.0/",
+  "source": "https://poly.pizza/m/j4KsIuJYnq",
+  "size": [
+   6.9381,
+   2.6175,
+   2.6376
+  ],
+  "base": -0.2755,
+  "centre": [
+   0,
+   0.0696
+  ],
+  "meshes": 1,
+  "materials": 1,
+  "bytes": 72792
+ },
+ "signpost": {
+  "file": "signpost.glb",
+  "id": "4MSsNFk5fc",
+  "title": "Sign",
+  "author": "Quaternius",
+  "licence": "CC0 1.0",
+  "attribution": "\"Sign\" by Quaternius, https://poly.pizza/m/4MSsNFk5fc. Licence at https://creativecommons.org/publicdomain/zero/1.0/",
+  "source": "https://poly.pizza/m/4MSsNFk5fc",
+  "size": [
+   0.5696,
+   1.0322,
+   0.5225
+  ],
+  "base": 0.0169,
+  "centre": [
+   0,
+   0
+  ],
+  "meshes": 1,
+  "materials": 2,
+  "bytes": 16576
+ },
+ "airshipmast": {
+  "file": "airshipmast.glb",
+  "id": "wLubNpOTX4",
+  "title": "Column",
+  "author": "Quaternius",
+  "licence": "CC0 1.0",
+  "attribution": "\"Column\" by Quaternius, https://poly.pizza/m/wLubNpOTX4. Licence at https://creativecommons.org/publicdomain/zero/1.0/",
+  "source": "https://poly.pizza/m/wLubNpOTX4",
+  "size": [
+   1.3041,
+   4.0723,
+   1.3041
+  ],
+  "base": 0.0083,
+  "centre": [
+   0,
+   0
+  ],
+  "meshes": 1,
+  "materials": 2,
+  "bytes": 30328
+ },
+ "building_plaster": {
+  "file": "building_plaster.glb",
+  "id": "sDQJBImZuw",
+  "title": "Town House",
+  "author": "Quaternius",
+  "licence": "CC0 1.0",
+  "attribution": "\"Town House\" by Quaternius, https://poly.pizza/m/sDQJBImZuw. Licence at https://creativecommons.org/publicdomain/zero/1.0/",
+  "source": "https://poly.pizza/m/sDQJBImZuw",
+  "size": [
+   3.7475,
+   4.6633,
+   2.7436
+  ],
+  "base": -0.0011,
+  "centre": [
+   0,
+   0
+  ],
+  "meshes": 1,
+  "materials": 7,
+  "bytes": 761852
+ },
+ "building_stone": {
+  "file": "building_stone.glb",
+  "id": "AVCS8jUd2l",
+  "title": "Big Building",
+  "author": "Quaternius",
+  "licence": "CC0 1.0",
+  "attribution": "\"Big Building\" by Quaternius, https://poly.pizza/m/AVCS8jUd2l. Licence at https://creativecommons.org/publicdomain/zero/1.0/",
+  "source": "https://poly.pizza/m/AVCS8jUd2l",
+  "size": [
+   4.7052,
+   5.6774,
+   4.3906
+  ],
+  "base": -0.0134,
+  "centre": [
+   0,
+   0
+  ],
+  "meshes": 1,
+  "materials": 6,
+  "bytes": 353968
+ },
+ "building_wood": {
+  "file": "building_wood.glb",
+  "id": "alxTTFjKDM",
+  "title": "Fantasy Sawmill",
+  "author": "Quaternius",
+  "licence": "CC0 1.0",
+  "attribution": "\"Fantasy Sawmill\" by Quaternius, https://poly.pizza/m/alxTTFjKDM. Licence at https://creativecommons.org/publicdomain/zero/1.0/",
+  "source": "https://poly.pizza/m/alxTTFjKDM",
+  "size": [
+   4.3991,
+   2.8625,
+   3.2835
+  ],
+  "base": -0.0518,
+  "centre": [
+   0.8763,
+   -0.0073
+  ],
+  "meshes": 1,
+  "materials": 10,
+  "bytes": 309568
+ },
+ "building_marble": {
+  "file": "building_marble.glb",
+  "id": "opTOmcN3o9",
+  "title": "Castle",
+  "author": "Quaternius",
+  "licence": "CC0 1.0",
+  "attribution": "\"Castle\" by Quaternius, https://poly.pizza/m/opTOmcN3o9. Licence at https://creativecommons.org/publicdomain/zero/1.0/",
+  "source": "https://poly.pizza/m/opTOmcN3o9",
+  "size": [
+   2.1034,
+   0.9369,
+   1.9569
+  ],
+  "base": 0,
+  "centre": [
+   0,
+   -0.0155
+  ],
+  "meshes": 1,
+  "materials": 3,
+  "bytes": 477160
+ },
+ "building_magitek": {
+  "file": "building_magitek.glb",
+  "id": "ZSYgIuHfYb",
+  "title": "Building",
+  "author": "Quaternius",
+  "licence": "CC0 1.0",
+  "attribution": "\"Building\" by Quaternius, https://poly.pizza/m/ZSYgIuHfYb. Licence at https://creativecommons.org/publicdomain/zero/1.0/",
+  "source": "https://poly.pizza/m/ZSYgIuHfYb",
+  "size": [
+   4.6438,
+   5.4865,
+   3.8558
+  ],
+  "base": -0.0146,
+  "centre": [
+   0,
+   0
+  ],
+  "meshes": 1,
+  "materials": 7,
+  "bytes": 426488
+ },
+ "building_brick": {
+  "file": "building_brick.glb",
+  "id": "bV52eTG1Aj",
+  "title": "Blacksmith",
+  "author": "Quaternius",
+  "licence": "CC0 1.0",
+  "attribution": "\"Blacksmith\" by Quaternius, https://poly.pizza/m/bV52eTG1Aj. Licence at https://creativecommons.org/publicdomain/zero/1.0/",
+  "source": "https://poly.pizza/m/bV52eTG1Aj",
+  "size": [
+   3.89,
+   3.0034,
+   3.2835
+  ],
+  "base": -0.0039,
+  "centre": [
+   -0.6212,
+   -0.0161
+  ],
+  "meshes": 1,
+  "materials": 8,
+  "bytes": 670832
+ }
+}

@@ -148,6 +148,7 @@ let innRest = null;
 let innWoke = null;
 let innDone = null;
 let compared = null;
+const scenery = [];
 let wiped = null;
 let rolledBack = null;
 const configured = [];
@@ -192,6 +193,7 @@ page.on('console', (message) => {
   if (text.includes('INN_WOKE')) innWoke = text.trim();
   if (text.includes('INN_DONE')) innDone = text.trim();
   if (text.includes('SHOP_COMPARE')) compared = text.trim();
+  if (/^SCENERY /.test(text.trim())) scenery.push(text.trim());
   if (text.includes('PARTY_WIPED')) wiped = text.trim();
   if (text.includes('ROLLED_BACK')) rolledBack = text.trim();
   if (/^CONFIG /.test(text.trim())) configured.push(text.trim());
@@ -670,6 +672,25 @@ if (field) {
     rolledBack ?? (wiped ? 'wiped, but never rolled back' : 'no PARTY_WIPED'));
   void loseFrom;
 }
+
+// --- the world ---------------------------------------------------------------
+//
+// The port's scenery is hand-made models placed at the reference's authored coordinates, so
+// what has to be proven in a browser is that the models *arrive*: an export that shipped the
+// data and not the assets looks identical to one that shipped nothing, because the camera
+// still points at the right empty air.
+const built = scenery.map((line) => ({
+  map: line.match(/map=(\S+)/)?.[1],
+  props: Number(line.match(/props=(\d+)/)?.[1] ?? 0),
+  tiles: Number(line.match(/tiles=(\d+)/)?.[1] ?? 0),
+}));
+check('the world builds its scenery', built.length > 0 && built.every((b) => b.tiles > 0),
+  built.map((b) => `${b.map} ${b.props}p/${b.tiles}t`).slice(0, 4).join(', ') || 'no SCENERY line');
+// Harrowmere is the opening village and has fifty-five props in it. A map that paved its
+// ground and placed nothing on it is a map whose prop assets did not survive the export.
+const village = built.find((b) => b.map === 'harrowmere');
+check('the opening village is furnished', Boolean(village) && village.props > 20,
+  village ? `${village.props} props, ${village.tiles} tiles` : 'harrowmere never built');
 
 // --- the music --------------------------------------------------------------
 //
