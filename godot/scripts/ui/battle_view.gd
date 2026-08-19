@@ -699,22 +699,39 @@ func _commit(actor: Combatant, action: Dictionary) -> void:
 		Sound.sfx("magic")
 	elif kind == "item":
 		Sound.sfx("heal")
-	var targets: Array = full.get("targets", [])
-	var watched: Combatant = targets[0] if not targets.is_empty() else null
-	var before := watched.hp if watched != null else 0
+	# Everybody's health before the action, so a strike that hits a whole rank shows a number
+	# over each of them rather than over the first one the menu happened to name.
+	var before := {}
+	for combatant in battle.party + battle.enemies:
+		before[combatant.id] = combatant.hp
 	print("ACTION %s %s" % [actor.id, kind])
 	battle.commit_action(full)
-	_after_action(actor, kind, watched, before)
+	_after_action(actor, kind, before)
 
 
 ## What just happened, said and shown.
-func _after_action(actor: Combatant, kind: String, target: Combatant, before: int) -> void:
-	if target == null:
-		return
-	var dealt := before - target.hp
-	if kind == "attack":
-		_note("%s hits %s for %d." % [actor.name, target.name, dealt] if dealt > 0
-			else "%s misses %s." % [actor.name, target.name])
+func _after_action(actor: Combatant, kind: String, before: Dictionary) -> void:
+	var struck := 0
+	for combatant in battle.party + battle.enemies:
+		var moved := int(before.get(combatant.id, combatant.hp)) - combatant.hp
+		if moved == 0:
+			continue
+		struck += 1
+		_show_change(actor, kind, combatant, moved)
+	if struck == 0 and kind == "attack":
+		# A swing that changed nobody's health missed, and a fight where a miss shows nothing at
+		# all reads as a dropped input.
+		Sound.sfx("cancel")
+		var aimed: Array = battle.enemies.filter(func(e): return not e.is_ko())
+		if not aimed.is_empty():
+			_note("%s misses." % actor.name)
+			_popup(aimed[0], 0)
+
+
+## One combatant's change, shown over their head and said in the log.
+func _show_change(actor: Combatant, kind: String, target: Combatant, dealt: int) -> void:
+	if kind == "attack" and dealt > 0:
+		_note("%s hits %s for %d." % [actor.name, target.name, dealt])
 	if dealt > 0:
 		_popup(target, dealt)
 		Sound.sfx("hit")
@@ -722,9 +739,14 @@ func _after_action(actor: Combatant, kind: String, target: Combatant, before: in
 		_play_clip(actor, "attack")
 		_clips[target.id] = ""
 		_play_clip(target, "hurt")
-	elif kind == "attack":
-		Sound.sfx("cancel")
-		_popup(target, 0)
+	elif dealt < 0:
+		# Healing is negative damage here, and it is worth showing: a potion that did nothing
+		# and a potion that gave back forty look identical without a number.
+		_popup(target, -dealt, true)
+		_clips[actor.id] = ""
+		_play_clip(actor, "cast")
+	# A miss is handled by the caller: it knows that *nobody* was struck, which is what a miss
+	# actually is — this function is only ever called about somebody whose health moved.
 
 
 # ---------------------------------------------------------------------------
@@ -881,16 +903,38 @@ func _sync_commands() -> void:
 		row.add_theme_color_override("font_color", colour)
 
 
+## Where a combatant is, on screen.
+##
+## Falls back to a column at the left when the stage has no model for them — a creature whose
+## mesh is missing still has to be able to show a number.
+func _over(target: Combatant) -> Vector2:
+	var body: Node3D = _bodies.get(target.id, null)
+	var camera := get_viewport().get_camera_3d()
+	if body != null and camera != null:
+		var head := body.global_position + Vector3(0, _cast.bounds(body).size.y + 0.3, 0)
+		if not camera.is_position_behind(head):
+			var at := camera.unproject_position(head)
+			return at - Vector2(20.0, 0.0)
+	var index := battle.enemies.find(target)
+	return Vector2(360.0, 150.0 + float(maxi(0, index)) * 34.0)
+
+
 ## A number that rises and fades where the blow landed. The only animation here, and it
 ## is worth it: a fight where damage appears in a log reads as a spreadsheet.
-func _popup(target: Combatant, amount: int) -> void:
+func _popup(target: Combatant, amount: int, healing := false) -> void:
 	var label := Label.new()
 	label.text = str(amount) if amount > 0 else "miss"
 	label.add_theme_font_size_override("font_size", 34)
-	label.add_theme_color_override("font_color",
-		Palette.ui_color("danger") if amount > 0 else Palette.ui_color("textDim"))
-	var index := battle.enemies.find(target)
-	label.position = Vector2(360.0, 150.0 + float(maxi(0, index)) * 34.0)
+	var colour := Palette.ui_color("textDim")
+	if amount > 0:
+		# Green for healing, red for harm — the reference's own two, and the only thing that
+		# tells a player at a glance whether the number was good news.
+		colour = Palette.ui_color("good") if healing else Palette.ui_color("danger")
+	label.add_theme_color_override("font_color", colour)
+	# Over whoever it happened to, rather than in a column at a fixed place. The stage knows
+	# where everybody is standing, so the number can be put above their head — which is what
+	# makes it obvious who took the hit when three things are being hit at once.
+	label.position = _over(target)
 	_popups.add_child(label)
 	var tween := create_tween()
 	tween.tween_property(label, "position:y", label.position.y - 60.0, 0.7)
