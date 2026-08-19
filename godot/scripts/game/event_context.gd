@@ -49,6 +49,18 @@ var on_battle: Callable = Callable()
 var on_music: Callable = Callable()
 var on_goto_map: Callable = Callable()
 var on_chest: Callable = Callable()
+## Put the map's own theme back after a scene has borrowed the score; run another scene; write
+## the autosave. All three are the field's business, and a scene that wanted them used to get a
+## recorded call and nothing else.
+var on_restore_theme: Callable = Callable()
+var on_run_event: Callable = Callable()
+var on_autosave: Callable = Callable()
+## The two pieces of the reference's presentation a scene leans on: the camera shaking and the
+## screen flashing. Not the grade or the tilt-shift — those belong to a post chain this port
+## deliberately does not have — but a cataclysm that does not shake the ground is a cataclysm
+## the player reads about rather than one they are standing in.
+var on_shake: Callable = Callable()
+var on_flash: Callable = Callable()
 ## The field a scene is running in. A marker while recording, because a transcript
 ## that described the field would be a description of the harness.
 var field: Variant = "<field>"
@@ -85,11 +97,18 @@ func say(speaker: Variant, lines: Variant, opts: Dictionary = {}) -> void:
 ## flattened the two would hide a scene passing the wrong options.
 func say_plain(speaker: Variant, lines: Variant) -> void:
 	_record("dialogue.speak", [speaker, lines if lines is Array else [lines], null])
+	# Performed as well as recorded. This is the boss factory's helper — every one of the sixteen
+	# world bosses says its lines through here — and while it only recorded them, walking into a
+	# boss started a fight in silence.
+	if not recording and dialogue != null:
+		await dialogue.speak(speaker, lines if lines is Array else [lines], {})
 
 
 ## A single page.
 func page(speaker: Variant, line: String, opts: Dictionary = {}) -> void:
 	_record("dialogue.say", [speaker, line, opts])
+	if not recording and dialogue != null:
+		await dialogue.speak(speaker, [line], opts)
 
 
 ## A choice. Returns the index taken — which is what the policy decides.
@@ -422,20 +441,74 @@ func goto_map(id: String, spawn: Variant = null) -> void:
 		on_goto_map.call(id, spawn)
 
 
+## A short fanfare over whatever is playing, then the map's theme back.
+##
+## For key items and finished quests only, as the reference has it: the cue stops meaning
+## anything the moment it plays for a third potion. Recorded first and then *performed* — while
+## it was only recorded, the two scenes that use it handed over the Wanderer's Bell and the Ninth
+## Ward without telling anybody they had.
 func celebrate(a: Variant = null, b: Variant = null) -> void:
 	_record("celebrate", [a, b] if b != null else ([a] if a != null else []))
+	if recording:
+		return
+	var lines: Array = a if a is Array else ([String(a)] if a != null else [])
+	if on_music.is_valid():
+		on_music.call("fanfare", {"fade": 0.15})
+	if dialogue != null and not lines.is_empty():
+		await dialogue.speak(null, lines)
+	if on_restore_theme.is_valid():
+		on_restore_theme.call(1.0)
 
 
+## The end of the game: what the party did, and that the save stays open.
+##
+## The numbers are the reference's, in the reference's order. It is the only screen in the game
+## that reads the whole save back to the player, and in the port it was a recorded call that
+## printed nothing — so the game ended by the dialogue box closing.
 func show_ending(a: Variant = null) -> void:
 	_record("showEnding", [a] if a != null else [])
+	if recording or dialogue == null:
+		return
+	var hours := 0
+	var minutes := 0
+	var espers_total := 0
+	var lines: Array = []
+	if party != null:
+		hours = int(party.play_time / 3600.0)
+		minutes = int(fmod(party.play_time, 3600.0) / 60.0)
+		espers_total = database.espers.size() if database != null else 0
+		var who: Array = []
+		for id in party.active:
+			var m: Party.Member = party.roster[id]
+			who.append("%s Lv%d" % [m.name(), m.level])
+		var done := 0
+		for id in party.quests:
+			if bool(party.quests[id].get("done", false)):
+				done += 1
+		lines = [
+			"Time played: %dh %02dm" % [hours, minutes],
+			"Party: %s" % ", ".join(who),
+			"Espers recovered: %d of %d" % [party.espers.size(), espers_total],
+			"Species recorded: %d" % party.bestiary.size(),
+			"Quests completed: %d" % done,
+		]
+	await dialogue.speak("The Ninth Year of the Quiet", lines)
+	await dialogue.speak(null, ["Your save file is marked complete. Load it to keep exploring — "
+		+ "the world stays open."])
 
 
+## One scene handing over to another.
 func run_event(id: String) -> void:
 	_record("runEvent", [id])
+	if not recording and on_run_event.is_valid():
+		await on_run_event.call(id)
 
 
+## The autosave points a scene asks for — after a boss, before a point of no return.
 func autosave(reason: String) -> void:
 	_record("autosave", [reason])
+	if not recording and on_autosave.is_valid():
+		on_autosave.call(reason)
 
 
 ## Start a battle from inside a scene and wait for the outcome.
@@ -473,10 +546,14 @@ func tremor(seconds := 1.6, strength := 0.5) -> void:
 
 func shake(amount: float, frequency: float) -> void:
 	_record("rig.shake", [snappedf(amount, 0.0001), snappedf(frequency, 0.0001)])
+	if not recording and on_shake.is_valid():
+		on_shake.call(amount, frequency)
 
 
 func flash(colour: Variant, strength: float) -> void:
 	_record("postfx.flash", [colour, snappedf(strength, 0.0001)])
+	if not recording and on_flash.is_valid():
+		on_flash.call(colour, strength)
 
 
 func grade(name: String, t: float) -> void:

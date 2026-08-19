@@ -248,8 +248,34 @@ func _ready() -> void:
 	_ctx.on_music = func(track, opts):
 		print("SCENE_MUSIC %s" % track)
 		Sound.play_music(String(track), float(opts.get("fade", 1.2)))
-	_ctx.on_goto_map = func(id, _spawn):
+	# A scene that moves the party moves the party. The cataclysm throws them out onto the road
+	# above Harrowmere, and while this only printed they stayed standing in the ruin it had just
+	# made of the place they were.
+	_ctx.on_goto_map = func(id, spawn):
 		print("SCENE_GOTO %s" % id)
+		_travel(String(id), String(spawn) if spawn != null else "")
+	_ctx.on_restore_theme = func(fade):
+		_play_map_music(float(fade))
+	_ctx.on_run_event = func(id):
+		# One scene handing over to another. `_run_event` guards against re-entry, so the handover
+		# goes straight to the runner rather than through it.
+		print("SCENE_CHAIN %s" % id)
+		await Events.run(String(id), _ctx)
+	# The ground moving and the light going wrong. Both are the reference's, and both were
+	# recorded calls that did nothing: the cataclysm shook for eleven seconds and the screen never
+	# moved.
+	_ctx.on_shake = func(amount, _frequency):
+		_shake_camera(float(amount))
+	_ctx.on_flash = func(colour, strength):
+		_flash_screen(colour, float(strength))
+	_ctx.on_autosave = func(reason):
+		print("SCENE_AUTOSAVE %s" % reason)
+		Saves.save(Saves.AUTOSAVE_SLOT, _party, {
+			"map_id": _ids[_index], "spawn": "",
+			"position": {"x": _field.player.x, "z": _field.player.z,
+				"facing": _field.player.facing},
+			"location_name": String(_db.maps[_ids[_index]].get("name", "the road")),
+		})
 
 	_build_world()
 
@@ -826,6 +852,12 @@ func _follow_camera() -> void:
 	if _camera == null or _field == null:
 		return
 	var eye := _field.camera.position()
+	if _shake > 0.001:
+		# A wobble on the eye, not on the target: the camera keeps looking at the party while the
+		# ground under all of it moves. Frame-indexed rather than random so a shake looks like a
+		# shake instead of like noise.
+		var beat := float(Engine.get_frames_drawn())
+		eye += Vector3(sin(beat * 1.7), cos(beat * 2.3), sin(beat * 3.1)) * _shake * 0.35
 	_camera.position = eye
 	_camera.look_at(_field.camera.look, Vector3.UP)
 	if _walker != null:
@@ -868,6 +900,10 @@ func _process(delta: float) -> void:
 	if _party != null:
 		_party.play_time += delta
 		_report_pacing(delta)
+	# The tremor dies away on its own, so a scene that shakes once shakes once.
+	if _shake > 0.0:
+		_shake = maxf(0.0, _shake - delta * 2.5)
+		_follow_camera()
 	# A fight owns the screen outright: it has its own turn clock, and a field that kept
 	# walking underneath would be accumulating encounter distance during a battle.
 	if _battle != null and _battle.visible:
@@ -1031,6 +1067,8 @@ var _encounters := 0
 var _scene_battle := false
 ## Set from the fight's own options while a scene's fight is on screen.
 var _scene_allows_defeat := false
+## How hard the ground is moving, decayed every frame.
+var _shake := 0.0
 
 ## What `J` runs, in order. The barrow is the first boss the party would reach and the only
 ## place a scene's fight can be seen at all; the toll clerk is a scene that hands over a key
@@ -1508,6 +1546,26 @@ func _fight_for_scene(encounter: Dictionary, opts: Dictionary) -> String:
 	_scene_battle = false
 	print("SCENE_BATTLE_END result=%s" % result)
 	return result
+
+
+## A shake, as an offset on the camera rather than on the world.
+##
+## The reference shakes its rig; this shakes what the rig is looking through, which comes to the
+## same thing on screen and cannot move anything the simulation cares about. Decayed in
+## `_process` so a scene calling it eighty times in a row reads as one long tremor.
+func _shake_camera(amount: float) -> void:
+	_shake = maxf(_shake, clampf(amount, 0.0, 1.5))
+
+
+## A flash: the fade rect, in a colour, on its way out.
+func _flash_screen(colour: Variant, strength: float) -> void:
+	if _fade == null:
+		return
+	var tint := Color(String(colour)) if colour is String and String(colour) != "" \
+		else Color(1, 1, 1)
+	_fade.color = Color(tint, clampf(strength, 0.0, 1.0))
+	var out := create_tween()
+	out.tween_property(_fade, "color:a", 0.0, 0.45)
 
 
 ## Is anybody still on their feet? An empty roster is not a wipe: a scene can run before the
