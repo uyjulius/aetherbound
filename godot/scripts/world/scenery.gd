@@ -129,8 +129,13 @@ func _pave(map_def: Dictionary, built) -> void:
 				var drop := 0.0
 				if bool(spec.get("water", false)):
 					drop = -0.35 if bool(spec.get("shallow", false)) else -0.7
-				var scale := Vector3(tile / float(model[0]), thickness / float(model[1]),
-					tile / float(model[2]))
+				# A whisker wider than the tile it fills. The floor model is a paving slab with
+				# bevelled edges, and at exactly two metres those bevels drew a grid of seams
+				# across every field in the game — a village looked tiled and a meadow looked
+				# like a chessboard. Two per cent of overlap hides the edge and changes nothing
+				# else: the tiles are flat and the collider is not made of these.
+				var scale := Vector3(tile * 1.02 / float(model[0]), thickness / float(model[1]),
+					tile * 1.02 / float(model[2]))
 				var transform := Transform3D(Basis().scaled(scale),
 					at + Vector3(0, drop - thickness * 0.5, 0)) * inner
 				var texture := String(plan.get("ground", {}).get(ground, {}).get("texture", ""))

@@ -421,7 +421,14 @@ if (ready) {
       // chosen with a `!`, and this waits for somebody who can cast.
       let cast = false;
       for (let attempt = 0; attempt < 8 && !cast; attempt++) {
-        for (let i = 0; i < 40 && turns.length <= attempt; i++) await page.waitForTimeout(250);
+        // Wait for the turn to *arrive* before pressing anything, and for as long as the boot
+        // budget allows: a gauge fills in wall-clock seconds and a software rasteriser spends
+        // most of them elsewhere. The first version waited ten seconds and then pressed confirm
+        // into whatever was on screen, which on CI meant attacking twice and reporting that no
+        // spell had been cast — from a menu it had never actually read.
+        const until = Date.now() + Math.max(20_000, READY_TIMEOUT_MS / 4);
+        while (turns.length <= attempt && Date.now() < until) await page.waitForTimeout(250);
+        if (turns.length <= attempt) continue;
         const menu = (turns[attempt]?.match(/menu=(.*)$/)?.[1] ?? '').split('|');
         const magic = menu.indexOf('Magic');
         if (magic >= 0) {
@@ -450,8 +457,8 @@ if (ready) {
           }
           await page.keyboard.press('Enter');
           await page.waitForTimeout(350);
-          // A menu with neither Magic nor Defend in it is not a menu this knows how to
-          // drive, so fall back to the old two-confirm swing rather than hanging.
+          // A menu with neither Magic nor Defend in it is not a menu this knows how to drive,
+          // so take the swing — two confirms, the command and the target.
           if (defend < 0) {
             await page.keyboard.press('Enter');
             await page.waitForTimeout(350);
@@ -1161,7 +1168,12 @@ check('the analytics stay out of the test suite',
     if (/^ANALYTICS /.test(text.trim())) line = text.trim();
   });
   await probe.goto(target, { waitUntil: 'domcontentloaded' });
-  for (let i = 0; i < 120 && !posted.length; i++) await probe.waitForTimeout(1000);
+  // This is a second full Godot boot — 40MB of wasm compiled again — so it gets the same budget
+  // the first one does. Waiting a flat two minutes for the *post* meant that on CI the page was
+  // still starting when the check gave up, and both halves of it failed for want of a boot.
+  const ready = Date.now() + READY_TIMEOUT_MS;
+  while (!line && Date.now() < ready) await probe.waitForTimeout(1000);
+  for (let i = 0; i < 90 && !posted.length; i++) await probe.waitForTimeout(1000);
   check('the instrumentation reports when it is not being tested',
     Boolean(line) && /enabled=true/.test(line), line ?? 'no ANALYTICS line');
   const events = posted.flatMap((body) => {

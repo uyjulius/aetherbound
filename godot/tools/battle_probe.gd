@@ -201,8 +201,14 @@ func _fight(db, party_description: Dictionary, scenario: Dictionary) -> Dictiona
 		frames += 1
 
 	var levels := {}
+	var spoils := {}
 	for member_id in party.roster:
-		levels[member_id] = party.roster[member_id].level
+		var m: Party.Member = party.roster[member_id]
+		levels[member_id] = m.level
+		# What the fight left behind: the level, the experience, and every spell's proficiency.
+		# The transcript ends at the last turn, so without this the port could fight a fight
+		# identically and hand out nothing at the end of it.
+		spoils[member_id] = {"level": m.level, "exp": m.exp, "spells": m.spells.duplicate()}
 	var turns: Array = []
 	for entry in battle.transcript:
 		if String(entry.get("event", "")) == "turn":
@@ -215,6 +221,7 @@ func _fight(db, party_description: Dictionary, scenario: Dictionary) -> Dictiona
 		"final": battle.snapshot(),
 		"gold": party.gold,
 		"levels": levels,
+		"spoils": spoils,
 		"inventory": party.inventory,
 		"rewards": battle.rewards,
 		"unsupported": battle.unsupported,

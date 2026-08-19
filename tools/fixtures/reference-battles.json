@@ -205,6 +205,37 @@
     "potion": 5,
     "antidote": 2,
     "tonic": 2
+   },
+   "spoils": {
+    "vesna": {
+     "level": 6,
+     "exp": 33,
+     "spells": {
+      "ember": 100,
+      "rime": 100,
+      "spark": 100,
+      "mend": 100,
+      "dimming": 100,
+      "pyre": 10.4,
+      "conflagrate": 2.6
+     }
+    },
+    "corvin": {
+     "level": 6,
+     "exp": 33,
+     "spells": {}
+    },
+    "wick": {
+     "level": 6,
+     "exp": 33,
+     "spells": {
+      "mend": 100,
+      "cleanse": 100,
+      "renewal": 100,
+      "wardflesh": 100,
+      "scan": 100
+     }
+    }
    }
   },
   "one-mireslug": {
@@ -378,6 +409,37 @@
     "potion": 5,
     "antidote": 2,
     "tonic": 2
+   },
+   "spoils": {
+    "vesna": {
+     "level": 6,
+     "exp": 32,
+     "spells": {
+      "ember": 100,
+      "rime": 100,
+      "spark": 100,
+      "mend": 100,
+      "dimming": 100,
+      "pyre": 10.4,
+      "conflagrate": 2.6
+     }
+    },
+    "corvin": {
+     "level": 6,
+     "exp": 32,
+     "spells": {}
+    },
+    "wick": {
+     "level": 6,
+     "exp": 32,
+     "spells": {
+      "mend": 100,
+      "cleanse": 100,
+      "renewal": 100,
+      "wardflesh": 100,
+      "scan": 100
+     }
+    }
    }
   },
   "three-mixed": {
@@ -841,6 +903,37 @@
     "potion": 5,
     "antidote": 3,
     "tonic": 2
+   },
+   "spoils": {
+    "vesna": {
+     "level": 6,
+     "exp": 37,
+     "spells": {
+      "ember": 100,
+      "rime": 100,
+      "spark": 100,
+      "mend": 100,
+      "dimming": 100,
+      "pyre": 10.4,
+      "conflagrate": 2.6
+     }
+    },
+    "corvin": {
+     "level": 6,
+     "exp": 37,
+     "spells": {}
+    },
+    "wick": {
+     "level": 6,
+     "exp": 37,
+     "spells": {
+      "mend": 100,
+      "cleanse": 100,
+      "renewal": 100,
+      "wardflesh": 100,
+      "scan": 100
+     }
+    }
    }
   },
   "two-roadwolf": {
@@ -1858,6 +1951,37 @@
     "potion": 6,
     "antidote": 2,
     "tonic": 2
+   },
+   "spoils": {
+    "vesna": {
+     "level": 7,
+     "exp": 50,
+     "spells": {
+      "ember": 100,
+      "rime": 100,
+      "spark": 100,
+      "mend": 100,
+      "dimming": 100,
+      "pyre": 10.4,
+      "conflagrate": 2.6
+     }
+    },
+    "corvin": {
+     "level": 7,
+     "exp": 50,
+     "spells": {}
+    },
+    "wick": {
+     "level": 7,
+     "exp": 50,
+     "spells": {
+      "mend": 100,
+      "cleanse": 100,
+      "renewal": 100,
+      "wardflesh": 100,
+      "scan": 100
+     }
+    }
    }
   },
   "brigands": {
@@ -2879,6 +3003,37 @@
     "potion": 7,
     "antidote": 2,
     "tonic": 2
+   },
+   "spoils": {
+    "vesna": {
+     "level": 7,
+     "exp": 56,
+     "spells": {
+      "ember": 100,
+      "rime": 100,
+      "spark": 100,
+      "mend": 100,
+      "dimming": 100,
+      "pyre": 10.4,
+      "conflagrate": 2.6
+     }
+    },
+    "corvin": {
+     "level": 7,
+     "exp": 56,
+     "spells": {}
+    },
+    "wick": {
+     "level": 7,
+     "exp": 56,
+     "spells": {
+      "mend": 100,
+      "cleanse": 100,
+      "renewal": 100,
+      "wardflesh": 100,
+      "scan": 100
+     }
+    }
    }
   },
   "three-carrionbat": {
@@ -4073,6 +4228,37 @@
     "potion": 6,
     "antidote": 2,
     "tonic": 2
+   },
+   "spoils": {
+    "vesna": {
+     "level": 7,
+     "exp": 54,
+     "spells": {
+      "ember": 100,
+      "rime": 100,
+      "spark": 100,
+      "mend": 100,
+      "dimming": 100,
+      "pyre": 10.4,
+      "conflagrate": 2.6
+     }
+    },
+    "corvin": {
+     "level": 7,
+     "exp": 54,
+     "spells": {}
+    },
+    "wick": {
+     "level": 7,
+     "exp": 54,
+     "spells": {
+      "mend": 100,
+      "cleanse": 100,
+      "renewal": 100,
+      "wardflesh": 100,
+      "scan": 100
+     }
+    }
    }
   },
   "coursing-hounds": {
@@ -4356,6 +4542,35 @@
     "potion": 5,
     "antidote": 2,
     "tonic": 2
+   },
+   "spoils": {
+    "vesna": {
+     "level": 6,
+     "exp": 28,
+     "spells": {
+      "ember": 100,
+      "rime": 100,
+      "spark": 100,
+      "mend": 100,
+      "dimming": 100
+     }
+    },
+    "corvin": {
+     "level": 6,
+     "exp": 28,
+     "spells": {}
+    },
+    "wick": {
+     "level": 6,
+     "exp": 28,
+     "spells": {
+      "mend": 100,
+      "cleanse": 100,
+      "renewal": 100,
+      "wardflesh": 100,
+      "scan": 100
+     }
+    }
    }
   },
   "the-far-runner": {
@@ -4711,6 +4926,35 @@
     "potion": 5,
     "antidote": 2,
     "tonic": 2
+   },
+   "spoils": {
+    "vesna": {
+     "level": 6,
+     "exp": 28,
+     "spells": {
+      "ember": 100,
+      "rime": 100,
+      "spark": 100,
+      "mend": 100,
+      "dimming": 100
+     }
+    },
+    "corvin": {
+     "level": 6,
+     "exp": 28,
+     "spells": {}
+    },
+    "wick": {
+     "level": 6,
+     "exp": 28,
+     "spells": {
+      "mend": 100,
+      "cleanse": 100,
+      "renewal": 100,
+      "wardflesh": 100,
+      "scan": 100
+     }
+    }
    }
   },
   "magic-two-fenrat": {
@@ -4917,6 +5161,37 @@
     "potion": 5,
     "antidote": 2,
     "tonic": 2
+   },
+   "spoils": {
+    "vesna": {
+     "level": 6,
+     "exp": 33,
+     "spells": {
+      "ember": 100,
+      "rime": 100,
+      "spark": 100,
+      "mend": 100,
+      "dimming": 100,
+      "pyre": 10.4,
+      "conflagrate": 2.6
+     }
+    },
+    "corvin": {
+     "level": 6,
+     "exp": 33,
+     "spells": {}
+    },
+    "wick": {
+     "level": 6,
+     "exp": 33,
+     "spells": {
+      "mend": 100,
+      "cleanse": 100,
+      "renewal": 100,
+      "wardflesh": 100,
+      "scan": 100
+     }
+    }
    }
   },
   "magic-roadwolves": {
@@ -5810,6 +6085,37 @@
     "potion": 6,
     "antidote": 2,
     "tonic": 2
+   },
+   "spoils": {
+    "vesna": {
+     "level": 7,
+     "exp": 50,
+     "spells": {
+      "ember": 100,
+      "rime": 100,
+      "spark": 100,
+      "mend": 100,
+      "dimming": 100,
+      "pyre": 10.4,
+      "conflagrate": 2.6
+     }
+    },
+    "corvin": {
+     "level": 7,
+     "exp": 50,
+     "spells": {}
+    },
+    "wick": {
+     "level": 7,
+     "exp": 50,
+     "spells": {
+      "mend": 100,
+      "cleanse": 100,
+      "renewal": 100,
+      "wardflesh": 100,
+      "scan": 100
+     }
+    }
    }
   },
   "magic-brigands": {
@@ -6582,6 +6888,37 @@
     "potion": 7,
     "antidote": 2,
     "tonic": 2
+   },
+   "spoils": {
+    "vesna": {
+     "level": 7,
+     "exp": 56,
+     "spells": {
+      "ember": 100,
+      "rime": 100,
+      "spark": 100,
+      "mend": 100,
+      "dimming": 100,
+      "pyre": 10.4,
+      "conflagrate": 2.6
+     }
+    },
+    "corvin": {
+     "level": 7,
+     "exp": 56,
+     "spells": {}
+    },
+    "wick": {
+     "level": 7,
+     "exp": 56,
+     "spells": {
+      "mend": 100,
+      "cleanse": 100,
+      "renewal": 100,
+      "wardflesh": 100,
+      "scan": 100
+     }
+    }
    }
   },
   "heal-hounds": {
@@ -6939,6 +7276,35 @@
     "potion": 5,
     "antidote": 2,
     "tonic": 2
+   },
+   "spoils": {
+    "vesna": {
+     "level": 6,
+     "exp": 28,
+     "spells": {
+      "ember": 100,
+      "rime": 100,
+      "spark": 100,
+      "mend": 100,
+      "dimming": 100
+     }
+    },
+    "corvin": {
+     "level": 6,
+     "exp": 28,
+     "spells": {}
+    },
+    "wick": {
+     "level": 6,
+     "exp": 28,
+     "spells": {
+      "mend": 100,
+      "cleanse": 100,
+      "renewal": 100,
+      "wardflesh": 100,
+      "scan": 100
+     }
+    }
    }
   },
   "heal-roadwolves": {
@@ -8138,6 +8504,37 @@
     "potion": 4,
     "antidote": 2,
     "tonic": 2
+   },
+   "spoils": {
+    "vesna": {
+     "level": 7,
+     "exp": 50,
+     "spells": {
+      "ember": 100,
+      "rime": 100,
+      "spark": 100,
+      "mend": 100,
+      "dimming": 100,
+      "pyre": 10.4,
+      "conflagrate": 2.6
+     }
+    },
+    "corvin": {
+     "level": 7,
+     "exp": 50,
+     "spells": {}
+    },
+    "wick": {
+     "level": 7,
+     "exp": 50,
+     "spells": {
+      "mend": 100,
+      "cleanse": 100,
+      "renewal": 100,
+      "wardflesh": 100,
+      "scan": 100
+     }
+    }
    }
   },
   "defend-hounds": {
@@ -8443,6 +8840,35 @@
     "potion": 5,
     "antidote": 2,
     "tonic": 2
+   },
+   "spoils": {
+    "vesna": {
+     "level": 6,
+     "exp": 28,
+     "spells": {
+      "ember": 100,
+      "rime": 100,
+      "spark": 100,
+      "mend": 100,
+      "dimming": 100
+     }
+    },
+    "corvin": {
+     "level": 6,
+     "exp": 28,
+     "spells": {}
+    },
+    "wick": {
+     "level": 6,
+     "exp": 28,
+     "spells": {
+      "mend": 100,
+      "cleanse": 100,
+      "renewal": 100,
+      "wardflesh": 100,
+      "scan": 100
+     }
+    }
    }
   },
   "defend-brigands": {
@@ -9669,6 +10095,37 @@
     "antidote": 2,
     "tonic": 2,
     "ironsword": 1
+   },
+   "spoils": {
+    "vesna": {
+     "level": 7,
+     "exp": 56,
+     "spells": {
+      "ember": 100,
+      "rime": 100,
+      "spark": 100,
+      "mend": 100,
+      "dimming": 100,
+      "pyre": 10.4,
+      "conflagrate": 2.6
+     }
+    },
+    "corvin": {
+     "level": 7,
+     "exp": 56,
+     "spells": {}
+    },
+    "wick": {
+     "level": 7,
+     "exp": 56,
+     "spells": {
+      "mend": 100,
+      "cleanse": 100,
+      "renewal": 100,
+      "wardflesh": 100,
+      "scan": 100
+     }
+    }
    }
   },
   "special-hammerfall": {
@@ -10075,6 +10532,37 @@
     "potion": 6,
     "antidote": 2,
     "tonic": 2
+   },
+   "spoils": {
+    "vesna": {
+     "level": 7,
+     "exp": 50,
+     "spells": {
+      "ember": 100,
+      "rime": 100,
+      "spark": 100,
+      "mend": 100,
+      "dimming": 100,
+      "pyre": 10.4,
+      "conflagrate": 2.6
+     }
+    },
+    "corvin": {
+     "level": 7,
+     "exp": 50,
+     "spells": {}
+    },
+    "wick": {
+     "level": 7,
+     "exp": 50,
+     "spells": {
+      "mend": 100,
+      "cleanse": 100,
+      "renewal": 100,
+      "wardflesh": 100,
+      "scan": 100
+     }
+    }
    }
   },
   "special-silence": {
@@ -10677,6 +11165,37 @@
     "potion": 7,
     "antidote": 2,
     "tonic": 2
+   },
+   "spoils": {
+    "vesna": {
+     "level": 7,
+     "exp": 56,
+     "spells": {
+      "ember": 100,
+      "rime": 100,
+      "spark": 100,
+      "mend": 100,
+      "dimming": 100,
+      "pyre": 10.4,
+      "conflagrate": 2.6
+     }
+    },
+    "corvin": {
+     "level": 7,
+     "exp": 56,
+     "spells": {}
+    },
+    "wick": {
+     "level": 7,
+     "exp": 56,
+     "spells": {
+      "mend": 100,
+      "cleanse": 100,
+      "renewal": 100,
+      "wardflesh": 100,
+      "scan": 100
+     }
+    }
    }
   },
   "special-litany": {
@@ -11055,6 +11574,35 @@
     "potion": 5,
     "antidote": 2,
     "tonic": 2
+   },
+   "spoils": {
+    "vesna": {
+     "level": 6,
+     "exp": 28,
+     "spells": {
+      "ember": 100,
+      "rime": 100,
+      "spark": 100,
+      "mend": 100,
+      "dimming": 100
+     }
+    },
+    "corvin": {
+     "level": 6,
+     "exp": 28,
+     "spells": {}
+    },
+    "wick": {
+     "level": 6,
+     "exp": 28,
+     "spells": {
+      "mend": 100,
+      "cleanse": 100,
+      "renewal": 100,
+      "wardflesh": 100,
+      "scan": 100
+     }
+    }
    }
   },
   "special-quarry": {
@@ -14370,6 +14918,35 @@
     "potion": 5,
     "antidote": 2,
     "tonic": 2
+   },
+   "spoils": {
+    "vesna": {
+     "level": 6,
+     "exp": 28,
+     "spells": {
+      "ember": 100,
+      "rime": 100,
+      "spark": 100,
+      "mend": 100,
+      "dimming": 100
+     }
+    },
+    "corvin": {
+     "level": 6,
+     "exp": 28,
+     "spells": {}
+    },
+    "wick": {
+     "level": 6,
+     "exp": 28,
+     "spells": {
+      "mend": 100,
+      "cleanse": 100,
+      "renewal": 100,
+      "wardflesh": 100,
+      "scan": 100
+     }
+    }
    }
   },
   "special-overclock": {
@@ -15042,6 +15619,37 @@
     "potion": 5,
     "antidote": 2,
     "tonic": 2
+   },
+   "spoils": {
+    "vesna": {
+     "level": 7,
+     "exp": 56,
+     "spells": {
+      "ember": 100,
+      "rime": 100,
+      "spark": 100,
+      "mend": 100,
+      "dimming": 100,
+      "pyre": 10.4,
+      "conflagrate": 2.6
+     }
+    },
+    "corvin": {
+     "level": 7,
+     "exp": 56,
+     "spells": {}
+    },
+    "wick": {
+     "level": 7,
+     "exp": 56,
+     "spells": {
+      "mend": 100,
+      "cleanse": 100,
+      "renewal": 100,
+      "wardflesh": 100,
+      "scan": 100
+     }
+    }
    }
   },
   "special-unmake": {
@@ -15888,6 +16496,37 @@
     "potion": 5,
     "antidote": 2,
     "tonic": 2
+   },
+   "spoils": {
+    "vesna": {
+     "level": 7,
+     "exp": 50,
+     "spells": {
+      "ember": 100,
+      "rime": 100,
+      "spark": 100,
+      "mend": 100,
+      "dimming": 100,
+      "pyre": 10.4,
+      "conflagrate": 2.6
+     }
+    },
+    "corvin": {
+     "level": 7,
+     "exp": 50,
+     "spells": {}
+    },
+    "wick": {
+     "level": 7,
+     "exp": 50,
+     "spells": {
+      "mend": 100,
+      "cleanse": 100,
+      "renewal": 100,
+      "wardflesh": 100,
+      "scan": 100
+     }
+    }
    }
   },
   "steal-brigands": {
@@ -17286,6 +17925,37 @@
     "potion": 7,
     "antidote": 2,
     "tonic": 2
+   },
+   "spoils": {
+    "vesna": {
+     "level": 7,
+     "exp": 56,
+     "spells": {
+      "ember": 100,
+      "rime": 100,
+      "spark": 100,
+      "mend": 100,
+      "dimming": 100,
+      "pyre": 10.4,
+      "conflagrate": 2.6
+     }
+    },
+    "corvin": {
+     "level": 7,
+     "exp": 56,
+     "spells": {}
+    },
+    "wick": {
+     "level": 7,
+     "exp": 56,
+     "spells": {
+      "mend": 100,
+      "cleanse": 100,
+      "renewal": 100,
+      "wardflesh": 100,
+      "scan": 100
+     }
+    }
    }
   },
   "summon-roadwolves": {
@@ -17617,6 +18287,37 @@
     "potion": 5,
     "antidote": 2,
     "tonic": 2
+   },
+   "spoils": {
+    "vesna": {
+     "level": 7,
+     "exp": 50,
+     "spells": {
+      "ember": 100,
+      "rime": 100,
+      "spark": 100,
+      "mend": 100,
+      "dimming": 100,
+      "pyre": 10.4,
+      "conflagrate": 2.6
+     }
+    },
+    "corvin": {
+     "level": 7,
+     "exp": 50,
+     "spells": {}
+    },
+    "wick": {
+     "level": 7,
+     "exp": 50,
+     "spells": {
+      "mend": 100,
+      "cleanse": 100,
+      "renewal": 100,
+      "wardflesh": 100,
+      "scan": 100
+     }
+    }
    }
   },
   "limit-hounds": {
@@ -17921,6 +18622,35 @@
     "potion": 5,
     "antidote": 2,
     "tonic": 2
+   },
+   "spoils": {
+    "vesna": {
+     "level": 6,
+     "exp": 28,
+     "spells": {
+      "ember": 100,
+      "rime": 100,
+      "spark": 100,
+      "mend": 100,
+      "dimming": 100
+     }
+    },
+    "corvin": {
+     "level": 6,
+     "exp": 28,
+     "spells": {}
+    },
+    "wick": {
+     "level": 6,
+     "exp": 28,
+     "spells": {
+      "mend": 100,
+      "cleanse": 100,
+      "renewal": 100,
+      "wardflesh": 100,
+      "scan": 100
+     }
+    }
    }
   }
  }

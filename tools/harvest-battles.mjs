@@ -366,6 +366,13 @@ for (const [index, scenario] of SCENARIOS.entries()) {
       gold: game.party.gold,
       levels: Object.fromEntries([...game.party.roster.values()].map((m) => [m.id, m.level])),
       inventory: Object.fromEntries(game.party.inventory),
+      // What the fight left behind, member by member. Spoils are not part of a turn and the
+      // transcript stopped at the last one, so the port could fight every fight identically and
+      // still hand out nothing at the end of them — which is exactly what it did: espers teach
+      // magic in this game and the port's never taught anybody a thing.
+      spoils: Object.fromEntries([...game.party.roster.values()].map((m) => [m.id, {
+        level: m.level, exp: m.exp, spells: { ...m.spells },
+      }])),
     };
   }, {
     enemies: scenario.enemies, seed: scenario.seed, frameCap: FRAME_CAP,

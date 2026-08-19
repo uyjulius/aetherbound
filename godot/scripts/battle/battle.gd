@@ -949,6 +949,12 @@ func _finish(outcome: String) -> void:
 		"state": snapshot()})
 
 
+## How fast magicite teaches. The reference keeps it beside the esper table as `TEACH_RATE`;
+## mirrored here the way `Field.ENCOUNTER_SPACING` is, and held honest by the spells comparison
+## in `tools/battle-parity.mjs` rather than by anybody remembering to keep the two in step.
+const TEACH_RATE := 2.6
+
+
 ## Experience, gold and drops, and the bench learns too.
 ##
 ## The order is the reference's order and that matters: drops are rolled inside the
@@ -992,6 +998,7 @@ func _award() -> void:
 		m.gain_exp(bench_each)
 
 	var levels := {}
+	var learned := {}
 	for p in party:
 		if p.is_ko():
 			continue
@@ -1003,7 +1010,24 @@ func _award() -> void:
 		p.max_mp = p.member.max_mp()
 		if gained > 0:
 			levels[p.id] = gained
-	rewards = {"exp_each": each, "gold": gold, "levels": levels, "drops": drops}
+		# Espers teach magic, and this is the *only* way magic is learned in this game: a
+		# character carries a shard, fights with it, and the spells on it accrue proficiency
+		# until they stick. The port had the shards, the table of what each one teaches, and the
+		# proficiency field on every member — and nothing that ever moved it, so no spell was
+		# ever learned by anybody. Battle parity compared the fight and not what the fight left
+		# behind, which is why it took a look at the spoils to notice.
+		var esper: Dictionary = p.member.esper
+		if esper.is_empty():
+			continue
+		var teaches: Dictionary = esper.get("teaches", {})
+		for spell_id in teaches:
+			var id := String(spell_id)
+			if p.member.knows_spell(id):
+				continue
+			if p.member.learn_spell(id, float(teaches[spell_id]) * TEACH_RATE):
+				learned[p.id] = Array(learned.get(p.id, [])) + [id]
+	rewards = {"exp_each": each, "gold": gold, "levels": levels, "drops": drops,
+		"learned": learned}
 
 
 # --- transcript -------------------------------------------------------------

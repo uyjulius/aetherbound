@@ -13,6 +13,15 @@ extends RefCounted
 ## What is *not* carried across is the reference's grade and tilt-shift — a post-processing
 ## chain built for its own geometry, which this port replaced deliberately.
 
+## Why the sky is often not visible at all, which is not a bug in any of this:
+##
+## A walled town is walled on every side, and the boundary blocks are as tall as the map says —
+## eleven metres in Ashenhall. From a field camera two metres off the ground looking level, that
+## wall fills everything above the roofs, and what looks like a flat grey sky is the far side of
+## the village fogged to the haze colour. An hour went into proving that the sky was broken
+## before a magenta clear colour and a red sky material both failed to appear behind it and gave
+## the game away. The sky is there; a battle stage, which has no walls, shows it.
+##
 ## Sun direction in the tables is a vector *towards* the sun, as the reference's lights read
 ## it.
 static func apply(environment: Environment, sun: DirectionalLight3D, map_def: Dictionary) -> void:
@@ -29,7 +38,11 @@ static func apply(environment: Environment, sun: DirectionalLight3D, map_def: Di
 	# no cloud layer, and a flat grey band at the horizon is what an overcast day looks like
 	# from inside a village anyway.
 	var cloud := float(sky_def.get("cloud", 0.0))
-	material.sky_curve = lerpf(0.15, 0.5, clampf(cloud, 0.0, 1.0))
+	# How high up the dome the horizon's colour reaches. Cloud thickens the band, but not as far
+	# as it did: at 0.5 the pale horizon colour covered everything a field camera can see, so
+	# every authored zenith in the game — Harrowmere's deep blue included — was invisible and
+	# every sky was the same grey.
+	material.sky_curve = lerpf(0.08, 0.22, clampf(cloud, 0.0, 1.0))
 	material.sun_angle_max = 12.0
 	material.sun_curve = 0.12
 
@@ -49,7 +62,9 @@ static func apply(environment: Environment, sun: DirectionalLight3D, map_def: Di
 		# the far distance rather than fitted, which is close enough for a haze and keeps the
 		# two numbers meaning what they say.
 		environment.fog_density = 1.0 / maxf(40.0, float(fog[2]))
-		environment.fog_sky_affect = 0.35
+		# Haze belongs on the ground, mostly. Fog at a third of strength on the sky greyed out the
+		# colour the map had chosen for it, on top of the horizon band already doing that.
+		environment.fog_sky_affect = 0.12
 	else:
 		environment.fog_enabled = false
 

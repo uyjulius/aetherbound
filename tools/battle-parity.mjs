@@ -57,6 +57,7 @@ say('─'.repeat(58));
 
 const failures = [];
 let comparedTurns = 0;
+let comparedSpoils = 0;
 let comparedValues = 0;
 
 /** One combatant's state as a single comparable line. */
@@ -133,6 +134,42 @@ for (const [name, expected] of Object.entries(fixture.scenarios)) {
     failures.push(`${name}: ${actual.gold} gold, reference ${expected.gold}`);
   }
 
+  // What the fight left behind, which is not part of any turn: levels, experience, the bag, and
+  // every spell's proficiency. A fight can be fought identically and pay out nothing, and that
+  // is not a hypothetical — the port's espers taught nobody anything until this compared it.
+  if (firstDivergence < 0 && expected.spoils) {
+    for (const [id, after] of Object.entries(expected.spoils)) {
+      const mine = actual.spoils?.[id];
+      if (!mine) {
+        failures.push(`${name}: the port reported no spoils for ${id}`);
+        continue;
+      }
+      comparedSpoils += 2;
+      if (Number(mine.level) !== Number(after.level)) {
+        failures.push(`${name}: ${id} is level ${mine.level}, reference ${after.level}`);
+      }
+      if (Number(mine.exp) !== Number(after.exp)) {
+        failures.push(`${name}: ${id} has ${mine.exp} exp, reference ${after.exp}`);
+      }
+      for (const spell of new Set([...Object.keys(after.spells ?? {}),
+        ...Object.keys(mine.spells ?? {})])) {
+        comparedSpoils++;
+        const theirs = Number(after.spells?.[spell] ?? 0);
+        const ours = Number(mine.spells?.[spell] ?? 0);
+        if (Math.abs(theirs - ours) > 1e-6) {
+          failures.push(`${name}: ${id}'s ${spell} sits at ${ours}, reference ${theirs}`);
+        }
+      }
+    }
+    for (const [item, count] of Object.entries(expected.inventory ?? {})) {
+      comparedSpoils++;
+      if (Number(actual.inventory?.[item] ?? 0) !== Number(count)) {
+        failures.push(`${name}: ${Number(actual.inventory?.[item] ?? 0)} × ${item}, `
+          + `reference ${count}`);
+      }
+    }
+  }
+
   const status = firstDivergence < 0 && expected.turns.length === actual.turns.length
     && actual.result === expected.result
     ? '\x1b[32magrees\x1b[0m'
@@ -149,4 +186,6 @@ if (failures.length) {
   process.exit(1);
 }
 say(`\x1b[32mOK\x1b[0m — ${Object.keys(fixture.scenarios).length} fights, ${comparedTurns} turns, `
-  + `${comparedValues.toLocaleString()} values, and the port fought every one of them identically.`);
+  + `${(comparedValues + comparedSpoils).toLocaleString()} values, and the port fought every one `
+  + `of them identically — and paid out the same afterwards (${comparedSpoils.toLocaleString()} `
+  + 'of those values are the spoils).');

@@ -748,6 +748,14 @@ func _element_of(action: Dictionary) -> String:
 	return "physical"
 
 
+## Whoever in the party has this id, or null. The spoils name their winners by id.
+func _combatant(id: String) -> Combatant:
+	for c in battle.party:
+		if c.id == id:
+			return c
+	return null
+
+
 ## The party's average level, for an event that wants to know who was fighting.
 func _party_level() -> float:
 	if battle.party.is_empty():
@@ -1092,6 +1100,26 @@ func _end() -> void:
 			_banner.text = "Victory"
 			_note("Victory. %d exp each, %d gil." % [
 				int(rewards.get("exp_each", 0)), int(rewards.get("gold", 0))])
+			# What the fight actually gave them. The reference is careful about this: a level, a
+			# learned spell and a drop are the three things a player would stop for, and they
+			# each get a line — while "gained 5 exp" on its own does not, which is why the
+			# reference shows routine spoils on the banner and opens the box for anything else.
+			for who in Dictionary(rewards.get("levels", {})):
+				var member: Combatant = _combatant(String(who))
+				if member != null:
+					_note("%s reached level %d!" % [member.name, member.level])
+			for who in Dictionary(rewards.get("learned", {})):
+				var member: Combatant = _combatant(String(who))
+				for spell_id in Array(rewards["learned"][who]):
+					var spell: Dictionary = battle._db.spells.get(String(spell_id), {})
+					_note("%s learned %s!" % [member.name if member != null else String(who),
+						String(spell.get("name", spell_id))])
+			var drops: Array = rewards.get("drops", [])
+			if not drops.is_empty():
+				var names: Array = []
+				for id in drops:
+					names.append(String(battle._db.items.get(String(id), {}).get("name", id)))
+				_note("Found: %s." % ", ".join(names))
 		"defeat":
 			Sound.play_music("gameover", 0.6)
 			_banner.text = "Defeat"
