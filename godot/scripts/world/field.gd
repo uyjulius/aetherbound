@@ -230,6 +230,26 @@ func current_encounter_table() -> Dictionary:
 	return own if own is Dictionary else {}
 
 
+## Which formation turns up.
+##
+## A table is a weighted list of groups, and a group already naming its enemies is a
+## formation in its own right — which is how a scripted fight passes through the same
+## door as a random one. Drawn from the encounter stream, like the distance.
+static func pick_group(table: Dictionary, stream: RNG) -> Dictionary:
+	if table.is_empty():
+		return {}
+	if table.has("enemies"):
+		return table
+	var groups: Array = table.get("groups", [])
+	if groups.is_empty():
+		return {}
+	var entries: Array = []
+	for group in groups:
+		entries.append([float(group.get("weight", 1)), group])
+	var chosen: Variant = stream.weighted(entries)
+	return chosen if chosen is Dictionary else {}
+
+
 ## Distance until the next encounter.
 ##
 ## Distance rather than time, so standing still is safe and running does not

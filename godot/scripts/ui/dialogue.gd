@@ -112,7 +112,7 @@ func _build() -> void:
 	column.add_child(_choices)
 
 	_more = Label.new()
-	_more.text = "▼"
+	_more.text = "more"
 	_more.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
 	_more.add_theme_color_override("font_color", Palette.ui_color("textDim"))
 	column.add_child(_more)
@@ -247,7 +247,7 @@ func _paint_choices(choices: Array) -> void:
 		var label: Variant = choices[i]
 		if label is Dictionary:
 			label = label.get("label", "?")
-		row.text = "%s %s" % ["▶" if i == _choice_index else "  ", String(label)]
+		row.text = "%s %s" % [">" if i == _choice_index else " ", String(label)]
 		row.add_theme_color_override("font_color",
 			Palette.ui_color("select") if i == _choice_index else Palette.ui_color("text"))
 

@@ -132,6 +132,9 @@ let field = null;
 let sceneStarted = null;
 let sceneEnded = null;
 let dialogueOpened = null;
+let battleStarted = null;
+let battleEnded = null;
+let partyReady = null;
 
 // Godot writes its own warnings to stderr, which the browser reports as
 // console.error — so the two have to be told apart by their text rather than by
@@ -147,6 +150,9 @@ page.on('console', (message) => {
   if (text.includes('FIELD_READY')) field = text.trim();
   if (text.includes('SCENE_START')) sceneStarted = text.trim();
   if (text.includes('DIALOGUE_OPEN')) dialogueOpened = text.trim();
+  if (text.includes('PARTY_READY')) partyReady = text.trim();
+  if (text.includes('BATTLE_START')) battleStarted = text.trim();
+  if (text.includes('BATTLE_END')) battleEnded = text.trim();
   if (text.includes('SCENE_END')) sceneEnded = text.trim();
   if (message.type() !== 'error') return;
   if (/^\s*WARNING:/.test(text)) warnings.push(text.split('\n')[0].trim());
@@ -207,6 +213,20 @@ if (ready) {
     const colliders = Number(field.match(/colliders=(\d+)/)?.[1] ?? 0);
     check('the field built a collision grid', colliders > 0, `${colliders} colliders`);
   }
+
+  // The party the diagnostic starts with, against the one harvested from the
+  // reference's New Game. Two numbers per character, and every one of them is a growth
+  // curve plus a starting kit — which is most of what a fight is made of.
+  const setupPath = path.join(root, 'tools', 'fixtures', 'battle-setup.json');
+  if (partyReady && fs.existsSync(setupPath)) {
+    const expected = JSON.parse(fs.readFileSync(setupPath, 'utf8')).party.members
+      .filter((m) => m.active)
+      .map((m) => `${m.id}:${m.hp}/${m.mp}`)
+      .join(' ');
+    const actual = partyReady.replace('PARTY_READY ', '');
+    check('the starting party matches the reference', actual === expected,
+      actual === expected ? actual : `port ${actual} · reference ${expected}`);
+  }
   const shot = path.join(root, '.renders',
     remote ? 'godot-web-field-live.png' : 'godot-web-field.png');
   fs.mkdirSync(path.dirname(shot), { recursive: true });
@@ -239,6 +259,29 @@ if (ready) {
     const box = dialogueOpened?.match(/box=\(([\d.]+), ([\d.]+)\)/);
     check('the dialogue box has a rect', Boolean(box) && Number(box[1]) > 100,
       dialogueOpened ?? 'no DIALOGUE_OPEN line');
+
+    // And a fight. The battle engine is compared against the reference fight for fight
+    // in `battle-parity.mjs`; what this proves is that it can be *played* — gauges fill,
+    // a command lands, and the fight resolves.
+    await page.keyboard.press('KeyB');
+    const battleFrom = Date.now();
+    while (!battleStarted && Date.now() - battleFrom < 30_000) await page.waitForTimeout(200);
+    check('a fight starts', Boolean(battleStarted), battleStarted ?? 'no BATTLE_START in 30s');
+    if (battleStarted) {
+      // Long enough for a gauge to fill and a command list to open, so the picture is of
+      // a turn being taken rather than of two rats and a wait.
+      await page.waitForTimeout(3500);
+      const battleShot = path.join(root, '.renders',
+        remote ? 'godot-web-battle-live.png' : 'godot-web-battle.png');
+      await page.screenshot({ path: battleShot });
+      // Attack with whoever is ready, until somebody wins. Two confirms per turn: the
+      // command, then the target.
+      for (let i = 0; i < 80 && !battleEnded; i++) {
+        await page.keyboard.press('Enter');
+        await page.waitForTimeout(180);
+      }
+      check('the fight resolves', Boolean(battleEnded), battleEnded ?? 'no BATTLE_END in 80 presses');
+    }
   }
 }
 

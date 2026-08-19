@@ -210,6 +210,47 @@ func recruit(character_id: String, level := -1) -> Member:
 	return member
 
 
+## The party a new campaign starts with.
+##
+## The same three at the same level with the same kit, spells, bag and magicite as the
+## reference's New Game — because a diagnostic fighting with an unequipped party is
+## measuring a different game. Kept here rather than in a screen so every entry point
+## starts the same way.
+func new_campaign() -> void:
+	var vesna := recruit("vesna", 6)
+	_equip(vesna, ["ironsword", "travelvest", "leathercap"])
+	for spell in ["ember", "rime", "spark", "mend", "dimming"]:
+		vesna.learn_spell(spell)
+
+	var corvin := recruit("corvin", 6)
+	_equip(corvin, ["boltdirk", "travelvest", "leathercap", "woodshield"])
+
+	var wick := recruit("wick", 6)
+	_equip(wick, ["ashrod", "silkrobe", "leathercap"])
+	for spell in ["mend", "cleanse", "renewal", "wardflesh", "scan"]:
+		wick.learn_spell(spell)
+
+	add_item("potion", 5)
+	add_item("antidote", 2)
+	add_item("tonic", 2)
+	# One esper from the outset, so the progression system is legible before anybody
+	# explains it.
+	add_esper("emberwake")
+	vesna.esper = _db.espers.get("emberwake", {})
+	vesna.full_restore()
+
+
+## Put a kit on, then top the member up: equipment moves the ceiling, and a member who
+## walks in at the health they had before it was fitted is quietly wounded.
+func _equip(member: Member, ids: Array) -> void:
+	for id in ids:
+		var item: Dictionary = _db.items.get(String(id), {})
+		if item.is_empty():
+			continue
+		member.equipment[String(item.get("slot", "weapon"))] = item
+	member.full_restore()
+
+
 func average_level() -> float:
 	if roster.is_empty():
 		return 1.0

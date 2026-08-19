@@ -20,6 +20,7 @@ const Database := preload("res://scripts/data/database.gd")
 const PartyModel := preload("res://scripts/game/party.gd")
 const DialogueBox := preload("res://scripts/ui/dialogue.gd")
 const Ctx := preload("res://scripts/game/event_context.gd")
+const BattleScreen := preload("res://scripts/ui/battle_view.gd")
 
 ## Maps worth opening on first, in this order: a town, an interior, a continent,
 ## a dungeon. `menu` walks the whole world from there.
@@ -33,6 +34,9 @@ var _ctx: EventContext
 ## True while a scene is playing, so the field does not walk under it.
 var _scene_running := false
 var _last_event := ""
+var _battle: BattleView
+## The encounter RNG, so the same walk meets the same monsters.
+var _encounter_rng := RNG.new(0x9d2f11)
 var _ids: PackedStringArray = PackedStringArray()
 var _index := 0
 var _label: Label
@@ -58,11 +62,37 @@ func _ready() -> void:
 	# A party, so the scenes have somebody to talk about. The opening three at the level
 	# the reference's New Game gives them.
 	_party = PartyModel.new(_db)
-	for id in ["vesna", "corvin", "wick"]:
-		_party.recruit(id, 6)
+	_party.new_campaign()
+	# The party, out loud. `tools/web-smoke.mjs` holds these against the ones harvested
+	# from the reference's own New Game, so a starting kit that stops being fitted — or a
+	# growth curve that drifts — is caught in the browser rather than in a fight.
+	var roster: Array = []
+	for id in _party.active:
+		var m: Party.Member = _party.roster[id]
+		roster.append("%s:%d/%d" % [id, m.hp, m.mp])
+	print("PARTY_READY %s" % " ".join(roster))
 
 	_dialogue = DialogueBox.new()
 	add_child(_dialogue)
+
+	_battle = BattleScreen.new()
+	_battle.visible = false
+	_battle.finished.connect(_on_battle_finished)
+	add_child(_battle)
+
+	# The reference binds a debug encounter to B and a boss to N. Kept, because a
+	# diagnostic that can only reach a fight by walking until one happens is a
+	# diagnostic nobody uses.
+	for action in ["debug_battle", "debug_boss"]:
+		if InputMap.has_action(action):
+			InputMap.erase_action(action)
+		InputMap.add_action(action)
+	var b := InputEventKey.new()
+	b.physical_keycode = KEY_B
+	InputMap.action_add_event("debug_battle", b)
+	var n := InputEventKey.new()
+	n.physical_keycode = KEY_N
+	InputMap.action_add_event("debug_boss", n)
 
 	_ctx = Ctx.new("first", false)
 	_ctx.database = _db
@@ -105,10 +135,28 @@ func _open(index: int) -> void:
 
 
 func _process(delta: float) -> void:
+	# A fight owns the screen outright: it has its own turn clock, and a field that kept
+	# walking underneath would be accumulating encounter distance during a battle.
+	if _battle != null and _battle.visible:
+		# The grid and its HUD stay behind the fight rather than showing through it.
+		_label.visible = false
+		return
+	_label.visible = true
 	# A scene owns the screen while it plays. The field keeps its position and the
 	# camera keeps its bearing; nothing walks under a conversation.
 	if _scene_running:
 		_update_label()
+		return
+	if Input.is_action_just_pressed("debug_battle"):
+		# The map's own table where there is one. Harrowmere has none — a village is not
+		# somewhere you get jumped — so a diagnostic that could only fight where the
+		# design allows encounters would show nothing on the map it opens on.
+		var table := _field.current_encounter_table()
+		_start_battle(table if not table.is_empty() else {"enemies": ["fenrat", "fenrat"]})
+		return
+	if Input.is_action_just_pressed("debug_boss"):
+		# One of the optional bosses, so a boss fight can be seen without finding it.
+		_start_battle({"enemies": ["weighmaster"], "boss": true})
 		return
 	if Actions.just_pressed("special"):
 		# On demand, so the browser check can start a scene without walking to one.
@@ -125,17 +173,15 @@ func _process(delta: float) -> void:
 		_field.camera.orbit(-1)
 
 	var result := _field.update(delta, Actions.move_vector(), Actions.is_down("run"))
+	if not result["encounter"].is_empty():
+		_start_battle(result["encounter"])
+		return
 	var trigger: Dictionary = result["trigger"]
 	if not trigger.is_empty() and String(trigger.get("kind", "")) == "event":
 		var id := String(trigger.get("data", {}).get("event", ""))
 		if not id.is_empty() and id != _last_event:
 			_run_event(id)
 			return
-	if not result["encounter"].is_empty():
-		# Reported rather than fought: the battle runtime is a later sub-project,
-		# and a counter that visibly ticks over is what proves the encounter
-		# distance is being accumulated at all.
-		_encounters += 1
 	_trigger = result["trigger"]
 	queue_redraw()
 	_update_label()
@@ -143,6 +189,27 @@ func _process(delta: float) -> void:
 
 var _encounters := 0
 var _trigger: Dictionary = {}
+
+
+## Start a fight from an encounter table or an explicit formation.
+func _start_battle(table: Dictionary) -> void:
+	var group := Field.pick_group(table, _encounter_rng)
+	if group.is_empty():
+		_note_no_encounter()
+		return
+	_encounters += 1
+	_battle.begin(_party, group, _db)
+
+
+func _note_no_encounter() -> void:
+	print("BATTLE_NONE nothing to fight here")
+
+
+func _on_battle_finished(result: String) -> void:
+	_battle.visible = false
+	# Whatever the fight did to the party stays done. A defeat is not handled here —
+	# a game over belongs with the title screen, which is a later piece.
+	print("BATTLE_CLOSED result=%s" % result)
 
 
 ## Play a scene. The same coroutines the harness compares, driven by a live context.
@@ -177,10 +244,12 @@ func _update_label() -> void:
 	if not _trigger.is_empty():
 		var data: Dictionary = _trigger.get("data", {})
 		lines.append("on a %s trigger%s" % [_trigger["kind"],
-			(" → %s" % data["to"]) if data.has("to") else ""])
+			(" -> %s" % data["to"]) if data.has("to") else ""])
 	if _scene_running:
 		lines.append("scene: %s" % _last_event)
-	lines.append("move / run · Q,E orbit · C next map · V play a scene · Esc back")
+	if _battle != null and _battle.visible:
+		lines.append("in battle")
+	lines.append("move / run · Q,E orbit · C next map · V scene · B fight · N boss · Esc back")
 	_label.text = "\n".join(lines)
 
 
