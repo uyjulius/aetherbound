@@ -18,7 +18,7 @@ a model is CC-BY, saying so is also the licence.
 | bridge | Small Bridge | Quaternius | CC0 1.0 | https://poly.pizza/m/j4KsIuJYnq |
 | building_brick | Blacksmith | Quaternius | CC0 1.0 | https://poly.pizza/m/bV52eTG1Aj |
 | building_magitek | Building | Quaternius | CC0 1.0 | https://poly.pizza/m/ZSYgIuHfYb |
-| building_marble | Castle | Quaternius | CC0 1.0 | https://poly.pizza/m/opTOmcN3o9 |
+| building_marble | Temple | Quaternius | CC0 1.0 | https://poly.pizza/m/CE2Mn7lh6A |
 | building_plaster | Town House | Quaternius | CC0 1.0 | https://poly.pizza/m/sDQJBImZuw |
 | building_stone | Big Building | Quaternius | CC0 1.0 | https://poly.pizza/m/AVCS8jUd2l |
 | building_wood | Fantasy Sawmill | Quaternius | CC0 1.0 | https://poly.pizza/m/alxTTFjKDM |

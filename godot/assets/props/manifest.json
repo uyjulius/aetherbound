@@ -507,25 +507,25 @@
  },
  "building_marble": {
   "file": "building_marble.glb",
-  "id": "opTOmcN3o9",
-  "title": "Castle",
+  "id": "CE2Mn7lh6A",
+  "title": "Temple",
   "author": "Quaternius",
   "licence": "CC0 1.0",
-  "attribution": "\"Castle\" by Quaternius, https://poly.pizza/m/opTOmcN3o9. Licence at https://creativecommons.org/publicdomain/zero/1.0/",
-  "source": "https://poly.pizza/m/opTOmcN3o9",
+  "attribution": "\"Temple\" by Quaternius, https://poly.pizza/m/CE2Mn7lh6A. Licence at https://creativecommons.org/publicdomain/zero/1.0/",
+  "source": "https://poly.pizza/m/CE2Mn7lh6A",
   "size": [
-   2.1034,
-   0.9369,
-   1.9569
+   2.1913,
+   4.3291,
+   2.1913
   ],
-  "base": 0,
+  "base": -0.002,
   "centre": [
    0,
-   -0.0155
+   0
   ],
   "meshes": 1,
   "materials": 3,
-  "bytes": 477160
+  "bytes": 292004
  },
  "building_magitek": {
   "file": "building_magitek.glb",

@@ -312,11 +312,11 @@
   "marble": {
    "file": "building_marble.glb",
    "model": [
-    2.1034,
-    0.9369,
-    1.9569
+    2.1913,
+    4.3291,
+    2.1913
    ],
-   "base": 0
+   "base": -0.002
   },
   "magitek": {
    "file": "building_magitek.glb",
