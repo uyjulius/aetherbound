@@ -137,6 +137,9 @@ let battleEnded = null;
 let partyReady = null;
 let mapEntered = null;
 let talked = null;
+let menuOpened = null;
+let menuClosed = null;
+const equipped = [];
 
 // Godot writes its own warnings to stderr, which the browser reports as
 // console.error — so the two have to be told apart by their text rather than by
@@ -155,6 +158,9 @@ page.on('console', (message) => {
   if (text.includes('PARTY_READY')) partyReady = text.trim();
   if (text.includes('MAP_ENTERED')) mapEntered = text.trim();
   if (text.includes('TALK ')) talked = text.trim();
+  if (text.includes('MENU_OPEN')) menuOpened = text.trim();
+  if (text.includes('MENU_CLOSED')) menuClosed = text.trim();
+  if (text.includes('EQUIPPED ')) equipped.push(text.trim());
   if (text.includes('BATTLE_START')) battleStarted = text.trim();
   if (text.includes('BATTLE_END')) battleEnded = text.trim();
   if (text.includes('SCENE_END')) sceneEnded = text.trim();
@@ -285,6 +291,52 @@ if (ready) {
         await page.waitForTimeout(180);
       }
       check('the fight resolves', Boolean(battleEnded), battleEnded ?? 'no BATTLE_END in 80 presses');
+    }
+
+    // The field menu, and the one screen in it that can be got wrong quietly: equip.
+    // A menu that opens is easy; a menu that moves a sword from a hand into the bag and
+    // back again without losing it is the part worth checking in a browser.
+    await page.keyboard.press('KeyC');
+    const menuFrom = Date.now();
+    while (!menuOpened && Date.now() - menuFrom < 15_000) await page.waitForTimeout(200);
+    check('the field menu opens', Boolean(menuOpened), menuOpened ?? 'no MENU_OPEN in 15s');
+    if (menuOpened) {
+      // It has to have something in it. An empty bag would make every list below pass by
+      // being blank.
+      const bag = menuOpened.match(/items=(\d+)/);
+      check('the menu sees the party bag', Boolean(bag) && Number(bag[1]) > 0,
+        menuOpened);
+      await page.waitForTimeout(400);
+      await page.screenshot({ path: path.join(root, '.renders',
+        remote ? 'godot-web-menu-live.png' : 'godot-web-menu.png') });
+      // Items, Magic, Equip: down twice, then in through the character list to the
+      // weapon slot.
+      for (const key of ['ArrowDown', 'ArrowDown', 'Enter', 'Enter', 'Enter']) {
+        await page.keyboard.press(key);
+        await page.waitForTimeout(260);
+      }
+      await page.screenshot({ path: path.join(root, '.renders',
+        remote ? 'godot-web-equip-live.png' : 'godot-web-equip.png') });
+      // '(remove)' is the first row, so this takes the weapon off...
+      await page.keyboard.press('Enter');
+      await page.waitForTimeout(400);
+      // ...and it should now be in the bag, offered back on the same slot.
+      for (const key of ['Enter', 'ArrowDown', 'Enter']) {
+        await page.keyboard.press(key);
+        await page.waitForTimeout(300);
+      }
+      check('a weapon comes off and goes back on', equipped.length >= 2
+        && / weapon=-$/.test(equipped[0]) && !/ weapon=-$/.test(equipped[1]),
+        equipped.length ? equipped.slice(0, 2).join(' | ') : 'no EQUIPPED lines');
+      // Out of the menu the way a player leaves it — one press per screen, and it stops
+      // as soon as the menu says it has closed. An escape too many belongs to the field,
+      // which reads it as "back to the title" and would take the travel check with it.
+      for (let i = 0; i < 6 && !menuClosed; i++) {
+        await page.keyboard.press('Escape');
+        await page.waitForTimeout(260);
+      }
+      check('the menu closes when backed out of', Boolean(menuClosed),
+        menuClosed ?? 'no MENU_CLOSED after six cancels');
     }
 
     // Then out of the village. Harrowmere's south bridge is an exit, and the party

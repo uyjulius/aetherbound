@@ -13,7 +13,7 @@ extends Control
 ## `tools/field-parity.mjs`. This is that simulation, made visible.
 ##
 ## Controls: move, `run`, `pageLeft`/`pageRight` to orbit the camera in 45°
-## detents, `menu` for the next map, `cancel` to go back.
+## detents, `menu` for the field menu, `M` for the next map, `cancel` to go back.
 
 const FieldSim := preload("res://scripts/world/field.gd")
 const Database := preload("res://scripts/data/database.gd")
@@ -21,9 +21,10 @@ const PartyModel := preload("res://scripts/game/party.gd")
 const DialogueBox := preload("res://scripts/ui/dialogue.gd")
 const Ctx := preload("res://scripts/game/event_context.gd")
 const BattleScreen := preload("res://scripts/ui/battle_view.gd")
+const MenuScreen := preload("res://scripts/ui/menu.gd")
 
 ## Maps worth opening on first, in this order: a town, an interior, a continent,
-## a dungeon. `menu` walks the whole world from there.
+## a dungeon. `M` walks the whole world from there.
 const FIRST := ["harrowmere", "inn_harrowmere", "overworld", "sunkenvault"]
 
 var _db: Database
@@ -35,6 +36,7 @@ var _ctx: EventContext
 var _scene_running := false
 var _last_event := ""
 var _battle: BattleView
+var _menu: Menu
 var _last_trigger := ""
 var _interact: Dictionary = {}
 ## The encounter RNG, so the same walk meets the same monsters.
@@ -82,10 +84,13 @@ func _ready() -> void:
 	_battle.finished.connect(_on_battle_finished)
 	add_child(_battle)
 
+	_menu = MenuScreen.new()
+	add_child(_menu)
+
 	# The reference binds a debug encounter to B and a boss to N. Kept, because a
 	# diagnostic that can only reach a fight by walking until one happens is a
 	# diagnostic nobody uses.
-	for action in ["debug_battle", "debug_boss"]:
+	for action in ["debug_battle", "debug_boss", "debug_map"]:
 		if InputMap.has_action(action):
 			InputMap.erase_action(action)
 		InputMap.add_action(action)
@@ -95,6 +100,11 @@ func _ready() -> void:
 	var n := InputEventKey.new()
 	n.physical_keycode = KEY_N
 	InputMap.action_add_event("debug_boss", n)
+	# The map walk moves off `menu`, which the menu itself now owns as it does in the
+	# reference.
+	var m := InputEventKey.new()
+	m.physical_keycode = KEY_M
+	InputMap.action_add_event("debug_map", m)
 
 	_ctx = Ctx.new("first", false)
 	_ctx.database = _db
@@ -144,6 +154,11 @@ func _process(delta: float) -> void:
 		# The grid and its HUD stay behind the fight rather than showing through it.
 		_label.visible = false
 		return
+	# The menu likewise: it is a full screen, and a party walking behind it would be
+	# accumulating encounter distance while somebody reads their equipment.
+	if _menu != null and _menu.visible:
+		_label.visible = false
+		return
 	_label.visible = true
 	# A scene owns the screen while it plays. The field keeps its position and the
 	# camera keeps its bearing; nothing walks under a conversation.
@@ -169,6 +184,9 @@ func _process(delta: float) -> void:
 		get_tree().change_scene_to_file("res://scenes/title.tscn")
 		return
 	if Actions.just_pressed("menu"):
+		_menu.open(_party, _db)
+		return
+	if Input.is_action_just_pressed("debug_map"):
 		_open(_index + 1)
 	if Actions.just_pressed("pageLeft"):
 		_field.camera.orbit(1)
@@ -338,7 +356,7 @@ func _update_label() -> void:
 		lines.append("scene: %s" % _last_event)
 	if _battle != null and _battle.visible:
 		lines.append("in battle")
-	lines.append("move / run · Q,E orbit · C next map · V scene · B fight · N boss · Esc back")
+	lines.append("move / run · Q,E orbit · C menu · M next map · V scene · B fight · N boss · Esc back")
 	_label.text = "\n".join(lines)
 
 

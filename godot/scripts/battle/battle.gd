@@ -399,18 +399,12 @@ func _do_defend(actor: Combatant) -> void:
 	actor.defending = true
 
 
-## The MP a spell costs this caster. Relics can halve it or flatten it to one.
+## The MP a spell costs this caster. Relics can halve it or flatten it to one; a creature
+## pays what the bestiary says.
 func _spell_cost(actor: Combatant, spell: Dictionary) -> int:
-	var cost := int(spell.get("mp", 0))
 	if actor.kind != "party":
-		return cost
-	for slot in actor.member.equipment:
-		var effects: Array = actor.member.equipment[slot].get("effects", [])
-		if effects.has("halfMP"):
-			cost = int(ceil(float(cost) / 2.0))
-		if effects.has("oneMP"):
-			cost = 1
-	return maxi(0, cost)
+		return int(spell.get("mp", 0))
+	return actor.member.spell_cost(spell)
 
 
 func _do_spell(actor: Combatant, targets: Array, spell: Dictionary) -> void:

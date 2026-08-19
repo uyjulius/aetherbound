@@ -153,6 +153,43 @@ class Member:
 	func weapon() -> Dictionary:
 		return equipment.get("weapon", {})
 
+	## Can this character wear it?
+	##
+	## A relic fits anybody — that is what makes relics the interesting slot. Everything
+	## else is gated on the character's own list of weapon and armour types, which is how
+	## a mage ends up unable to hold the greatsword the mercenary just found.
+	func is_equippable(item: Dictionary) -> bool:
+		if item.is_empty() or not item.has("slot"):
+			return false
+		if String(item.get("kind", "")) == "relic":
+			return true
+		var allowed: Array = def.get("equip", [])
+		return allowed.has(String(item.get("type", "")))
+
+
+	## Fit something, or take it off with an empty dictionary.
+	##
+	## HP and MP are clamped afterwards: equipment moves the ceiling, and taking off the
+	## breastplate that was carrying forty points of it should not leave a character
+	## standing at more health than they can hold.
+	func equip(slot: String, item: Dictionary) -> void:
+		equipment[slot] = item
+		hp = mini(hp, max_hp())
+		mp = mini(mp, max_mp())
+
+
+	## What a spell costs this caster. A relic can halve it or flatten it to one.
+	func spell_cost(spell: Dictionary) -> int:
+		var cost := int(spell.get("mp", 0))
+		for slot in equipment:
+			var effects: Array = equipment[slot].get("effects", [])
+			if effects.has("halfMP"):
+				cost = int(ceil(float(cost) / 2.0))
+			if effects.has("oneMP"):
+				cost = 1
+		return maxi(0, cost)
+
+
 	## Immunities from the character and everything worn.
 	func immunities() -> Array:
 		var out: Array = []
@@ -281,6 +318,31 @@ func is_wiped() -> bool:
 
 func row_of(character_id: String) -> String:
 	return String(rows.get(character_id, "front"))
+
+
+func set_row(character_id: String, row: String) -> void:
+	rows[character_id] = row
+
+
+## Set who fights. Everyone else is the bench, which still earns half.
+func set_active(ids: Array) -> void:
+	active = ids.slice(0, MAX_ACTIVE)
+	reserve = []
+	for id in roster:
+		if not active.has(id):
+			reserve.append(id)
+
+
+## Who is carrying a piece of magicite, other than `except`. An esper can only be in one
+## place, and saying whose pocket it is in beats greying out a row for no stated reason.
+func esper_holder(esper_id: String, except_id := "") -> String:
+	for id in roster:
+		if id == except_id:
+			continue
+		var member_: Member = roster[id]
+		if String(member_.esper.get("id", "")) == esper_id:
+			return member_.name()
+	return ""
 
 
 # --- flags, quests and magicite ---------------------------------------------
