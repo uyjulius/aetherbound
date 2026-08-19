@@ -134,6 +134,7 @@ const badResponses = [];
 let ready = null;
 let field = null;
 const opened = new Set();
+const doors = [];
 const taps = [];
 let sceneStarted = null;
 let sceneEnded = null;
@@ -217,6 +218,7 @@ page.on('console', (message) => {
   if (text.includes('INN_DONE')) innDone = text.trim();
   if (text.includes('SHOP_COMPARE')) compared = text.trim();
   if (/^SCENERY /.test(text.trim())) scenery.push(text.trim());
+  if (/^DOORS /.test(text.trim())) doors.push(text.trim());
   if (/^CROWD /.test(text.trim())) crowd.push(text.trim());
   if (/^STAGE /.test(text.trim())) stage = text.trim();
   if (/^TURN /.test(text.trim())) turns.push(text.trim());
@@ -844,6 +846,18 @@ const built = scenery.map((line) => ({
   props: Number(line.match(/props=(\d+)/)?.[1] ?? 0),
   tiles: Number(line.match(/tiles=(\d+)/)?.[1] ?? 0),
 }));
+// Every map reports its own doors and how many of them lead somewhere the party is not
+// ready for. Checked after the sweep, so this is the whole world's signposting and not the
+// four maps the play-through happens to walk through. `danger-parity.mjs` proves the numbers
+// against the reference; what this proves is that they are computed in a browser, on the
+// live party's level, for all 95 maps.
+check('every map reports its doors', doors.length >= opened.size && doors.length > 0,
+  `${doors.length} DOORS lines for ${opened.size} maps`);
+const warning = doors.filter((line) => Number(line.match(/warned=(\d+)/)?.[1] ?? 0) > 0);
+check('the world warns about the doors it should', warning.length > 0,
+  doors.length ? `${warning.length} of ${doors.length} maps have a door that warns`
+    : 'no DOORS lines');
+
 check('the world builds its scenery', built.length > 0 && built.every((b) => b.tiles > 0),
   built.map((b) => `${b.map} ${b.props}p/${b.tiles}t`).slice(0, 4).join(', ') || 'no SCENERY line');
 // Harrowmere is the opening village and has fifty-five props in it. A map that paved its

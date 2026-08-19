@@ -74,6 +74,7 @@ var _sun: DirectionalLight3D
 var _environment: Environment
 var _place: Label
 var _prompt: Label
+var _warn: Label
 var _bar: HBoxContainer
 var _pad: GridContainer
 var _pad_backing: PanelContainer
@@ -268,6 +269,18 @@ func _ready() -> void:
 	_prompt.offset_bottom = -250.0
 	add_child(_prompt)
 
+	# And what is waiting on the other side of it, when that is worse than what is here. This
+	# is the only difficulty signposting the game has: every door in the world is open from
+	# the first minute, so a party can walk off the Harrowmere road into a zone written for
+	# level 68 with nothing to stop them. The sentence is the stopping.
+	_warn = Label.new()
+	_warn.add_theme_font_size_override("font_size", 22)
+	_warn.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	_warn.set_anchors_and_offsets_preset(Control.PRESET_BOTTOM_WIDE)
+	_warn.offset_top = -254.0
+	_warn.offset_bottom = -222.0
+	add_child(_warn)
+
 	_build_control_bar()
 
 	_label = Label.new()
@@ -323,6 +336,7 @@ func _open(index: int, spawn := "default") -> void:
 	print("FIELD_READY map=%s tiles=%dx%d colliders=%d triggers=%d" % [
 		id, _field.built.width, _field.built.height,
 		_field.grid.shapes.size(), _field.grid.triggers.size()])
+	_report_doors(def)
 	_announce(def)
 
 
@@ -379,6 +393,8 @@ func _set_field_hud(showing: bool) -> void:
 		_bar.visible = showing and not (_dialogue != null and _dialogue.is_open)
 	if _prompt != null:
 		_prompt.visible = showing
+	if _warn != null:
+		_warn.visible = showing
 	if _place != null:
 		_place.visible = showing
 
@@ -659,6 +675,12 @@ func _fly(delta: float) -> void:
 	var offer := _field.update_airship(delta, Actions.move_vector(), Actions.is_down("run"))
 	_place_airship()
 	_follow_camera()
+	# Flight writes the prompt itself and never reaches `_update_prompt`, so the door warning
+	# is cleared here or it hangs on screen for the rest of the flight. An air crossing gets
+	# no warning of its own: the reference does not warn on one either, and the party is
+	# looking down at the place from above rather than being told about it.
+	if _warn != null:
+		_warn.text = ""
 
 	var crossing: Dictionary = offer.get("crossing", {})
 	if not crossing.is_empty():
@@ -964,6 +986,7 @@ var _trigger: Dictionary = {}
 func _update_prompt() -> void:
 	if _prompt == null:
 		return
+	_warn.text = ""
 	if not _interact.is_empty():
 		var who := ""
 		if String(_interact.get("kind", "")) == "npc":
@@ -976,8 +999,53 @@ func _update_prompt() -> void:
 	if not _trigger.is_empty() and String(_trigger.get("kind", "")) == "exit":
 		var data: Dictionary = _trigger.get("data", {})
 		_prompt.text = String(data.get("prompt", "")) if data.has("prompt") else ""
+		_say_danger(String(data.get("to", "")), String(data.get("spawn", "")))
 		return
 	_prompt.text = ""
+
+
+## Every door out of this map, and what is standing on the other side of it.
+##
+## One line per map, for the same reason `FIELD_READY` is one line per map: the warning itself
+## only appears when the party is standing at a particular door, and a check that had to walk
+## to one would cover one door in the world. This covers all of them, on the map's own data
+## and at the party's real level, which is the pair of inputs the sentence is a function of.
+func _report_doors(def: Dictionary) -> void:
+	var warned := 0
+	var exits: Array = def.get("exits", [])
+	for door in exits:
+		var level := Danger.level_of(_db.map(String(door.get("to", ""))),
+			String(door.get("spawn", "")), _db.encounters, _db.enemies)
+		if not Danger.note(level, _party.average_level()).is_empty():
+			warned += 1
+	print("DOORS map=%s exits=%d warned=%d" % [
+		String(def.get("id", "?")), exits.size(), warned])
+
+
+## The warning under a door's name, if the place through it is worse than the place the party
+## is standing in.
+##
+## Three bands and no numbers, as the reference has it: a party that has never been shown a
+## level on an enemy should not be handed one on a signpost. The three colours are the
+## stylesheet's — `select` and `danger` from the palette happen to be two of them, and the
+## middle one is `.sign-warn-bad` and lives nowhere else.
+##
+## The unresolved map, deliberately: `Database.map` hands back the map as authored, which is
+## what the reference's `mapDefinition` does too, so both sides read the pre-cataclysm
+## encounter tables and both sides agree about the door.
+func _say_danger(to: String, spawn: String) -> void:
+	if _warn == null or to == "":
+		return
+	var said := Danger.note(
+		Danger.level_of(_db.map(to), spawn, _db.encounters, _db.enemies),
+		_party.average_level())
+	if said.is_empty():
+		_warn.text = ""
+		return
+	_warn.text = String(said["text"])
+	_warn.add_theme_color_override("font_color", {
+		"warn": Color("#ffd76a"), "bad": Color("#ff9d63"), "grave": Color("#e0574f"),
+	}.get(String(said["tone"]), Palette.ui_color("select")))
 
 
 ## Act on a trigger. Returns true when it took over the screen.
