@@ -12,5 +12,6 @@
  "maps": 95,
  "palette": 5,
  "input": 3,
- "legend": 4
+ "legend": 4,
+ "statuses": 2
 }

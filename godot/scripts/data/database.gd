@@ -22,7 +22,7 @@ const DATA_DIR := "res://data"
 const TABLES := [
 	"enemies", "encounters", "items", "shops", "spells", "espers", "quests",
 	"tracks", "characters", "maps", "cast_order", "palette", "input", "legend",
-	"footprints",
+	"footprints", "statuses",
 ]
 
 var enemies: Dictionary = {}
@@ -40,6 +40,8 @@ var cast_order: Array = []
 var palette: Dictionary = {}
 ## Terrain legend: glyph walkability, wall exposure, glyph-prop radii.
 var legend: Dictionary = {}
+## Status effects and their per-turn tick rates.
+var statuses: Dictionary = {}
 ## Authored prop colliders, harvested from the reference because they are measured
 ## from built geometry and cannot be derived. See `tools/harvest-reference.mjs`.
 var footprints: Dictionary = {}
@@ -81,6 +83,7 @@ func load_all() -> bool:
 	input = _read("input")
 	legend = _read("legend")
 	footprints = _read("footprints")
+	statuses = _read("statuses")
 
 	var actual := {}
 	for name in TABLES:

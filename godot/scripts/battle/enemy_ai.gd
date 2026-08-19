@@ -33,7 +33,7 @@ static func choose_action(
 	hp_fraction: float,
 	ai_turn: int,
 	phase: int,
-	roll: float = 1.0,
+	roll: Variant = 1.0,
 	ally_down: bool = false,
 	own_statuses: Array = [],
 	party_statuses: Array = []
@@ -56,7 +56,13 @@ static func choose_action(
 			"turnIs":
 				match_found = ai_turn == int(rule.get("n", -1))
 			"random":
-				match_found = roll < float(rule.get("p", 0.0))
+				# Drawn here and nowhere else. A `Callable` is called only when a
+				# `random` rule is actually reached, because drawing on every
+				# decision advances the seeded stream on turns that never needed it
+				# and silently reshuffles every later roll in the fight. A plain
+				# number is accepted too, which is what the parity probe passes.
+				var value := float(roll.call()) if roll is Callable else float(roll)
+				match_found = value < float(rule.get("p", 0.0))
 			"allyDown":
 				match_found = ally_down
 			"hasStatus":

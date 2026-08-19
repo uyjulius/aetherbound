@@ -1,0 +1,145 @@
+{
+ "party": {
+  "gold": 500,
+  "members": [
+   {
+    "id": "vesna",
+    "level": 6,
+    "exp": 28,
+    "hp": 237,
+    "mp": 54,
+    "limit": 0,
+    "row": "front",
+    "active": true,
+    "equipment": {
+     "weapon": "ironsword",
+     "offhand": null,
+     "head": "leathercap",
+     "body": "travelvest",
+     "relic1": null,
+     "relic2": null
+    },
+    "esper": "emberwake",
+    "spells": {
+     "ember": 100,
+     "rime": 100,
+     "spark": 100,
+     "mend": 100,
+     "dimming": 100
+    }
+   },
+   {
+    "id": "corvin",
+    "level": 6,
+    "exp": 28,
+    "hp": 275,
+    "mp": 33,
+    "limit": 0,
+    "row": "front",
+    "active": true,
+    "equipment": {
+     "weapon": "boltdirk",
+     "offhand": "woodshield",
+     "head": "leathercap",
+     "body": "travelvest",
+     "relic1": null,
+     "relic2": null
+    },
+    "esper": null,
+    "spells": {}
+   },
+   {
+    "id": "wick",
+    "level": 6,
+    "exp": 28,
+    "hp": 221,
+    "mp": 85,
+    "limit": 0,
+    "row": "front",
+    "active": true,
+    "equipment": {
+     "weapon": "ashrod",
+     "offhand": null,
+     "head": "leathercap",
+     "body": "silkrobe",
+     "relic1": null,
+     "relic2": null
+    },
+    "esper": null,
+    "spells": {
+     "mend": 100,
+     "cleanse": 100,
+     "renewal": 100,
+     "wardflesh": 100,
+     "scan": 100
+    }
+   }
+  ]
+ },
+ "scenarios": [
+  {
+   "name": "two-fenrat",
+   "enemies": [
+    "fenrat",
+    "fenrat"
+   ],
+   "seed": 5350343
+  },
+  {
+   "name": "one-mireslug",
+   "enemies": [
+    "mireslug"
+   ],
+   "seed": 49734321
+  },
+  {
+   "name": "three-mixed",
+   "enemies": [
+    "fenrat",
+    "mireslug",
+    "fenrat"
+   ],
+   "seed": 10301201
+  },
+  {
+   "name": "two-roadwolf",
+   "enemies": [
+    "roadwolf",
+    "roadwolf"
+   ],
+   "seed": 8143027
+  },
+  {
+   "name": "brigands",
+   "enemies": [
+    "brigand",
+    "brigandarcher"
+   ],
+   "seed": 3390110
+  },
+  {
+   "name": "three-carrionbat",
+   "enemies": [
+    "carrionbat",
+    "carrionbat",
+    "carrionbat"
+   ],
+   "seed": 1234
+  },
+  {
+   "name": "coursing-hounds",
+   "enemies": [
+    "coursinghound",
+    "coursinghound"
+   ],
+   "seed": 48879
+  },
+  {
+   "name": "the-far-runner",
+   "enemies": [
+    "thefarrunner"
+   ],
+   "seed": 65261
+  }
+ ]
+}

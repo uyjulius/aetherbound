@@ -41,6 +41,7 @@ import { TRACKS } from '../src/data/music.js';
 import { CHARACTERS, CAST_ORDER } from '../src/data/characters.js';
 import { RAMPS, INK, PAPER, UI, ELEMENT_COLOR } from '../src/engine/palette.js';
 import { TILE, LEGEND, WALL_EXPOSURE, GLYPH_PROP_RADII } from '../src/world/map.js';
+import { STATUSES, TICK_RATES } from '../src/battle/formulas.js';
 import { ACTIONS, DEFAULT_BINDINGS, PAD_BUTTONS } from '../src/engine/input.js';
 
 const root = path.dirname(fileURLToPath(new URL('../package.json', import.meta.url)));
@@ -146,6 +147,13 @@ const written = [
   write('legend', {
     tile: TILE, glyphs: LEGEND, wall_exposure: WALL_EXPOSURE, glyph_radii: GLYPH_PROP_RADII,
   }),
+
+  // The status table: durations, whether each is good or bad, whether it blocks a
+  // turn, whether it survives the battle, what it ticks. Twenty-eight rows of
+  // flags where one wrong boolean makes a status permanent or free — which has
+  // happened, twice, in the reference — so it crosses as data rather than being
+  // retyped in GDScript.
+  write('statuses', { statuses: STATUSES, tick_rates: TICK_RATES }),
 ];
 
 // A manifest so the Godot side can assert it loaded everything it was given,

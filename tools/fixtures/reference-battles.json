@@ -1,0 +1,4717 @@
+{
+ "scenarios": {
+  "two-fenrat": {
+   "name": "two-fenrat",
+   "enemies": [
+    "fenrat",
+    "fenrat"
+   ],
+   "seed": 5350343,
+   "ended": true,
+   "draw_log": [
+    3803699775,
+    753305944,
+    1835105858,
+    949306583,
+    2644529339,
+    4239202583,
+    2627863560
+   ],
+   "result": "victory",
+   "turns": [
+    {
+     "event": "turn",
+     "index": 1,
+     "actor": "corvin",
+     "state": [
+      {
+       "id": "vesna",
+       "kind": "party",
+       "hp": 237,
+       "mp": 54,
+       "turns": 0,
+       "ko": false,
+       "statuses": []
+      },
+      {
+       "id": "corvin",
+       "kind": "party",
+       "hp": 275,
+       "mp": 33,
+       "turns": 1,
+       "ko": false,
+       "statuses": []
+      },
+      {
+       "id": "wick",
+       "kind": "party",
+       "hp": 221,
+       "mp": 85,
+       "turns": 0,
+       "ko": false,
+       "statuses": []
+      },
+      {
+       "id": "fenrat#0",
+       "kind": "enemy",
+       "hp": 0,
+       "mp": 0,
+       "turns": 0,
+       "ko": true,
+       "statuses": [
+        "ko:0"
+       ]
+      },
+      {
+       "id": "fenrat#1",
+       "kind": "enemy",
+       "hp": 38,
+       "mp": 0,
+       "turns": 0,
+       "ko": false,
+       "statuses": []
+      }
+     ],
+     "draws": 4,
+     "rng": [
+      3526491551,
+      1097316219,
+      1245559316,
+      26003824
+     ]
+    },
+    {
+     "event": "turn",
+     "index": 2,
+     "actor": "vesna",
+     "state": [
+      {
+       "id": "vesna",
+       "kind": "party",
+       "hp": 237,
+       "mp": 54,
+       "turns": 1,
+       "ko": false,
+       "statuses": []
+      },
+      {
+       "id": "corvin",
+       "kind": "party",
+       "hp": 275,
+       "mp": 33,
+       "turns": 1,
+       "ko": false,
+       "statuses": []
+      },
+      {
+       "id": "wick",
+       "kind": "party",
+       "hp": 221,
+       "mp": 85,
+       "turns": 0,
+       "ko": false,
+       "statuses": []
+      },
+      {
+       "id": "fenrat#0",
+       "kind": "enemy",
+       "hp": 0,
+       "mp": 0,
+       "turns": 0,
+       "ko": true,
+       "statuses": [
+        "ko:0"
+       ]
+      },
+      {
+       "id": "fenrat#1",
+       "kind": "enemy",
+       "hp": 0,
+       "mp": 0,
+       "turns": 0,
+       "ko": true,
+       "statuses": [
+        "ko:0"
+       ]
+      }
+     ],
+     "draws": 7,
+     "rng": [
+      3519371160,
+      516635027,
+      2778539388,
+      603446796
+     ]
+    }
+   ],
+   "final": [
+    {
+     "id": "vesna",
+     "kind": "party",
+     "hp": 237,
+     "mp": 54,
+     "turns": 1,
+     "ko": false,
+     "statuses": []
+    },
+    {
+     "id": "corvin",
+     "kind": "party",
+     "hp": 275,
+     "mp": 33,
+     "turns": 1,
+     "ko": false,
+     "statuses": []
+    },
+    {
+     "id": "wick",
+     "kind": "party",
+     "hp": 221,
+     "mp": 85,
+     "turns": 0,
+     "ko": false,
+     "statuses": []
+    },
+    {
+     "id": "fenrat#0",
+     "kind": "enemy",
+     "hp": 0,
+     "mp": 0,
+     "turns": 0,
+     "ko": true,
+     "statuses": [
+      "ko:0"
+     ]
+    },
+    {
+     "id": "fenrat#1",
+     "kind": "enemy",
+     "hp": 0,
+     "mp": 0,
+     "turns": 0,
+     "ko": true,
+     "statuses": [
+      "ko:0"
+     ]
+    }
+   ],
+   "gold": 505,
+   "levels": {
+    "vesna": 6,
+    "corvin": 6,
+    "wick": 6
+   },
+   "inventory": {
+    "potion": 5,
+    "antidote": 2,
+    "tonic": 2
+   }
+  },
+  "one-mireslug": {
+   "name": "one-mireslug",
+   "enemies": [
+    "mireslug"
+   ],
+   "seed": 49734321,
+   "ended": true,
+   "draw_log": [
+    2351488429,
+    1925162761,
+    462053641,
+    4095830549,
+    3464000104,
+    4101285999,
+    990742073
+   ],
+   "result": "victory",
+   "turns": [
+    {
+     "event": "turn",
+     "index": 1,
+     "actor": "corvin",
+     "state": [
+      {
+       "id": "vesna",
+       "kind": "party",
+       "hp": 237,
+       "mp": 54,
+       "turns": 0,
+       "ko": false,
+       "statuses": []
+      },
+      {
+       "id": "corvin",
+       "kind": "party",
+       "hp": 275,
+       "mp": 33,
+       "turns": 1,
+       "ko": false,
+       "statuses": []
+      },
+      {
+       "id": "wick",
+       "kind": "party",
+       "hp": 221,
+       "mp": 85,
+       "turns": 0,
+       "ko": false,
+       "statuses": []
+      },
+      {
+       "id": "mireslug#0",
+       "kind": "enemy",
+       "hp": 20,
+       "mp": 0,
+       "turns": 0,
+       "ko": false,
+       "statuses": []
+      }
+     ],
+     "draws": 4,
+     "rng": [
+      2218509332,
+      3710975914,
+      1329863199,
+      1216717785
+     ]
+    },
+    {
+     "event": "turn",
+     "index": 2,
+     "actor": "vesna",
+     "state": [
+      {
+       "id": "vesna",
+       "kind": "party",
+       "hp": 237,
+       "mp": 54,
+       "turns": 1,
+       "ko": false,
+       "statuses": []
+      },
+      {
+       "id": "corvin",
+       "kind": "party",
+       "hp": 275,
+       "mp": 33,
+       "turns": 1,
+       "ko": false,
+       "statuses": []
+      },
+      {
+       "id": "wick",
+       "kind": "party",
+       "hp": 221,
+       "mp": 85,
+       "turns": 0,
+       "ko": false,
+       "statuses": []
+      },
+      {
+       "id": "mireslug#0",
+       "kind": "enemy",
+       "hp": 0,
+       "mp": 0,
+       "turns": 0,
+       "ko": true,
+       "statuses": [
+        "ko:0"
+       ]
+      }
+     ],
+     "draws": 7,
+     "rng": [
+      1703637827,
+      623789770,
+      168357639,
+      1253131845
+     ]
+    }
+   ],
+   "final": [
+    {
+     "id": "vesna",
+     "kind": "party",
+     "hp": 237,
+     "mp": 54,
+     "turns": 1,
+     "ko": false,
+     "statuses": []
+    },
+    {
+     "id": "corvin",
+     "kind": "party",
+     "hp": 275,
+     "mp": 33,
+     "turns": 1,
+     "ko": false,
+     "statuses": []
+    },
+    {
+     "id": "wick",
+     "kind": "party",
+     "hp": 221,
+     "mp": 85,
+     "turns": 0,
+     "ko": false,
+     "statuses": []
+    },
+    {
+     "id": "mireslug#0",
+     "kind": "enemy",
+     "hp": 0,
+     "mp": 0,
+     "turns": 0,
+     "ko": true,
+     "statuses": [
+      "ko:0"
+     ]
+    }
+   ],
+   "gold": 504,
+   "levels": {
+    "vesna": 6,
+    "corvin": 6,
+    "wick": 6
+   },
+   "inventory": {
+    "potion": 5,
+    "antidote": 2,
+    "tonic": 2
+   }
+  },
+  "three-mixed": {
+   "name": "three-mixed",
+   "enemies": [
+    "fenrat",
+    "mireslug",
+    "fenrat"
+   ],
+   "seed": 10301201,
+   "ended": true,
+   "draw_log": [
+    4081678543,
+    1647937583,
+    137745966,
+    272418332,
+    2691508124,
+    929620081,
+    2604257354,
+    267427941,
+    2068994902,
+    3024331341,
+    2821499284,
+    1531179634,
+    3704650854,
+    1875519029,
+    2402687767,
+    1985563927,
+    4146402022
+   ],
+   "result": "victory",
+   "turns": [
+    {
+     "event": "turn",
+     "index": 1,
+     "actor": "corvin",
+     "state": [
+      {
+       "id": "vesna",
+       "kind": "party",
+       "hp": 237,
+       "mp": 54,
+       "turns": 0,
+       "ko": false,
+       "statuses": []
+      },
+      {
+       "id": "corvin",
+       "kind": "party",
+       "hp": 275,
+       "mp": 33,
+       "turns": 1,
+       "ko": false,
+       "statuses": []
+      },
+      {
+       "id": "wick",
+       "kind": "party",
+       "hp": 221,
+       "mp": 85,
+       "turns": 0,
+       "ko": false,
+       "statuses": []
+      },
+      {
+       "id": "fenrat#0",
+       "kind": "enemy",
+       "hp": 0,
+       "mp": 0,
+       "turns": 0,
+       "ko": true,
+       "statuses": [
+        "ko:0"
+       ]
+      },
+      {
+       "id": "mireslug#0",
+       "kind": "enemy",
+       "hp": 62,
+       "mp": 0,
+       "turns": 0,
+       "ko": false,
+       "statuses": []
+      },
+      {
+       "id": "fenrat#1",
+       "kind": "enemy",
+       "hp": 38,
+       "mp": 0,
+       "turns": 0,
+       "ko": false,
+       "statuses": []
+      }
+     ],
+     "draws": 4,
+     "rng": [
+      1981074910,
+      1265096535,
+      2126629887,
+      3717073702
+     ]
+    },
+    {
+     "event": "turn",
+     "index": 2,
+     "actor": "vesna",
+     "state": [
+      {
+       "id": "vesna",
+       "kind": "party",
+       "hp": 237,
+       "mp": 54,
+       "turns": 1,
+       "ko": false,
+       "statuses": []
+      },
+      {
+       "id": "corvin",
+       "kind": "party",
+       "hp": 275,
+       "mp": 33,
+       "turns": 1,
+       "ko": false,
+       "statuses": []
+      },
+      {
+       "id": "wick",
+       "kind": "party",
+       "hp": 221,
+       "mp": 85,
+       "turns": 0,
+       "ko": false,
+       "statuses": []
+      },
+      {
+       "id": "fenrat#0",
+       "kind": "enemy",
+       "hp": 0,
+       "mp": 0,
+       "turns": 0,
+       "ko": true,
+       "statuses": [
+        "ko:0"
+       ]
+      },
+      {
+       "id": "mireslug#0",
+       "kind": "enemy",
+       "hp": 21,
+       "mp": 0,
+       "turns": 0,
+       "ko": false,
+       "statuses": []
+      },
+      {
+       "id": "fenrat#1",
+       "kind": "enemy",
+       "hp": 38,
+       "mp": 0,
+       "turns": 0,
+       "ko": false,
+       "statuses": []
+      }
+     ],
+     "draws": 7,
+     "rng": [
+      58076412,
+      3418124568,
+      3344558560,
+      3540293494
+     ]
+    },
+    {
+     "event": "turn",
+     "index": 3,
+     "actor": "wick",
+     "state": [
+      {
+       "id": "vesna",
+       "kind": "party",
+       "hp": 237,
+       "mp": 54,
+       "turns": 1,
+       "ko": false,
+       "statuses": []
+      },
+      {
+       "id": "corvin",
+       "kind": "party",
+       "hp": 275,
+       "mp": 33,
+       "turns": 1,
+       "ko": false,
+       "statuses": []
+      },
+      {
+       "id": "wick",
+       "kind": "party",
+       "hp": 221,
+       "mp": 85,
+       "turns": 1,
+       "ko": false,
+       "statuses": []
+      },
+      {
+       "id": "fenrat#0",
+       "kind": "enemy",
+       "hp": 0,
+       "mp": 0,
+       "turns": 0,
+       "ko": true,
+       "statuses": [
+        "ko:0"
+       ]
+      },
+      {
+       "id": "mireslug#0",
+       "kind": "enemy",
+       "hp": 0,
+       "mp": 0,
+       "turns": 0,
+       "ko": true,
+       "statuses": [
+        "ko:0"
+       ]
+      },
+      {
+       "id": "fenrat#1",
+       "kind": "enemy",
+       "hp": 38,
+       "mp": 0,
+       "turns": 0,
+       "ko": false,
+       "statuses": []
+      }
+     ],
+     "draws": 10,
+     "rng": [
+      2111343516,
+      4220891735,
+      1913794013,
+      3022945653
+     ]
+    },
+    {
+     "event": "turn",
+     "index": 4,
+     "actor": "fenrat#1",
+     "state": [
+      {
+       "id": "vesna",
+       "kind": "party",
+       "hp": 237,
+       "mp": 54,
+       "turns": 1,
+       "ko": false,
+       "statuses": []
+      },
+      {
+       "id": "corvin",
+       "kind": "party",
+       "hp": 262,
+       "mp": 33,
+       "turns": 1,
+       "ko": false,
+       "statuses": []
+      },
+      {
+       "id": "wick",
+       "kind": "party",
+       "hp": 221,
+       "mp": 85,
+       "turns": 1,
+       "ko": false,
+       "statuses": []
+      },
+      {
+       "id": "fenrat#0",
+       "kind": "enemy",
+       "hp": 0,
+       "mp": 0,
+       "turns": 0,
+       "ko": true,
+       "statuses": [
+        "ko:0"
+       ]
+      },
+      {
+       "id": "mireslug#0",
+       "kind": "enemy",
+       "hp": 0,
+       "mp": 0,
+       "turns": 0,
+       "ko": true,
+       "statuses": [
+        "ko:0"
+       ]
+      },
+      {
+       "id": "fenrat#1",
+       "kind": "enemy",
+       "hp": 38,
+       "mp": 0,
+       "turns": 1,
+       "ko": false,
+       "statuses": []
+      }
+     ],
+     "draws": 14,
+     "rng": [
+      2430336827,
+      214419844,
+      973092167,
+      4259492561
+     ]
+    },
+    {
+     "event": "turn",
+     "index": 5,
+     "actor": "corvin",
+     "state": [
+      {
+       "id": "vesna",
+       "kind": "party",
+       "hp": 237,
+       "mp": 54,
+       "turns": 1,
+       "ko": false,
+       "statuses": []
+      },
+      {
+       "id": "corvin",
+       "kind": "party",
+       "hp": 262,
+       "mp": 33,
+       "turns": 2,
+       "ko": false,
+       "statuses": []
+      },
+      {
+       "id": "wick",
+       "kind": "party",
+       "hp": 221,
+       "mp": 85,
+       "turns": 1,
+       "ko": false,
+       "statuses": []
+      },
+      {
+       "id": "fenrat#0",
+       "kind": "enemy",
+       "hp": 0,
+       "mp": 0,
+       "turns": 0,
+       "ko": true,
+       "statuses": [
+        "ko:0"
+       ]
+      },
+      {
+       "id": "mireslug#0",
+       "kind": "enemy",
+       "hp": 0,
+       "mp": 0,
+       "turns": 0,
+       "ko": true,
+       "statuses": [
+        "ko:0"
+       ]
+      },
+      {
+       "id": "fenrat#1",
+       "kind": "enemy",
+       "hp": 0,
+       "mp": 0,
+       "turns": 1,
+       "ko": true,
+       "statuses": [
+        "ko:0"
+       ]
+      }
+     ],
+     "draws": 17,
+     "rng": [
+      1005707675,
+      1914952679,
+      3288484365,
+      1313613502
+     ]
+    }
+   ],
+   "final": [
+    {
+     "id": "vesna",
+     "kind": "party",
+     "hp": 237,
+     "mp": 54,
+     "turns": 1,
+     "ko": false,
+     "statuses": []
+    },
+    {
+     "id": "corvin",
+     "kind": "party",
+     "hp": 262,
+     "mp": 33,
+     "turns": 2,
+     "ko": false,
+     "statuses": []
+    },
+    {
+     "id": "wick",
+     "kind": "party",
+     "hp": 221,
+     "mp": 85,
+     "turns": 1,
+     "ko": false,
+     "statuses": []
+    },
+    {
+     "id": "fenrat#0",
+     "kind": "enemy",
+     "hp": 0,
+     "mp": 0,
+     "turns": 0,
+     "ko": true,
+     "statuses": [
+      "ko:0"
+     ]
+    },
+    {
+     "id": "mireslug#0",
+     "kind": "enemy",
+     "hp": 0,
+     "mp": 0,
+     "turns": 0,
+     "ko": true,
+     "statuses": [
+      "ko:0"
+     ]
+    },
+    {
+     "id": "fenrat#1",
+     "kind": "enemy",
+     "hp": 0,
+     "mp": 0,
+     "turns": 1,
+     "ko": true,
+     "statuses": [
+      "ko:0"
+     ]
+    }
+   ],
+   "gold": 508,
+   "levels": {
+    "vesna": 6,
+    "corvin": 6,
+    "wick": 6
+   },
+   "inventory": {
+    "potion": 5,
+    "antidote": 3,
+    "tonic": 2
+   }
+  },
+  "two-roadwolf": {
+   "name": "two-roadwolf",
+   "enemies": [
+    "roadwolf",
+    "roadwolf"
+   ],
+   "seed": 8143027,
+   "ended": true,
+   "draw_log": [
+    2227254071,
+    4132523163,
+    2441491265,
+    900451456,
+    2036415884,
+    476054143,
+    3423609225,
+    2204641500,
+    1652614673,
+    2527271027,
+    3463381716,
+    2989245928,
+    2704237596,
+    2626530022,
+    2155722047,
+    3153308728,
+    820985504,
+    1109288071,
+    963358179,
+    3845155879,
+    3729708881,
+    3116018980,
+    327973273,
+    2515793564,
+    3876946341,
+    2077219499,
+    1768300717,
+    1415817313,
+    1342619826,
+    2171451870,
+    368997686,
+    2277887274,
+    1117781143,
+    1374004663,
+    4276213927,
+    382947556,
+    1478574502,
+    2924067404,
+    2447908852,
+    3632359306
+   ],
+   "result": "victory",
+   "turns": [
+    {
+     "event": "turn",
+     "index": 1,
+     "actor": "corvin",
+     "state": [
+      {
+       "id": "vesna",
+       "kind": "party",
+       "hp": 237,
+       "mp": 54,
+       "turns": 0,
+       "ko": false,
+       "statuses": []
+      },
+      {
+       "id": "corvin",
+       "kind": "party",
+       "hp": 275,
+       "mp": 33,
+       "turns": 1,
+       "ko": false,
+       "statuses": []
+      },
+      {
+       "id": "wick",
+       "kind": "party",
+       "hp": 221,
+       "mp": 85,
+       "turns": 0,
+       "ko": false,
+       "statuses": []
+      },
+      {
+       "id": "roadwolf#0",
+       "kind": "enemy",
+       "hp": 132,
+       "mp": 0,
+       "turns": 0,
+       "ko": false,
+       "statuses": []
+      },
+      {
+       "id": "roadwolf#1",
+       "kind": "enemy",
+       "hp": 132,
+       "mp": 0,
+       "turns": 0,
+       "ko": false,
+       "statuses": []
+      }
+     ],
+     "draws": 2,
+     "rng": [
+      3317339392,
+      3392404118,
+      1764279051,
+      3018188376
+     ]
+    },
+    {
+     "event": "turn",
+     "index": 2,
+     "actor": "roadwolf#0",
+     "state": [
+      {
+       "id": "vesna",
+       "kind": "party",
+       "hp": 237,
+       "mp": 54,
+       "turns": 0,
+       "ko": false,
+       "statuses": []
+      },
+      {
+       "id": "corvin",
+       "kind": "party",
+       "hp": 275,
+       "mp": 33,
+       "turns": 1,
+       "ko": false,
+       "statuses": []
+      },
+      {
+       "id": "wick",
+       "kind": "party",
+       "hp": 190,
+       "mp": 85,
+       "turns": 0,
+       "ko": false,
+       "statuses": []
+      },
+      {
+       "id": "roadwolf#0",
+       "kind": "enemy",
+       "hp": 132,
+       "mp": 0,
+       "turns": 1,
+       "ko": false,
+       "statuses": []
+      },
+      {
+       "id": "roadwolf#1",
+       "kind": "enemy",
+       "hp": 132,
+       "mp": 0,
+       "turns": 0,
+       "ko": false,
+       "statuses": []
+      }
+     ],
+     "draws": 7,
+     "rng": [
+      1749264492,
+      1693763085,
+      3127631906,
+      628297511
+     ]
+    },
+    {
+     "event": "turn",
+     "index": 3,
+     "actor": "roadwolf#1",
+     "state": [
+      {
+       "id": "vesna",
+       "kind": "party",
+       "hp": 204,
+       "mp": 54,
+       "turns": 0,
+       "ko": false,
+       "statuses": []
+      },
+      {
+       "id": "corvin",
+       "kind": "party",
+       "hp": 275,
+       "mp": 33,
+       "turns": 1,
+       "ko": false,
+       "statuses": []
+      },
+      {
+       "id": "wick",
+       "kind": "party",
+       "hp": 190,
+       "mp": 85,
+       "turns": 0,
+       "ko": false,
+       "statuses": []
+      },
+      {
+       "id": "roadwolf#0",
+       "kind": "enemy",
+       "hp": 132,
+       "mp": 0,
+       "turns": 1,
+       "ko": false,
+       "statuses": []
+      },
+      {
+       "id": "roadwolf#1",
+       "kind": "enemy",
+       "hp": 132,
+       "mp": 0,
+       "turns": 1,
+       "ko": false,
+       "statuses": []
+      }
+     ],
+     "draws": 10,
+     "rng": [
+      2869918726,
+      2928784714,
+      1935121921,
+      4127750226
+     ]
+    },
+    {
+     "event": "turn",
+     "index": 4,
+     "actor": "vesna",
+     "state": [
+      {
+       "id": "vesna",
+       "kind": "party",
+       "hp": 204,
+       "mp": 54,
+       "turns": 1,
+       "ko": false,
+       "statuses": []
+      },
+      {
+       "id": "corvin",
+       "kind": "party",
+       "hp": 275,
+       "mp": 33,
+       "turns": 1,
+       "ko": false,
+       "statuses": []
+      },
+      {
+       "id": "wick",
+       "kind": "party",
+       "hp": 190,
+       "mp": 85,
+       "turns": 0,
+       "ko": false,
+       "statuses": []
+      },
+      {
+       "id": "roadwolf#0",
+       "kind": "enemy",
+       "hp": 92,
+       "mp": 0,
+       "turns": 1,
+       "ko": false,
+       "statuses": []
+      },
+      {
+       "id": "roadwolf#1",
+       "kind": "enemy",
+       "hp": 132,
+       "mp": 0,
+       "turns": 1,
+       "ko": false,
+       "statuses": []
+      }
+     ],
+     "draws": 13,
+     "rng": [
+      972486918,
+      2941315546,
+      169726350,
+      250383254
+     ]
+    },
+    {
+     "event": "turn",
+     "index": 5,
+     "actor": "wick",
+     "state": [
+      {
+       "id": "vesna",
+       "kind": "party",
+       "hp": 204,
+       "mp": 54,
+       "turns": 1,
+       "ko": false,
+       "statuses": []
+      },
+      {
+       "id": "corvin",
+       "kind": "party",
+       "hp": 275,
+       "mp": 33,
+       "turns": 1,
+       "ko": false,
+       "statuses": []
+      },
+      {
+       "id": "wick",
+       "kind": "party",
+       "hp": 190,
+       "mp": 85,
+       "turns": 1,
+       "ko": false,
+       "statuses": []
+      },
+      {
+       "id": "roadwolf#0",
+       "kind": "enemy",
+       "hp": 63,
+       "mp": 0,
+       "turns": 1,
+       "ko": false,
+       "statuses": []
+      },
+      {
+       "id": "roadwolf#1",
+       "kind": "enemy",
+       "hp": 132,
+       "mp": 0,
+       "turns": 1,
+       "ko": false,
+       "statuses": []
+      }
+     ],
+     "draws": 16,
+     "rng": [
+      1007157880,
+      215636551,
+      161397975,
+      1508601567
+     ]
+    },
+    {
+     "event": "turn",
+     "index": 6,
+     "actor": "corvin",
+     "state": [
+      {
+       "id": "vesna",
+       "kind": "party",
+       "hp": 204,
+       "mp": 54,
+       "turns": 1,
+       "ko": false,
+       "statuses": []
+      },
+      {
+       "id": "corvin",
+       "kind": "party",
+       "hp": 275,
+       "mp": 33,
+       "turns": 2,
+       "ko": false,
+       "statuses": []
+      },
+      {
+       "id": "wick",
+       "kind": "party",
+       "hp": 190,
+       "mp": 85,
+       "turns": 1,
+       "ko": false,
+       "statuses": []
+      },
+      {
+       "id": "roadwolf#0",
+       "kind": "enemy",
+       "hp": 24,
+       "mp": 0,
+       "turns": 1,
+       "ko": false,
+       "statuses": []
+      },
+      {
+       "id": "roadwolf#1",
+       "kind": "enemy",
+       "hp": 132,
+       "mp": 0,
+       "turns": 1,
+       "ko": false,
+       "statuses": []
+      }
+     ],
+     "draws": 19,
+     "rng": [
+      1236598657,
+      2035557449,
+      130451694,
+      796460163
+     ]
+    },
+    {
+     "event": "turn",
+     "index": 7,
+     "actor": "roadwolf#0",
+     "state": [
+      {
+       "id": "vesna",
+       "kind": "party",
+       "hp": 204,
+       "mp": 54,
+       "turns": 1,
+       "ko": false,
+       "statuses": []
+      },
+      {
+       "id": "corvin",
+       "kind": "party",
+       "hp": 246,
+       "mp": 33,
+       "turns": 2,
+       "ko": false,
+       "statuses": []
+      },
+      {
+       "id": "wick",
+       "kind": "party",
+       "hp": 190,
+       "mp": 85,
+       "turns": 1,
+       "ko": false,
+       "statuses": []
+      },
+      {
+       "id": "roadwolf#0",
+       "kind": "enemy",
+       "hp": 24,
+       "mp": 0,
+       "turns": 2,
+       "ko": false,
+       "statuses": []
+      },
+      {
+       "id": "roadwolf#1",
+       "kind": "enemy",
+       "hp": 132,
+       "mp": 0,
+       "turns": 1,
+       "ko": false,
+       "statuses": []
+      }
+     ],
+     "draws": 24,
+     "rng": [
+      2181906729,
+      2989254491,
+      931880310,
+      3634119628
+     ]
+    },
+    {
+     "event": "turn",
+     "index": 8,
+     "actor": "roadwolf#1",
+     "state": [
+      {
+       "id": "vesna",
+       "kind": "party",
+       "hp": 204,
+       "mp": 54,
+       "turns": 1,
+       "ko": false,
+       "statuses": []
+      },
+      {
+       "id": "corvin",
+       "kind": "party",
+       "hp": 246,
+       "mp": 33,
+       "turns": 2,
+       "ko": false,
+       "statuses": []
+      },
+      {
+       "id": "wick",
+       "kind": "party",
+       "hp": 159,
+       "mp": 85,
+       "turns": 1,
+       "ko": false,
+       "statuses": []
+      },
+      {
+       "id": "roadwolf#0",
+       "kind": "enemy",
+       "hp": 24,
+       "mp": 0,
+       "turns": 2,
+       "ko": false,
+       "statuses": []
+      },
+      {
+       "id": "roadwolf#1",
+       "kind": "enemy",
+       "hp": 132,
+       "mp": 0,
+       "turns": 2,
+       "ko": false,
+       "statuses": []
+      }
+     ],
+     "draws": 27,
+     "rng": [
+      443456830,
+      1030739691,
+      2153359374,
+      3922103202
+     ]
+    },
+    {
+     "event": "turn",
+     "index": 9,
+     "actor": "vesna",
+     "state": [
+      {
+       "id": "vesna",
+       "kind": "party",
+       "hp": 204,
+       "mp": 54,
+       "turns": 2,
+       "ko": false,
+       "statuses": []
+      },
+      {
+       "id": "corvin",
+       "kind": "party",
+       "hp": 246,
+       "mp": 33,
+       "turns": 2,
+       "ko": false,
+       "statuses": []
+      },
+      {
+       "id": "wick",
+       "kind": "party",
+       "hp": 159,
+       "mp": 85,
+       "turns": 1,
+       "ko": false,
+       "statuses": []
+      },
+      {
+       "id": "roadwolf#0",
+       "kind": "enemy",
+       "hp": 0,
+       "mp": 0,
+       "turns": 2,
+       "ko": true,
+       "statuses": [
+        "ko:0"
+       ]
+      },
+      {
+       "id": "roadwolf#1",
+       "kind": "enemy",
+       "hp": 132,
+       "mp": 0,
+       "turns": 2,
+       "ko": false,
+       "statuses": []
+      }
+     ],
+     "draws": 30,
+     "rng": [
+      2585484024,
+      904542418,
+      309248078,
+      1908379083
+     ]
+    },
+    {
+     "event": "turn",
+     "index": 10,
+     "actor": "wick",
+     "state": [
+      {
+       "id": "vesna",
+       "kind": "party",
+       "hp": 204,
+       "mp": 54,
+       "turns": 2,
+       "ko": false,
+       "statuses": []
+      },
+      {
+       "id": "corvin",
+       "kind": "party",
+       "hp": 246,
+       "mp": 33,
+       "turns": 2,
+       "ko": false,
+       "statuses": []
+      },
+      {
+       "id": "wick",
+       "kind": "party",
+       "hp": 159,
+       "mp": 85,
+       "turns": 2,
+       "ko": false,
+       "statuses": []
+      },
+      {
+       "id": "roadwolf#0",
+       "kind": "enemy",
+       "hp": 0,
+       "mp": 0,
+       "turns": 2,
+       "ko": true,
+       "statuses": [
+        "ko:0"
+       ]
+      },
+      {
+       "id": "roadwolf#1",
+       "kind": "enemy",
+       "hp": 103,
+       "mp": 0,
+       "turns": 2,
+       "ko": false,
+       "statuses": []
+      }
+     ],
+     "draws": 33,
+     "rng": [
+      1257161749,
+      1285746115,
+      3650222320,
+      3122500644
+     ]
+    },
+    {
+     "event": "turn",
+     "index": 11,
+     "actor": "corvin",
+     "state": [
+      {
+       "id": "vesna",
+       "kind": "party",
+       "hp": 204,
+       "mp": 54,
+       "turns": 2,
+       "ko": false,
+       "statuses": []
+      },
+      {
+       "id": "corvin",
+       "kind": "party",
+       "hp": 246,
+       "mp": 33,
+       "turns": 3,
+       "ko": false,
+       "statuses": []
+      },
+      {
+       "id": "wick",
+       "kind": "party",
+       "hp": 159,
+       "mp": 85,
+       "turns": 2,
+       "ko": false,
+       "statuses": []
+      },
+      {
+       "id": "roadwolf#0",
+       "kind": "enemy",
+       "hp": 0,
+       "mp": 0,
+       "turns": 2,
+       "ko": true,
+       "statuses": [
+        "ko:0"
+       ]
+      },
+      {
+       "id": "roadwolf#1",
+       "kind": "enemy",
+       "hp": 63,
+       "mp": 0,
+       "turns": 2,
+       "ko": false,
+       "statuses": []
+      }
+     ],
+     "draws": 36,
+     "rng": [
+      3122601072,
+      4231843399,
+      414743158,
+      3799550226
+     ]
+    },
+    {
+     "event": "turn",
+     "index": 12,
+     "actor": "roadwolf#1",
+     "state": [
+      {
+       "id": "vesna",
+       "kind": "party",
+       "hp": 204,
+       "mp": 54,
+       "turns": 2,
+       "ko": false,
+       "statuses": []
+      },
+      {
+       "id": "corvin",
+       "kind": "party",
+       "hp": 198,
+       "mp": 33,
+       "turns": 3,
+       "ko": false,
+       "statuses": []
+      },
+      {
+       "id": "wick",
+       "kind": "party",
+       "hp": 159,
+       "mp": 85,
+       "turns": 2,
+       "ko": false,
+       "statuses": []
+      },
+      {
+       "id": "roadwolf#0",
+       "kind": "enemy",
+       "hp": 0,
+       "mp": 0,
+       "turns": 2,
+       "ko": true,
+       "statuses": [
+        "ko:0"
+       ]
+      },
+      {
+       "id": "roadwolf#1",
+       "kind": "enemy",
+       "hp": 63,
+       "mp": 0,
+       "turns": 3,
+       "ko": false,
+       "statuses": []
+      }
+     ],
+     "draws": 40,
+     "rng": [
+      3023147913,
+      650708083,
+      4112243620,
+      2856632873
+     ]
+    },
+    {
+     "event": "turn",
+     "index": 13,
+     "actor": "vesna",
+     "state": [
+      {
+       "id": "vesna",
+       "kind": "party",
+       "hp": 204,
+       "mp": 54,
+       "turns": 3,
+       "ko": false,
+       "statuses": []
+      },
+      {
+       "id": "corvin",
+       "kind": "party",
+       "hp": 198,
+       "mp": 33,
+       "turns": 3,
+       "ko": false,
+       "statuses": []
+      },
+      {
+       "id": "wick",
+       "kind": "party",
+       "hp": 159,
+       "mp": 85,
+       "turns": 2,
+       "ko": false,
+       "statuses": []
+      },
+      {
+       "id": "roadwolf#0",
+       "kind": "enemy",
+       "hp": 0,
+       "mp": 0,
+       "turns": 2,
+       "ko": true,
+       "statuses": [
+        "ko:0"
+       ]
+      },
+      {
+       "id": "roadwolf#1",
+       "kind": "enemy",
+       "hp": 23,
+       "mp": 0,
+       "turns": 3,
+       "ko": false,
+       "statuses": []
+      }
+     ],
+     "draws": 43,
+     "rng": [
+      835824135,
+      2417376695,
+      3875850775,
+      3812585477
+     ]
+    },
+    {
+     "event": "turn",
+     "index": 14,
+     "actor": "wick",
+     "state": [
+      {
+       "id": "vesna",
+       "kind": "party",
+       "hp": 204,
+       "mp": 54,
+       "turns": 3,
+       "ko": false,
+       "statuses": []
+      },
+      {
+       "id": "corvin",
+       "kind": "party",
+       "hp": 198,
+       "mp": 33,
+       "turns": 3,
+       "ko": false,
+       "statuses": []
+      },
+      {
+       "id": "wick",
+       "kind": "party",
+       "hp": 159,
+       "mp": 85,
+       "turns": 3,
+       "ko": false,
+       "statuses": []
+      },
+      {
+       "id": "roadwolf#0",
+       "kind": "enemy",
+       "hp": 0,
+       "mp": 0,
+       "turns": 2,
+       "ko": true,
+       "statuses": [
+        "ko:0"
+       ]
+      },
+      {
+       "id": "roadwolf#1",
+       "kind": "enemy",
+       "hp": 23,
+       "mp": 0,
+       "turns": 3,
+       "ko": false,
+       "statuses": []
+      }
+     ],
+     "draws": 44,
+     "rng": [
+      1123608501,
+      1187208615,
+      4205710864,
+      1248695193
+     ]
+    },
+    {
+     "event": "turn",
+     "index": 15,
+     "actor": "corvin",
+     "state": [
+      {
+       "id": "vesna",
+       "kind": "party",
+       "hp": 204,
+       "mp": 54,
+       "turns": 3,
+       "ko": false,
+       "statuses": []
+      },
+      {
+       "id": "corvin",
+       "kind": "party",
+       "hp": 198,
+       "mp": 33,
+       "turns": 4,
+       "ko": false,
+       "statuses": []
+      },
+      {
+       "id": "wick",
+       "kind": "party",
+       "hp": 159,
+       "mp": 85,
+       "turns": 3,
+       "ko": false,
+       "statuses": []
+      },
+      {
+       "id": "roadwolf#0",
+       "kind": "enemy",
+       "hp": 0,
+       "mp": 0,
+       "turns": 2,
+       "ko": true,
+       "statuses": [
+        "ko:0"
+       ]
+      },
+      {
+       "id": "roadwolf#1",
+       "kind": "enemy",
+       "hp": 0,
+       "mp": 0,
+       "turns": 3,
+       "ko": true,
+       "statuses": [
+        "ko:0"
+       ]
+      }
+     ],
+     "draws": 47,
+     "rng": [
+      1790929799,
+      324001262,
+      3239428034,
+      1748196704
+     ]
+    }
+   ],
+   "final": [
+    {
+     "id": "vesna",
+     "kind": "party",
+     "hp": 204,
+     "mp": 54,
+     "turns": 3,
+     "ko": false,
+     "statuses": []
+    },
+    {
+     "id": "corvin",
+     "kind": "party",
+     "hp": 198,
+     "mp": 33,
+     "turns": 4,
+     "ko": false,
+     "statuses": []
+    },
+    {
+     "id": "wick",
+     "kind": "party",
+     "hp": 159,
+     "mp": 85,
+     "turns": 3,
+     "ko": false,
+     "statuses": []
+    },
+    {
+     "id": "roadwolf#0",
+     "kind": "enemy",
+     "hp": 0,
+     "mp": 0,
+     "turns": 2,
+     "ko": true,
+     "statuses": [
+      "ko:0"
+     ]
+    },
+    {
+     "id": "roadwolf#1",
+     "kind": "enemy",
+     "hp": 0,
+     "mp": 0,
+     "turns": 3,
+     "ko": true,
+     "statuses": [
+      "ko:0"
+     ]
+    }
+   ],
+   "gold": 515,
+   "levels": {
+    "vesna": 7,
+    "corvin": 7,
+    "wick": 7
+   },
+   "inventory": {
+    "potion": 6,
+    "antidote": 2,
+    "tonic": 2
+   }
+  },
+  "brigands": {
+   "name": "brigands",
+   "enemies": [
+    "brigand",
+    "brigandarcher"
+   ],
+   "seed": 3390110,
+   "ended": true,
+   "draw_log": [
+    2929811612,
+    1451712529,
+    1583220805,
+    440516337,
+    3699784853,
+    4170244355,
+    1823018802,
+    3921354116,
+    3705532896,
+    1101612921,
+    3042704052,
+    1646499246,
+    3439688598,
+    1972189691,
+    4237792280,
+    2824910001,
+    4165074757,
+    1976726498,
+    1076581158,
+    3897162624,
+    485145582,
+    1089790232,
+    2092549576,
+    2460020316,
+    1013275612,
+    448591067,
+    3689362498,
+    2190725629,
+    1235195565,
+    2620693395,
+    3342002233,
+    444127447,
+    2713324546,
+    3171027984,
+    1431662433,
+    3101352301,
+    3659329894,
+    2573962060,
+    1208751938,
+    3601372098
+   ],
+   "result": "victory",
+   "turns": [
+    {
+     "event": "turn",
+     "index": 1,
+     "actor": "corvin",
+     "state": [
+      {
+       "id": "vesna",
+       "kind": "party",
+       "hp": 237,
+       "mp": 54,
+       "turns": 0,
+       "ko": false,
+       "statuses": []
+      },
+      {
+       "id": "corvin",
+       "kind": "party",
+       "hp": 275,
+       "mp": 33,
+       "turns": 1,
+       "ko": false,
+       "statuses": []
+      },
+      {
+       "id": "wick",
+       "kind": "party",
+       "hp": 221,
+       "mp": 85,
+       "turns": 0,
+       "ko": false,
+       "statuses": []
+      },
+      {
+       "id": "brigand#0",
+       "kind": "enemy",
+       "hp": 127,
+       "mp": 10,
+       "turns": 0,
+       "ko": false,
+       "statuses": []
+      },
+      {
+       "id": "brigandarcher#0",
+       "kind": "enemy",
+       "hp": 140,
+       "mp": 16,
+       "turns": 0,
+       "ko": false,
+       "statuses": []
+      }
+     ],
+     "draws": 4,
+     "rng": [
+      3719662684,
+      307851790,
+      297160521,
+      1653669968
+     ]
+    },
+    {
+     "event": "turn",
+     "index": 2,
+     "actor": "vesna",
+     "state": [
+      {
+       "id": "vesna",
+       "kind": "party",
+       "hp": 237,
+       "mp": 54,
+       "turns": 1,
+       "ko": false,
+       "statuses": []
+      },
+      {
+       "id": "corvin",
+       "kind": "party",
+       "hp": 275,
+       "mp": 33,
+       "turns": 1,
+       "ko": false,
+       "statuses": []
+      },
+      {
+       "id": "wick",
+       "kind": "party",
+       "hp": 221,
+       "mp": 85,
+       "turns": 0,
+       "ko": false,
+       "statuses": []
+      },
+      {
+       "id": "brigand#0",
+       "kind": "enemy",
+       "hp": 92,
+       "mp": 10,
+       "turns": 0,
+       "ko": false,
+       "statuses": []
+      },
+      {
+       "id": "brigandarcher#0",
+       "kind": "enemy",
+       "hp": 140,
+       "mp": 16,
+       "turns": 0,
+       "ko": false,
+       "statuses": []
+      }
+     ],
+     "draws": 7,
+     "rng": [
+      2137112701,
+      1535982468,
+      3614290824,
+      2749829758
+     ]
+    },
+    {
+     "event": "turn",
+     "index": 3,
+     "actor": "brigandarcher#0",
+     "state": [
+      {
+       "id": "vesna",
+       "kind": "party",
+       "hp": 201,
+       "mp": 54,
+       "turns": 1,
+       "ko": false,
+       "statuses": []
+      },
+      {
+       "id": "corvin",
+       "kind": "party",
+       "hp": 275,
+       "mp": 33,
+       "turns": 1,
+       "ko": false,
+       "statuses": []
+      },
+      {
+       "id": "wick",
+       "kind": "party",
+       "hp": 221,
+       "mp": 85,
+       "turns": 0,
+       "ko": false,
+       "statuses": []
+      },
+      {
+       "id": "brigand#0",
+       "kind": "enemy",
+       "hp": 92,
+       "mp": 10,
+       "turns": 0,
+       "ko": false,
+       "statuses": []
+      },
+      {
+       "id": "brigandarcher#0",
+       "kind": "enemy",
+       "hp": 140,
+       "mp": 16,
+       "turns": 1,
+       "ko": false,
+       "statuses": []
+      }
+     ],
+     "draws": 12,
+     "rng": [
+      4033284194,
+      1544101040,
+      4149198739,
+      302298760
+     ]
+    },
+    {
+     "event": "turn",
+     "index": 4,
+     "actor": "wick",
+     "state": [
+      {
+       "id": "vesna",
+       "kind": "party",
+       "hp": 201,
+       "mp": 54,
+       "turns": 1,
+       "ko": false,
+       "statuses": []
+      },
+      {
+       "id": "corvin",
+       "kind": "party",
+       "hp": 275,
+       "mp": 33,
+       "turns": 1,
+       "ko": false,
+       "statuses": []
+      },
+      {
+       "id": "wick",
+       "kind": "party",
+       "hp": 221,
+       "mp": 85,
+       "turns": 1,
+       "ko": false,
+       "statuses": []
+      },
+      {
+       "id": "brigand#0",
+       "kind": "enemy",
+       "hp": 64,
+       "mp": 10,
+       "turns": 0,
+       "ko": false,
+       "statuses": []
+      },
+      {
+       "id": "brigandarcher#0",
+       "kind": "enemy",
+       "hp": 140,
+       "mp": 16,
+       "turns": 1,
+       "ko": false,
+       "statuses": []
+      }
+     ],
+     "draws": 15,
+     "rng": [
+      4211711026,
+      2423120426,
+      3582650560,
+      2595933080
+     ]
+    },
+    {
+     "event": "turn",
+     "index": 5,
+     "actor": "brigand#0",
+     "state": [
+      {
+       "id": "vesna",
+       "kind": "party",
+       "hp": 161,
+       "mp": 54,
+       "turns": 1,
+       "ko": false,
+       "statuses": []
+      },
+      {
+       "id": "corvin",
+       "kind": "party",
+       "hp": 275,
+       "mp": 33,
+       "turns": 1,
+       "ko": false,
+       "statuses": []
+      },
+      {
+       "id": "wick",
+       "kind": "party",
+       "hp": 221,
+       "mp": 85,
+       "turns": 1,
+       "ko": false,
+       "statuses": []
+      },
+      {
+       "id": "brigand#0",
+       "kind": "enemy",
+       "hp": 64,
+       "mp": 10,
+       "turns": 1,
+       "ko": false,
+       "statuses": []
+      },
+      {
+       "id": "brigandarcher#0",
+       "kind": "enemy",
+       "hp": 140,
+       "mp": 16,
+       "turns": 1,
+       "ko": false,
+       "statuses": []
+      }
+     ],
+     "draws": 19,
+     "rng": [
+      3659327581,
+      5150515,
+      3906711269,
+      289809521
+     ]
+    },
+    {
+     "event": "turn",
+     "index": 6,
+     "actor": "corvin",
+     "state": [
+      {
+       "id": "vesna",
+       "kind": "party",
+       "hp": 161,
+       "mp": 54,
+       "turns": 1,
+       "ko": false,
+       "statuses": []
+      },
+      {
+       "id": "corvin",
+       "kind": "party",
+       "hp": 275,
+       "mp": 33,
+       "turns": 2,
+       "ko": false,
+       "statuses": []
+      },
+      {
+       "id": "wick",
+       "kind": "party",
+       "hp": 221,
+       "mp": 85,
+       "turns": 1,
+       "ko": false,
+       "statuses": []
+      },
+      {
+       "id": "brigand#0",
+       "kind": "enemy",
+       "hp": 25,
+       "mp": 10,
+       "turns": 1,
+       "ko": false,
+       "statuses": []
+      },
+      {
+       "id": "brigandarcher#0",
+       "kind": "enemy",
+       "hp": 140,
+       "mp": 16,
+       "turns": 1,
+       "ko": false,
+       "statuses": []
+      }
+     ],
+     "draws": 22,
+     "rng": [
+      1954229128,
+      2636995991,
+      571322299,
+      3851200067
+     ]
+    },
+    {
+     "event": "turn",
+     "index": 7,
+     "actor": "vesna",
+     "state": [
+      {
+       "id": "vesna",
+       "kind": "party",
+       "hp": 161,
+       "mp": 54,
+       "turns": 2,
+       "ko": false,
+       "statuses": []
+      },
+      {
+       "id": "corvin",
+       "kind": "party",
+       "hp": 275,
+       "mp": 33,
+       "turns": 2,
+       "ko": false,
+       "statuses": []
+      },
+      {
+       "id": "wick",
+       "kind": "party",
+       "hp": 221,
+       "mp": 85,
+       "turns": 1,
+       "ko": false,
+       "statuses": []
+      },
+      {
+       "id": "brigand#0",
+       "kind": "enemy",
+       "hp": 0,
+       "mp": 10,
+       "turns": 1,
+       "ko": true,
+       "statuses": [
+        "ko:0"
+       ]
+      },
+      {
+       "id": "brigandarcher#0",
+       "kind": "enemy",
+       "hp": 140,
+       "mp": 16,
+       "turns": 1,
+       "ko": false,
+       "statuses": []
+      }
+     ],
+     "draws": 25,
+     "rng": [
+      683673554,
+      3031907225,
+      3871084114,
+      4251942660
+     ]
+    },
+    {
+     "event": "turn",
+     "index": 8,
+     "actor": "brigandarcher#0",
+     "state": [
+      {
+       "id": "vesna",
+       "kind": "party",
+       "hp": 161,
+       "mp": 54,
+       "turns": 2,
+       "ko": false,
+       "statuses": []
+      },
+      {
+       "id": "corvin",
+       "kind": "party",
+       "hp": 245,
+       "mp": 33,
+       "turns": 2,
+       "ko": false,
+       "statuses": []
+      },
+      {
+       "id": "wick",
+       "kind": "party",
+       "hp": 221,
+       "mp": 85,
+       "turns": 1,
+       "ko": false,
+       "statuses": []
+      },
+      {
+       "id": "brigand#0",
+       "kind": "enemy",
+       "hp": 0,
+       "mp": 10,
+       "turns": 1,
+       "ko": true,
+       "statuses": [
+        "ko:0"
+       ]
+      },
+      {
+       "id": "brigandarcher#0",
+       "kind": "enemy",
+       "hp": 140,
+       "mp": 16,
+       "turns": 2,
+       "ko": false,
+       "statuses": []
+      }
+     ],
+     "draws": 31,
+     "rng": [
+      3712556145,
+      3216082999,
+      34744854,
+      1829030306
+     ]
+    },
+    {
+     "event": "turn",
+     "index": 9,
+     "actor": "wick",
+     "state": [
+      {
+       "id": "vesna",
+       "kind": "party",
+       "hp": 161,
+       "mp": 54,
+       "turns": 2,
+       "ko": false,
+       "statuses": []
+      },
+      {
+       "id": "corvin",
+       "kind": "party",
+       "hp": 245,
+       "mp": 33,
+       "turns": 2,
+       "ko": false,
+       "statuses": []
+      },
+      {
+       "id": "wick",
+       "kind": "party",
+       "hp": 221,
+       "mp": 85,
+       "turns": 2,
+       "ko": false,
+       "statuses": []
+      },
+      {
+       "id": "brigand#0",
+       "kind": "enemy",
+       "hp": 0,
+       "mp": 10,
+       "turns": 1,
+       "ko": true,
+       "statuses": [
+        "ko:0"
+       ]
+      },
+      {
+       "id": "brigandarcher#0",
+       "kind": "enemy",
+       "hp": 113,
+       "mp": 16,
+       "turns": 2,
+       "ko": false,
+       "statuses": []
+      }
+     ],
+     "draws": 34,
+     "rng": [
+      650238117,
+      1888244593,
+      413552290,
+      3702269726
+     ]
+    },
+    {
+     "event": "turn",
+     "index": 10,
+     "actor": "corvin",
+     "state": [
+      {
+       "id": "vesna",
+       "kind": "party",
+       "hp": 161,
+       "mp": 54,
+       "turns": 2,
+       "ko": false,
+       "statuses": []
+      },
+      {
+       "id": "corvin",
+       "kind": "party",
+       "hp": 245,
+       "mp": 33,
+       "turns": 3,
+       "ko": false,
+       "statuses": []
+      },
+      {
+       "id": "wick",
+       "kind": "party",
+       "hp": 221,
+       "mp": 85,
+       "turns": 2,
+       "ko": false,
+       "statuses": []
+      },
+      {
+       "id": "brigand#0",
+       "kind": "enemy",
+       "hp": 0,
+       "mp": 10,
+       "turns": 1,
+       "ko": true,
+       "statuses": [
+        "ko:0"
+       ]
+      },
+      {
+       "id": "brigandarcher#0",
+       "kind": "enemy",
+       "hp": 71,
+       "mp": 16,
+       "turns": 2,
+       "ko": false,
+       "statuses": []
+      }
+     ],
+     "draws": 37,
+     "rng": [
+      1621275404,
+      1590181291,
+      708335120,
+      1564380472
+     ]
+    },
+    {
+     "event": "turn",
+     "index": 11,
+     "actor": "vesna",
+     "state": [
+      {
+       "id": "vesna",
+       "kind": "party",
+       "hp": 161,
+       "mp": 54,
+       "turns": 3,
+       "ko": false,
+       "statuses": []
+      },
+      {
+       "id": "corvin",
+       "kind": "party",
+       "hp": 245,
+       "mp": 33,
+       "turns": 3,
+       "ko": false,
+       "statuses": []
+      },
+      {
+       "id": "wick",
+       "kind": "party",
+       "hp": 221,
+       "mp": 85,
+       "turns": 2,
+       "ko": false,
+       "statuses": []
+      },
+      {
+       "id": "brigand#0",
+       "kind": "enemy",
+       "hp": 0,
+       "mp": 10,
+       "turns": 1,
+       "ko": true,
+       "statuses": [
+        "ko:0"
+       ]
+      },
+      {
+       "id": "brigandarcher#0",
+       "kind": "enemy",
+       "hp": 30,
+       "mp": 16,
+       "turns": 2,
+       "ko": false,
+       "statuses": []
+      }
+     ],
+     "draws": 40,
+     "rng": [
+      3714084365,
+      1935799680,
+      274134452,
+      292147455
+     ]
+    },
+    {
+     "event": "turn",
+     "index": 12,
+     "actor": "brigandarcher#0",
+     "state": [
+      {
+       "id": "vesna",
+       "kind": "party",
+       "hp": 161,
+       "mp": 54,
+       "turns": 3,
+       "ko": false,
+       "statuses": []
+      },
+      {
+       "id": "corvin",
+       "kind": "party",
+       "hp": 245,
+       "mp": 33,
+       "turns": 3,
+       "ko": false,
+       "statuses": []
+      },
+      {
+       "id": "wick",
+       "kind": "party",
+       "hp": 188,
+       "mp": 85,
+       "turns": 2,
+       "ko": false,
+       "statuses": []
+      },
+      {
+       "id": "brigand#0",
+       "kind": "enemy",
+       "hp": 0,
+       "mp": 10,
+       "turns": 1,
+       "ko": true,
+       "statuses": [
+        "ko:0"
+       ]
+      },
+      {
+       "id": "brigandarcher#0",
+       "kind": "enemy",
+       "hp": 30,
+       "mp": 16,
+       "turns": 3,
+       "ko": false,
+       "statuses": []
+      }
+     ],
+     "draws": 46,
+     "rng": [
+      4280055127,
+      2563383826,
+      4107376154,
+      3944164407
+     ]
+    },
+    {
+     "event": "turn",
+     "index": 13,
+     "actor": "wick",
+     "state": [
+      {
+       "id": "vesna",
+       "kind": "party",
+       "hp": 161,
+       "mp": 54,
+       "turns": 3,
+       "ko": false,
+       "statuses": []
+      },
+      {
+       "id": "corvin",
+       "kind": "party",
+       "hp": 245,
+       "mp": 33,
+       "turns": 3,
+       "ko": false,
+       "statuses": []
+      },
+      {
+       "id": "wick",
+       "kind": "party",
+       "hp": 188,
+       "mp": 85,
+       "turns": 3,
+       "ko": false,
+       "statuses": []
+      },
+      {
+       "id": "brigand#0",
+       "kind": "enemy",
+       "hp": 0,
+       "mp": 10,
+       "turns": 1,
+       "ko": true,
+       "statuses": [
+        "ko:0"
+       ]
+      },
+      {
+       "id": "brigandarcher#0",
+       "kind": "enemy",
+       "hp": 2,
+       "mp": 16,
+       "turns": 3,
+       "ko": false,
+       "statuses": []
+      }
+     ],
+     "draws": 49,
+     "rng": [
+      3232687880,
+      1798500076,
+      1971803020,
+      3417692600
+     ]
+    },
+    {
+     "event": "turn",
+     "index": 14,
+     "actor": "corvin",
+     "state": [
+      {
+       "id": "vesna",
+       "kind": "party",
+       "hp": 161,
+       "mp": 54,
+       "turns": 3,
+       "ko": false,
+       "statuses": []
+      },
+      {
+       "id": "corvin",
+       "kind": "party",
+       "hp": 245,
+       "mp": 33,
+       "turns": 4,
+       "ko": false,
+       "statuses": []
+      },
+      {
+       "id": "wick",
+       "kind": "party",
+       "hp": 188,
+       "mp": 85,
+       "turns": 3,
+       "ko": false,
+       "statuses": []
+      },
+      {
+       "id": "brigand#0",
+       "kind": "enemy",
+       "hp": 0,
+       "mp": 10,
+       "turns": 1,
+       "ko": true,
+       "statuses": [
+        "ko:0"
+       ]
+      },
+      {
+       "id": "brigandarcher#0",
+       "kind": "enemy",
+       "hp": 2,
+       "mp": 16,
+       "turns": 3,
+       "ko": false,
+       "statuses": []
+      }
+     ],
+     "draws": 50,
+     "rng": [
+      1613353052,
+      3726334568,
+      3505679492,
+      968533252
+     ]
+    },
+    {
+     "event": "turn",
+     "index": 15,
+     "actor": "vesna",
+     "state": [
+      {
+       "id": "vesna",
+       "kind": "party",
+       "hp": 161,
+       "mp": 54,
+       "turns": 4,
+       "ko": false,
+       "statuses": []
+      },
+      {
+       "id": "corvin",
+       "kind": "party",
+       "hp": 245,
+       "mp": 33,
+       "turns": 4,
+       "ko": false,
+       "statuses": []
+      },
+      {
+       "id": "wick",
+       "kind": "party",
+       "hp": 188,
+       "mp": 85,
+       "turns": 3,
+       "ko": false,
+       "statuses": []
+      },
+      {
+       "id": "brigand#0",
+       "kind": "enemy",
+       "hp": 0,
+       "mp": 10,
+       "turns": 1,
+       "ko": true,
+       "statuses": [
+        "ko:0"
+       ]
+      },
+      {
+       "id": "brigandarcher#0",
+       "kind": "enemy",
+       "hp": 0,
+       "mp": 16,
+       "turns": 3,
+       "ko": true,
+       "statuses": [
+        "ko:0"
+       ]
+      }
+     ],
+     "draws": 53,
+     "rng": [
+      1704878316,
+      96348173,
+      634600789,
+      1584565273
+     ]
+    }
+   ],
+   "final": [
+    {
+     "id": "vesna",
+     "kind": "party",
+     "hp": 161,
+     "mp": 54,
+     "turns": 4,
+     "ko": false,
+     "statuses": []
+    },
+    {
+     "id": "corvin",
+     "kind": "party",
+     "hp": 245,
+     "mp": 33,
+     "turns": 4,
+     "ko": false,
+     "statuses": []
+    },
+    {
+     "id": "wick",
+     "kind": "party",
+     "hp": 188,
+     "mp": 85,
+     "turns": 3,
+     "ko": false,
+     "statuses": []
+    },
+    {
+     "id": "brigand#0",
+     "kind": "enemy",
+     "hp": 0,
+     "mp": 10,
+     "turns": 1,
+     "ko": true,
+     "statuses": [
+      "ko:0"
+     ]
+    },
+    {
+     "id": "brigandarcher#0",
+     "kind": "enemy",
+     "hp": 0,
+     "mp": 16,
+     "turns": 3,
+     "ko": true,
+     "statuses": [
+      "ko:0"
+     ]
+    }
+   ],
+   "gold": 541,
+   "levels": {
+    "vesna": 7,
+    "corvin": 7,
+    "wick": 7
+   },
+   "inventory": {
+    "potion": 7,
+    "antidote": 2,
+    "tonic": 2
+   }
+  },
+  "three-carrionbat": {
+   "name": "three-carrionbat",
+   "enemies": [
+    "carrionbat",
+    "carrionbat",
+    "carrionbat"
+   ],
+   "seed": 1234,
+   "ended": true,
+   "draw_log": [
+    1491449434,
+    3161889898,
+    419805400,
+    3367371148,
+    67964363,
+    3086698598,
+    3001140973,
+    143631209,
+    2910910785,
+    3176626203,
+    2092752921,
+    2505346307,
+    545755448,
+    3554656355,
+    3357351534,
+    879853805,
+    928101380,
+    549057558,
+    1653733062,
+    1071025069,
+    2215465346,
+    4209121251,
+    1018232922,
+    1025904345,
+    3700214966,
+    2191928654,
+    3196384605,
+    2515858186,
+    1499449121,
+    1769220486,
+    923994770,
+    2451001138,
+    1932668580,
+    1643965164,
+    4059464372,
+    1082547962,
+    2134129429,
+    4134947673,
+    1514722798,
+    2414830272
+   ],
+   "result": "victory",
+   "turns": [
+    {
+     "event": "turn",
+     "index": 1,
+     "actor": "corvin",
+     "state": [
+      {
+       "id": "vesna",
+       "kind": "party",
+       "hp": 237,
+       "mp": 54,
+       "turns": 0,
+       "ko": false,
+       "statuses": []
+      },
+      {
+       "id": "corvin",
+       "kind": "party",
+       "hp": 275,
+       "mp": 33,
+       "turns": 1,
+       "ko": false,
+       "statuses": []
+      },
+      {
+       "id": "wick",
+       "kind": "party",
+       "hp": 221,
+       "mp": 85,
+       "turns": 0,
+       "ko": false,
+       "statuses": []
+      },
+      {
+       "id": "carrionbat#0",
+       "kind": "enemy",
+       "hp": 0,
+       "mp": 18,
+       "turns": 0,
+       "ko": true,
+       "statuses": [
+        "ko:0"
+       ]
+      },
+      {
+       "id": "carrionbat#1",
+       "kind": "enemy",
+       "hp": 88,
+       "mp": 18,
+       "turns": 0,
+       "ko": false,
+       "statuses": []
+      },
+      {
+       "id": "carrionbat#2",
+       "kind": "enemy",
+       "hp": 88,
+       "mp": 18,
+       "turns": 0,
+       "ko": false,
+       "statuses": []
+      }
+     ],
+     "draws": 4,
+     "rng": [
+      1304950753,
+      347486584,
+      1283499384,
+      973949356
+     ]
+    },
+    {
+     "event": "turn",
+     "index": 2,
+     "actor": "carrionbat#1",
+     "state": [
+      {
+       "id": "vesna",
+       "kind": "party",
+       "hp": 237,
+       "mp": 54,
+       "turns": 0,
+       "ko": false,
+       "statuses": []
+      },
+      {
+       "id": "corvin",
+       "kind": "party",
+       "hp": 275,
+       "mp": 33,
+       "turns": 1,
+       "ko": false,
+       "statuses": []
+      },
+      {
+       "id": "wick",
+       "kind": "party",
+       "hp": 193,
+       "mp": 85,
+       "turns": 0,
+       "ko": false,
+       "statuses": []
+      },
+      {
+       "id": "carrionbat#0",
+       "kind": "enemy",
+       "hp": 0,
+       "mp": 18,
+       "turns": 0,
+       "ko": true,
+       "statuses": [
+        "ko:0"
+       ]
+      },
+      {
+       "id": "carrionbat#1",
+       "kind": "enemy",
+       "hp": 88,
+       "mp": 18,
+       "turns": 1,
+       "ko": false,
+       "statuses": []
+      },
+      {
+       "id": "carrionbat#2",
+       "kind": "enemy",
+       "hp": 88,
+       "mp": 18,
+       "turns": 0,
+       "ko": false,
+       "statuses": []
+      }
+     ],
+     "draws": 11,
+     "rng": [
+      3922370265,
+      2871203027,
+      3188870088,
+      836097369
+     ]
+    },
+    {
+     "event": "turn",
+     "index": 3,
+     "actor": "carrionbat#2",
+     "state": [
+      {
+       "id": "vesna",
+       "kind": "party",
+       "hp": 210,
+       "mp": 54,
+       "turns": 0,
+       "ko": false,
+       "statuses": []
+      },
+      {
+       "id": "corvin",
+       "kind": "party",
+       "hp": 275,
+       "mp": 33,
+       "turns": 1,
+       "ko": false,
+       "statuses": []
+      },
+      {
+       "id": "wick",
+       "kind": "party",
+       "hp": 193,
+       "mp": 85,
+       "turns": 0,
+       "ko": false,
+       "statuses": []
+      },
+      {
+       "id": "carrionbat#0",
+       "kind": "enemy",
+       "hp": 0,
+       "mp": 18,
+       "turns": 0,
+       "ko": true,
+       "statuses": [
+        "ko:0"
+       ]
+      },
+      {
+       "id": "carrionbat#1",
+       "kind": "enemy",
+       "hp": 88,
+       "mp": 18,
+       "turns": 1,
+       "ko": false,
+       "statuses": []
+      },
+      {
+       "id": "carrionbat#2",
+       "kind": "enemy",
+       "hp": 88,
+       "mp": 18,
+       "turns": 1,
+       "ko": false,
+       "statuses": []
+      }
+     ],
+     "draws": 14,
+     "rng": [
+      458591633,
+      850628484,
+      3244188164,
+      4064196884
+     ]
+    },
+    {
+     "event": "turn",
+     "index": 4,
+     "actor": "vesna",
+     "state": [
+      {
+       "id": "vesna",
+       "kind": "party",
+       "hp": 210,
+       "mp": 54,
+       "turns": 1,
+       "ko": false,
+       "statuses": []
+      },
+      {
+       "id": "corvin",
+       "kind": "party",
+       "hp": 275,
+       "mp": 33,
+       "turns": 1,
+       "ko": false,
+       "statuses": []
+      },
+      {
+       "id": "wick",
+       "kind": "party",
+       "hp": 193,
+       "mp": 85,
+       "turns": 0,
+       "ko": false,
+       "statuses": []
+      },
+      {
+       "id": "carrionbat#0",
+       "kind": "enemy",
+       "hp": 0,
+       "mp": 18,
+       "turns": 0,
+       "ko": true,
+       "statuses": [
+        "ko:0"
+       ]
+      },
+      {
+       "id": "carrionbat#1",
+       "kind": "enemy",
+       "hp": 88,
+       "mp": 18,
+       "turns": 1,
+       "ko": false,
+       "statuses": []
+      },
+      {
+       "id": "carrionbat#2",
+       "kind": "enemy",
+       "hp": 88,
+       "mp": 18,
+       "turns": 1,
+       "ko": false,
+       "statuses": []
+      }
+     ],
+     "draws": 15,
+     "rng": [
+      3688413953,
+      3904397329,
+      3172263829,
+      1773438468
+     ]
+    },
+    {
+     "event": "turn",
+     "index": 5,
+     "actor": "wick",
+     "state": [
+      {
+       "id": "vesna",
+       "kind": "party",
+       "hp": 210,
+       "mp": 54,
+       "turns": 1,
+       "ko": false,
+       "statuses": []
+      },
+      {
+       "id": "corvin",
+       "kind": "party",
+       "hp": 275,
+       "mp": 33,
+       "turns": 1,
+       "ko": false,
+       "statuses": []
+      },
+      {
+       "id": "wick",
+       "kind": "party",
+       "hp": 193,
+       "mp": 85,
+       "turns": 1,
+       "ko": false,
+       "statuses": []
+      },
+      {
+       "id": "carrionbat#0",
+       "kind": "enemy",
+       "hp": 0,
+       "mp": 18,
+       "turns": 0,
+       "ko": true,
+       "statuses": [
+        "ko:0"
+       ]
+      },
+      {
+       "id": "carrionbat#1",
+       "kind": "enemy",
+       "hp": 57,
+       "mp": 18,
+       "turns": 1,
+       "ko": false,
+       "statuses": []
+      },
+      {
+       "id": "carrionbat#2",
+       "kind": "enemy",
+       "hp": 88,
+       "mp": 18,
+       "turns": 1,
+       "ko": false,
+       "statuses": []
+      }
+     ],
+     "draws": 18,
+     "rng": [
+      1438170582,
+      3583900444,
+      1326444057,
+      1132625713
+     ]
+    },
+    {
+     "event": "turn",
+     "index": 6,
+     "actor": "corvin",
+     "state": [
+      {
+       "id": "vesna",
+       "kind": "party",
+       "hp": 210,
+       "mp": 54,
+       "turns": 1,
+       "ko": false,
+       "statuses": []
+      },
+      {
+       "id": "corvin",
+       "kind": "party",
+       "hp": 275,
+       "mp": 33,
+       "turns": 2,
+       "ko": false,
+       "statuses": []
+      },
+      {
+       "id": "wick",
+       "kind": "party",
+       "hp": 193,
+       "mp": 85,
+       "turns": 1,
+       "ko": false,
+       "statuses": []
+      },
+      {
+       "id": "carrionbat#0",
+       "kind": "enemy",
+       "hp": 0,
+       "mp": 18,
+       "turns": 0,
+       "ko": true,
+       "statuses": [
+        "ko:0"
+       ]
+      },
+      {
+       "id": "carrionbat#1",
+       "kind": "enemy",
+       "hp": 14,
+       "mp": 18,
+       "turns": 1,
+       "ko": false,
+       "statuses": []
+      },
+      {
+       "id": "carrionbat#2",
+       "kind": "enemy",
+       "hp": 88,
+       "mp": 18,
+       "turns": 1,
+       "ko": false,
+       "statuses": []
+      }
+     ],
+     "draws": 21,
+     "rng": [
+      2202214119,
+      1792537419,
+      3740190636,
+      2132540319
+     ]
+    },
+    {
+     "event": "turn",
+     "index": 7,
+     "actor": "carrionbat#1",
+     "state": [
+      {
+       "id": "vesna",
+       "kind": "party",
+       "hp": 183,
+       "mp": 54,
+       "turns": 1,
+       "ko": false,
+       "statuses": []
+      },
+      {
+       "id": "corvin",
+       "kind": "party",
+       "hp": 275,
+       "mp": 33,
+       "turns": 2,
+       "ko": false,
+       "statuses": []
+      },
+      {
+       "id": "wick",
+       "kind": "party",
+       "hp": 193,
+       "mp": 85,
+       "turns": 1,
+       "ko": false,
+       "statuses": []
+      },
+      {
+       "id": "carrionbat#0",
+       "kind": "enemy",
+       "hp": 0,
+       "mp": 18,
+       "turns": 0,
+       "ko": true,
+       "statuses": [
+        "ko:0"
+       ]
+      },
+      {
+       "id": "carrionbat#1",
+       "kind": "enemy",
+       "hp": 14,
+       "mp": 18,
+       "turns": 2,
+       "ko": false,
+       "statuses": []
+      },
+      {
+       "id": "carrionbat#2",
+       "kind": "enemy",
+       "hp": 88,
+       "mp": 18,
+       "turns": 1,
+       "ko": false,
+       "statuses": []
+      }
+     ],
+     "draws": 28,
+     "rng": [
+      1694913547,
+      1461742248,
+      3136766466,
+      1116865154
+     ]
+    },
+    {
+     "event": "turn",
+     "index": 8,
+     "actor": "carrionbat#2",
+     "state": [
+      {
+       "id": "vesna",
+       "kind": "party",
+       "hp": 183,
+       "mp": 54,
+       "turns": 1,
+       "ko": false,
+       "statuses": []
+      },
+      {
+       "id": "corvin",
+       "kind": "party",
+       "hp": 248,
+       "mp": 33,
+       "turns": 2,
+       "ko": false,
+       "statuses": []
+      },
+      {
+       "id": "wick",
+       "kind": "party",
+       "hp": 193,
+       "mp": 85,
+       "turns": 1,
+       "ko": false,
+       "statuses": []
+      },
+      {
+       "id": "carrionbat#0",
+       "kind": "enemy",
+       "hp": 0,
+       "mp": 18,
+       "turns": 0,
+       "ko": true,
+       "statuses": [
+        "ko:0"
+       ]
+      },
+      {
+       "id": "carrionbat#1",
+       "kind": "enemy",
+       "hp": 14,
+       "mp": 18,
+       "turns": 2,
+       "ko": false,
+       "statuses": []
+      },
+      {
+       "id": "carrionbat#2",
+       "kind": "enemy",
+       "hp": 88,
+       "mp": 18,
+       "turns": 2,
+       "ko": false,
+       "statuses": []
+      }
+     ],
+     "draws": 31,
+     "rng": [
+      2365945464,
+      1091317388,
+      2755672581,
+      187871025
+     ]
+    },
+    {
+     "event": "turn",
+     "index": 9,
+     "actor": "vesna",
+     "state": [
+      {
+       "id": "vesna",
+       "kind": "party",
+       "hp": 183,
+       "mp": 54,
+       "turns": 2,
+       "ko": false,
+       "statuses": []
+      },
+      {
+       "id": "corvin",
+       "kind": "party",
+       "hp": 248,
+       "mp": 33,
+       "turns": 2,
+       "ko": false,
+       "statuses": []
+      },
+      {
+       "id": "wick",
+       "kind": "party",
+       "hp": 193,
+       "mp": 85,
+       "turns": 1,
+       "ko": false,
+       "statuses": []
+      },
+      {
+       "id": "carrionbat#0",
+       "kind": "enemy",
+       "hp": 0,
+       "mp": 18,
+       "turns": 0,
+       "ko": true,
+       "statuses": [
+        "ko:0"
+       ]
+      },
+      {
+       "id": "carrionbat#1",
+       "kind": "enemy",
+       "hp": 0,
+       "mp": 18,
+       "turns": 2,
+       "ko": true,
+       "statuses": [
+        "ko:0"
+       ]
+      },
+      {
+       "id": "carrionbat#2",
+       "kind": "enemy",
+       "hp": 88,
+       "mp": 18,
+       "turns": 2,
+       "ko": false,
+       "statuses": []
+      }
+     ],
+     "draws": 34,
+     "rng": [
+      3780164302,
+      2717122452,
+      3927682269,
+      2116902353
+     ]
+    },
+    {
+     "event": "turn",
+     "index": 10,
+     "actor": "wick",
+     "state": [
+      {
+       "id": "vesna",
+       "kind": "party",
+       "hp": 183,
+       "mp": 54,
+       "turns": 2,
+       "ko": false,
+       "statuses": []
+      },
+      {
+       "id": "corvin",
+       "kind": "party",
+       "hp": 248,
+       "mp": 33,
+       "turns": 2,
+       "ko": false,
+       "statuses": []
+      },
+      {
+       "id": "wick",
+       "kind": "party",
+       "hp": 193,
+       "mp": 85,
+       "turns": 2,
+       "ko": false,
+       "statuses": []
+      },
+      {
+       "id": "carrionbat#0",
+       "kind": "enemy",
+       "hp": 0,
+       "mp": 18,
+       "turns": 0,
+       "ko": true,
+       "statuses": [
+        "ko:0"
+       ]
+      },
+      {
+       "id": "carrionbat#1",
+       "kind": "enemy",
+       "hp": 0,
+       "mp": 18,
+       "turns": 2,
+       "ko": true,
+       "statuses": [
+        "ko:0"
+       ]
+      },
+      {
+       "id": "carrionbat#2",
+       "kind": "enemy",
+       "hp": 88,
+       "mp": 18,
+       "turns": 2,
+       "ko": false,
+       "statuses": []
+      }
+     ],
+     "draws": 35,
+     "rng": [
+      1049499787,
+      2864245127,
+      3971235347,
+      4111609598
+     ]
+    },
+    {
+     "event": "turn",
+     "index": 11,
+     "actor": "corvin",
+     "state": [
+      {
+       "id": "vesna",
+       "kind": "party",
+       "hp": 183,
+       "mp": 54,
+       "turns": 2,
+       "ko": false,
+       "statuses": []
+      },
+      {
+       "id": "corvin",
+       "kind": "party",
+       "hp": 248,
+       "mp": 33,
+       "turns": 3,
+       "ko": false,
+       "statuses": []
+      },
+      {
+       "id": "wick",
+       "kind": "party",
+       "hp": 193,
+       "mp": 85,
+       "turns": 2,
+       "ko": false,
+       "statuses": []
+      },
+      {
+       "id": "carrionbat#0",
+       "kind": "enemy",
+       "hp": 0,
+       "mp": 18,
+       "turns": 0,
+       "ko": true,
+       "statuses": [
+        "ko:0"
+       ]
+      },
+      {
+       "id": "carrionbat#1",
+       "kind": "enemy",
+       "hp": 0,
+       "mp": 18,
+       "turns": 2,
+       "ko": true,
+       "statuses": [
+        "ko:0"
+       ]
+      },
+      {
+       "id": "carrionbat#2",
+       "kind": "enemy",
+       "hp": 44,
+       "mp": 18,
+       "turns": 2,
+       "ko": false,
+       "statuses": []
+      }
+     ],
+     "draws": 38,
+     "rng": [
+      1040053008,
+      847325967,
+      381614458,
+      21496723
+     ]
+    },
+    {
+     "event": "turn",
+     "index": 12,
+     "actor": "carrionbat#2",
+     "state": [
+      {
+       "id": "vesna",
+       "kind": "party",
+       "hp": 156,
+       "mp": 54,
+       "turns": 2,
+       "ko": false,
+       "statuses": []
+      },
+      {
+       "id": "corvin",
+       "kind": "party",
+       "hp": 248,
+       "mp": 33,
+       "turns": 3,
+       "ko": false,
+       "statuses": []
+      },
+      {
+       "id": "wick",
+       "kind": "party",
+       "hp": 193,
+       "mp": 85,
+       "turns": 2,
+       "ko": false,
+       "statuses": []
+      },
+      {
+       "id": "carrionbat#0",
+       "kind": "enemy",
+       "hp": 0,
+       "mp": 18,
+       "turns": 0,
+       "ko": true,
+       "statuses": [
+        "ko:0"
+       ]
+      },
+      {
+       "id": "carrionbat#1",
+       "kind": "enemy",
+       "hp": 0,
+       "mp": 18,
+       "turns": 2,
+       "ko": true,
+       "statuses": [
+        "ko:0"
+       ]
+      },
+      {
+       "id": "carrionbat#2",
+       "kind": "enemy",
+       "hp": 44,
+       "mp": 18,
+       "turns": 3,
+       "ko": false,
+       "statuses": []
+      }
+     ],
+     "draws": 43,
+     "rng": [
+      2381221826,
+      303444791,
+      1827738308,
+      1397176777
+     ]
+    },
+    {
+     "event": "turn",
+     "index": 13,
+     "actor": "vesna",
+     "state": [
+      {
+       "id": "vesna",
+       "kind": "party",
+       "hp": 156,
+       "mp": 54,
+       "turns": 3,
+       "ko": false,
+       "statuses": []
+      },
+      {
+       "id": "corvin",
+       "kind": "party",
+       "hp": 248,
+       "mp": 33,
+       "turns": 3,
+       "ko": false,
+       "statuses": []
+      },
+      {
+       "id": "wick",
+       "kind": "party",
+       "hp": 193,
+       "mp": 85,
+       "turns": 2,
+       "ko": false,
+       "statuses": []
+      },
+      {
+       "id": "carrionbat#0",
+       "kind": "enemy",
+       "hp": 0,
+       "mp": 18,
+       "turns": 0,
+       "ko": true,
+       "statuses": [
+        "ko:0"
+       ]
+      },
+      {
+       "id": "carrionbat#1",
+       "kind": "enemy",
+       "hp": 0,
+       "mp": 18,
+       "turns": 2,
+       "ko": true,
+       "statuses": [
+        "ko:0"
+       ]
+      },
+      {
+       "id": "carrionbat#2",
+       "kind": "enemy",
+       "hp": 44,
+       "mp": 18,
+       "turns": 3,
+       "ko": false,
+       "statuses": []
+      }
+     ],
+     "draws": 44,
+     "rng": [
+      3435103548,
+      4077497905,
+      3447321350,
+      2287464970
+     ]
+    },
+    {
+     "event": "turn",
+     "index": 14,
+     "actor": "wick",
+     "state": [
+      {
+       "id": "vesna",
+       "kind": "party",
+       "hp": 156,
+       "mp": 54,
+       "turns": 3,
+       "ko": false,
+       "statuses": []
+      },
+      {
+       "id": "corvin",
+       "kind": "party",
+       "hp": 248,
+       "mp": 33,
+       "turns": 3,
+       "ko": false,
+       "statuses": []
+      },
+      {
+       "id": "wick",
+       "kind": "party",
+       "hp": 193,
+       "mp": 85,
+       "turns": 3,
+       "ko": false,
+       "statuses": []
+      },
+      {
+       "id": "carrionbat#0",
+       "kind": "enemy",
+       "hp": 0,
+       "mp": 18,
+       "turns": 0,
+       "ko": true,
+       "statuses": [
+        "ko:0"
+       ]
+      },
+      {
+       "id": "carrionbat#1",
+       "kind": "enemy",
+       "hp": 0,
+       "mp": 18,
+       "turns": 2,
+       "ko": true,
+       "statuses": [
+        "ko:0"
+       ]
+      },
+      {
+       "id": "carrionbat#2",
+       "kind": "enemy",
+       "hp": 15,
+       "mp": 18,
+       "turns": 3,
+       "ko": false,
+       "statuses": []
+      }
+     ],
+     "draws": 47,
+     "rng": [
+      2422556641,
+      3668972765,
+      3845025259,
+      1424603453
+     ]
+    },
+    {
+     "event": "turn",
+     "index": 15,
+     "actor": "corvin",
+     "state": [
+      {
+       "id": "vesna",
+       "kind": "party",
+       "hp": 156,
+       "mp": 54,
+       "turns": 3,
+       "ko": false,
+       "statuses": []
+      },
+      {
+       "id": "corvin",
+       "kind": "party",
+       "hp": 248,
+       "mp": 33,
+       "turns": 4,
+       "ko": false,
+       "statuses": []
+      },
+      {
+       "id": "wick",
+       "kind": "party",
+       "hp": 193,
+       "mp": 85,
+       "turns": 3,
+       "ko": false,
+       "statuses": []
+      },
+      {
+       "id": "carrionbat#0",
+       "kind": "enemy",
+       "hp": 0,
+       "mp": 18,
+       "turns": 0,
+       "ko": true,
+       "statuses": [
+        "ko:0"
+       ]
+      },
+      {
+       "id": "carrionbat#1",
+       "kind": "enemy",
+       "hp": 0,
+       "mp": 18,
+       "turns": 2,
+       "ko": true,
+       "statuses": [
+        "ko:0"
+       ]
+      },
+      {
+       "id": "carrionbat#2",
+       "kind": "enemy",
+       "hp": 0,
+       "mp": 18,
+       "turns": 3,
+       "ko": true,
+       "statuses": [
+        "ko:0"
+       ]
+      }
+     ],
+     "draws": 50,
+     "rng": [
+      2044247916,
+      623788147,
+      3405954223,
+      2206089259
+     ]
+    }
+   ],
+   "final": [
+    {
+     "id": "vesna",
+     "kind": "party",
+     "hp": 156,
+     "mp": 54,
+     "turns": 3,
+     "ko": false,
+     "statuses": []
+    },
+    {
+     "id": "corvin",
+     "kind": "party",
+     "hp": 248,
+     "mp": 33,
+     "turns": 4,
+     "ko": false,
+     "statuses": []
+    },
+    {
+     "id": "wick",
+     "kind": "party",
+     "hp": 193,
+     "mp": 85,
+     "turns": 3,
+     "ko": false,
+     "statuses": []
+    },
+    {
+     "id": "carrionbat#0",
+     "kind": "enemy",
+     "hp": 0,
+     "mp": 18,
+     "turns": 0,
+     "ko": true,
+     "statuses": [
+      "ko:0"
+     ]
+    },
+    {
+     "id": "carrionbat#1",
+     "kind": "enemy",
+     "hp": 0,
+     "mp": 18,
+     "turns": 2,
+     "ko": true,
+     "statuses": [
+      "ko:0"
+     ]
+    },
+    {
+     "id": "carrionbat#2",
+     "kind": "enemy",
+     "hp": 0,
+     "mp": 18,
+     "turns": 3,
+     "ko": true,
+     "statuses": [
+      "ko:0"
+     ]
+    }
+   ],
+   "gold": 518,
+   "levels": {
+    "vesna": 7,
+    "corvin": 7,
+    "wick": 7
+   },
+   "inventory": {
+    "potion": 6,
+    "antidote": 2,
+    "tonic": 2
+   }
+  },
+  "coursing-hounds": {
+   "name": "coursing-hounds",
+   "enemies": [
+    "coursinghound",
+    "coursinghound"
+   ],
+   "seed": 48879,
+   "ended": true,
+   "draw_log": [
+    2383980770,
+    257797548,
+    3250454168,
+    714097962,
+    2185298007,
+    789818571,
+    1800104035,
+    20948151,
+    2013582680,
+    1582327959,
+    1289420503,
+    3256912707,
+    1185883993,
+    2036470373,
+    3334960580,
+    475863611
+   ],
+   "result": "defeat",
+   "turns": [
+    {
+     "event": "turn",
+     "index": 1,
+     "actor": "coursinghound#0",
+     "state": [
+      {
+       "id": "vesna",
+       "kind": "party",
+       "hp": 237,
+       "mp": 54,
+       "turns": 0,
+       "ko": false,
+       "statuses": []
+      },
+      {
+       "id": "corvin",
+       "kind": "party",
+       "hp": 275,
+       "mp": 33,
+       "turns": 0,
+       "ko": false,
+       "statuses": []
+      },
+      {
+       "id": "wick",
+       "kind": "party",
+       "hp": 0,
+       "mp": 85,
+       "turns": 0,
+       "ko": true,
+       "statuses": [
+        "ko:0"
+       ]
+      },
+      {
+       "id": "coursinghound#0",
+       "kind": "enemy",
+       "hp": 10600,
+       "mp": 80,
+       "turns": 1,
+       "ko": false,
+       "statuses": []
+      },
+      {
+       "id": "coursinghound#1",
+       "kind": "enemy",
+       "hp": 10600,
+       "mp": 80,
+       "turns": 0,
+       "ko": false,
+       "statuses": []
+      }
+     ],
+     "draws": 8,
+     "rng": [
+      3082364434,
+      3602604269,
+      3093020820,
+      2551676193
+     ]
+    },
+    {
+     "event": "turn",
+     "index": 2,
+     "actor": "coursinghound#1",
+     "state": [
+      {
+       "id": "vesna",
+       "kind": "party",
+       "hp": 237,
+       "mp": 54,
+       "turns": 0,
+       "ko": false,
+       "statuses": []
+      },
+      {
+       "id": "corvin",
+       "kind": "party",
+       "hp": 0,
+       "mp": 33,
+       "turns": 0,
+       "ko": true,
+       "statuses": [
+        "ko:0"
+       ]
+      },
+      {
+       "id": "wick",
+       "kind": "party",
+       "hp": 0,
+       "mp": 85,
+       "turns": 0,
+       "ko": true,
+       "statuses": [
+        "ko:0"
+       ]
+      },
+      {
+       "id": "coursinghound#0",
+       "kind": "enemy",
+       "hp": 10600,
+       "mp": 80,
+       "turns": 1,
+       "ko": false,
+       "statuses": []
+      },
+      {
+       "id": "coursinghound#1",
+       "kind": "enemy",
+       "hp": 10600,
+       "mp": 80,
+       "turns": 1,
+       "ko": false,
+       "statuses": []
+      }
+     ],
+     "draws": 11,
+     "rng": [
+      2800593726,
+      720867243,
+      2895800472,
+      2074605362
+     ]
+    },
+    {
+     "event": "turn",
+     "index": 3,
+     "actor": "coursinghound#0",
+     "state": [
+      {
+       "id": "vesna",
+       "kind": "party",
+       "hp": 0,
+       "mp": 54,
+       "turns": 0,
+       "ko": true,
+       "statuses": [
+        "ko:0"
+       ]
+      },
+      {
+       "id": "corvin",
+       "kind": "party",
+       "hp": 0,
+       "mp": 33,
+       "turns": 0,
+       "ko": true,
+       "statuses": [
+        "ko:0"
+       ]
+      },
+      {
+       "id": "wick",
+       "kind": "party",
+       "hp": 0,
+       "mp": 85,
+       "turns": 0,
+       "ko": true,
+       "statuses": [
+        "ko:0"
+       ]
+      },
+      {
+       "id": "coursinghound#0",
+       "kind": "enemy",
+       "hp": 10600,
+       "mp": 80,
+       "turns": 2,
+       "ko": false,
+       "statuses": []
+      },
+      {
+       "id": "coursinghound#1",
+       "kind": "enemy",
+       "hp": 10600,
+       "mp": 80,
+       "turns": 1,
+       "ko": false,
+       "statuses": []
+      }
+     ],
+     "draws": 16,
+     "rng": [
+      679760504,
+      2301003909,
+      3776941247,
+      740196538
+     ]
+    }
+   ],
+   "final": [
+    {
+     "id": "vesna",
+     "kind": "party",
+     "hp": 0,
+     "mp": 54,
+     "turns": 0,
+     "ko": true,
+     "statuses": [
+      "ko:0"
+     ]
+    },
+    {
+     "id": "corvin",
+     "kind": "party",
+     "hp": 0,
+     "mp": 33,
+     "turns": 0,
+     "ko": true,
+     "statuses": [
+      "ko:0"
+     ]
+    },
+    {
+     "id": "wick",
+     "kind": "party",
+     "hp": 0,
+     "mp": 85,
+     "turns": 0,
+     "ko": true,
+     "statuses": [
+      "ko:0"
+     ]
+    },
+    {
+     "id": "coursinghound#0",
+     "kind": "enemy",
+     "hp": 10600,
+     "mp": 80,
+     "turns": 2,
+     "ko": false,
+     "statuses": []
+    },
+    {
+     "id": "coursinghound#1",
+     "kind": "enemy",
+     "hp": 10600,
+     "mp": 80,
+     "turns": 1,
+     "ko": false,
+     "statuses": []
+    }
+   ],
+   "gold": 500,
+   "levels": {
+    "vesna": 6,
+    "corvin": 6,
+    "wick": 6
+   },
+   "inventory": {
+    "potion": 5,
+    "antidote": 2,
+    "tonic": 2
+   }
+  },
+  "the-far-runner": {
+   "name": "the-far-runner",
+   "enemies": [
+    "thefarrunner"
+   ],
+   "seed": 65261,
+   "ended": true,
+   "draw_log": [
+    2507081808,
+    2032334339,
+    4189933686,
+    2227894232,
+    4160317853,
+    797415857,
+    4024524697,
+    3712270361,
+    1146582857,
+    265863490,
+    1162338351,
+    244543567,
+    2399021472,
+    942344290,
+    998132534,
+    428168553,
+    3897709241,
+    2574771417,
+    1272575701
+   ],
+   "result": "defeat",
+   "turns": [
+    {
+     "event": "turn",
+     "index": 1,
+     "actor": "thefarrunner#0",
+     "state": [
+      {
+       "id": "vesna",
+       "kind": "party",
+       "hp": 237,
+       "mp": 54,
+       "turns": 0,
+       "ko": false,
+       "statuses": []
+      },
+      {
+       "id": "corvin",
+       "kind": "party",
+       "hp": 275,
+       "mp": 33,
+       "turns": 0,
+       "ko": false,
+       "statuses": []
+      },
+      {
+       "id": "wick",
+       "kind": "party",
+       "hp": 0,
+       "mp": 85,
+       "turns": 0,
+       "ko": true,
+       "statuses": [
+        "ko:0"
+       ]
+      },
+      {
+       "id": "thefarrunner#0",
+       "kind": "enemy",
+       "hp": 15500,
+       "mp": 400,
+       "turns": 1,
+       "ko": false,
+       "statuses": []
+      }
+     ],
+     "draws": 5,
+     "rng": [
+      2353834401,
+      3286981468,
+      2625295499,
+      2304040570
+     ]
+    },
+    {
+     "event": "turn",
+     "index": 2,
+     "actor": "corvin",
+     "state": [
+      {
+       "id": "vesna",
+       "kind": "party",
+       "hp": 237,
+       "mp": 54,
+       "turns": 0,
+       "ko": false,
+       "statuses": []
+      },
+      {
+       "id": "corvin",
+       "kind": "party",
+       "hp": 275,
+       "mp": 33,
+       "turns": 1,
+       "ko": false,
+       "statuses": []
+      },
+      {
+       "id": "wick",
+       "kind": "party",
+       "hp": 0,
+       "mp": 85,
+       "turns": 0,
+       "ko": true,
+       "statuses": [
+        "ko:0"
+       ]
+      },
+      {
+       "id": "thefarrunner#0",
+       "kind": "enemy",
+       "hp": 15476,
+       "mp": 400,
+       "turns": 1,
+       "ko": false,
+       "statuses": []
+      }
+     ],
+     "draws": 8,
+     "rng": [
+      2584276480,
+      2157376210,
+      245861129,
+      2125800344
+     ]
+    },
+    {
+     "event": "turn",
+     "index": 3,
+     "actor": "thefarrunner#0",
+     "state": [
+      {
+       "id": "vesna",
+       "kind": "party",
+       "hp": 237,
+       "mp": 54,
+       "turns": 0,
+       "ko": false,
+       "statuses": []
+      },
+      {
+       "id": "corvin",
+       "kind": "party",
+       "hp": 0,
+       "mp": 33,
+       "turns": 1,
+       "ko": true,
+       "statuses": [
+        "ko:0"
+       ]
+      },
+      {
+       "id": "wick",
+       "kind": "party",
+       "hp": 0,
+       "mp": 85,
+       "turns": 0,
+       "ko": true,
+       "statuses": [
+        "ko:0"
+       ]
+      },
+      {
+       "id": "thefarrunner#0",
+       "kind": "enemy",
+       "hp": 15476,
+       "mp": 400,
+       "turns": 2,
+       "ko": false,
+       "statuses": []
+      }
+     ],
+     "draws": 12,
+     "rng": [
+      4186010284,
+      1078632245,
+      1417230222,
+      94375426
+     ]
+    },
+    {
+     "event": "turn",
+     "index": 4,
+     "actor": "vesna",
+     "state": [
+      {
+       "id": "vesna",
+       "kind": "party",
+       "hp": 237,
+       "mp": 54,
+       "turns": 1,
+       "ko": false,
+       "statuses": []
+      },
+      {
+       "id": "corvin",
+       "kind": "party",
+       "hp": 0,
+       "mp": 33,
+       "turns": 1,
+       "ko": true,
+       "statuses": [
+        "ko:0"
+       ]
+      },
+      {
+       "id": "wick",
+       "kind": "party",
+       "hp": 0,
+       "mp": 85,
+       "turns": 0,
+       "ko": true,
+       "statuses": [
+        "ko:0"
+       ]
+      },
+      {
+       "id": "thefarrunner#0",
+       "kind": "enemy",
+       "hp": 15452,
+       "mp": 400,
+       "turns": 2,
+       "ko": false,
+       "statuses": []
+      }
+     ],
+     "draws": 15,
+     "rng": [
+      3075363012,
+      2371254196,
+      3664002330,
+      4137368976
+     ]
+    },
+    {
+     "event": "turn",
+     "index": 5,
+     "actor": "thefarrunner#0",
+     "state": [
+      {
+       "id": "vesna",
+       "kind": "party",
+       "hp": 0,
+       "mp": 54,
+       "turns": 1,
+       "ko": true,
+       "statuses": [
+        "ko:0"
+       ]
+      },
+      {
+       "id": "corvin",
+       "kind": "party",
+       "hp": 0,
+       "mp": 33,
+       "turns": 1,
+       "ko": true,
+       "statuses": [
+        "ko:0"
+       ]
+      },
+      {
+       "id": "wick",
+       "kind": "party",
+       "hp": 0,
+       "mp": 85,
+       "turns": 0,
+       "ko": true,
+       "statuses": [
+        "ko:0"
+       ]
+      },
+      {
+       "id": "thefarrunner#0",
+       "kind": "enemy",
+       "hp": 15452,
+       "mp": 400,
+       "turns": 3,
+       "ko": false,
+       "statuses": []
+      }
+     ],
+     "draws": 19,
+     "rng": [
+      565658440,
+      1533619973,
+      3361062459,
+      1980288799
+     ]
+    }
+   ],
+   "final": [
+    {
+     "id": "vesna",
+     "kind": "party",
+     "hp": 0,
+     "mp": 54,
+     "turns": 1,
+     "ko": true,
+     "statuses": [
+      "ko:0"
+     ]
+    },
+    {
+     "id": "corvin",
+     "kind": "party",
+     "hp": 0,
+     "mp": 33,
+     "turns": 1,
+     "ko": true,
+     "statuses": [
+      "ko:0"
+     ]
+    },
+    {
+     "id": "wick",
+     "kind": "party",
+     "hp": 0,
+     "mp": 85,
+     "turns": 0,
+     "ko": true,
+     "statuses": [
+      "ko:0"
+     ]
+    },
+    {
+     "id": "thefarrunner#0",
+     "kind": "enemy",
+     "hp": 15452,
+     "mp": 400,
+     "turns": 3,
+     "ko": false,
+     "statuses": []
+    }
+   ],
+   "gold": 500,
+   "levels": {
+    "vesna": 6,
+    "corvin": 6,
+    "wick": 6
+   },
+   "inventory": {
+    "potion": 5,
+    "antidote": 2,
+    "tonic": 2
+   }
+  }
+ }
+}

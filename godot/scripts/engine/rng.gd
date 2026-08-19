@@ -39,6 +39,14 @@ var s1 := 0
 var s2 := 0
 var s3 := 0
 
+## How many raw draws this stream has served. Not part of the algorithm — it is
+## what lets a parity harness tell "used a number wrongly" apart from "read a
+## different part of the stream".
+var draws := 0
+## The first few values drawn, for the same reason: a count says the streams
+## diverged, and the sequence says which number one side failed to take.
+var draw_log: Array = []
+
 
 func _init(initial_seed: int = 0x2f6e2b1) -> void:
 	reseed(initial_seed)
@@ -87,6 +95,7 @@ func reseed(n: int) -> RNG:
 
 ## Raw 32-bit unsigned draw.
 func u32() -> int:
+	draws += 1
 	var result := _imul(_rotl(_imul(s1, 5), 7), 9)
 	var t := (s1 << 9) & MASK
 	s2 ^= s0
@@ -95,6 +104,8 @@ func u32() -> int:
 	s0 ^= s3
 	s2 ^= t
 	s3 = _rotl(s3, 11)
+	if draw_log.size() < 40:
+		draw_log.append(result)
 	return result
 
 

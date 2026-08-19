@@ -267,3 +267,37 @@ static func limit_gain(
 		danger = 1.5
 	var base: float = (damage_taken / cap) * 100.0 * 0.85
 	return minf(100.0, base * danger + float(allies_down) * 6.0)
+
+
+# ---------------------------------------------------------------------------
+# Rolls
+# ---------------------------------------------------------------------------
+# These take the stream explicitly rather than reaching for a global one. A
+# battle has to replay identically from a save, so which stream a roll comes from
+# — and in what order — is part of the rules, not an implementation detail.
+
+
+## Does the swing land?
+static func roll_hit(stream: RNG, accuracy: float, target_evade: float,
+		blind: bool = false, vanish: bool = false) -> bool:
+	return stream.next() < hit_chance(accuracy, target_evade, blind, vanish)
+
+
+## Critical hit: about 4% at 16 luck, 10% at 40, and Focused adds a flat bonus.
+static func roll_critical(stream: RNG, luck: float = 16.0, bonus: float = 0.0) -> bool:
+	return stream.next() < minf(0.6, luck / 400.0 + bonus)
+
+
+## Status infliction: the chance on the move against the target's resistance,
+## immunities and level.
+##
+## The level term matters — a much higher-level target shrugs things off — and it
+## is the reason a status move that lands every time in the opening region lands
+## rarely in the endgame.
+static func roll_status(stream: RNG, chance: float, target_res: float,
+		immune: Array, status: String, level: int = 1, target_level: int = 1) -> bool:
+	if immune.has(status):
+		return false
+	var level_term := maxf(0.35, 1.0 - float(target_level - level) * 0.02)
+	var p := (chance / 100.0) * level_term * maxf(0.05, 1.0 - target_res / 220.0)
+	return stream.next() < p

@@ -886,6 +886,11 @@ async function boot() {
   analytics.init({ version: BUILD }).register({ quality: game.config?.quality ?? null });
   window.__analytics = analytics;
   window.__input = input;   // debug: the input singleton, for the stuck-controls probes
+  // The named RNG streams, so `tools/harvest-battles.mjs` can seed a fight and the
+  // Godot port can be handed the same stream state. A battle's whole point is that
+  // it replays identically from a seed; a harness that cannot set the seed can only
+  // compare two different fights.
+  window.__rng = rng;
   // One line for a stuck player to run in the console and paste back.
   window.__diag = () => {
     const st = game.state;
