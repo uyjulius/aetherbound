@@ -17,6 +17,9 @@ extends Control
 
 const FieldSim := preload("res://scripts/world/field.gd")
 const Database := preload("res://scripts/data/database.gd")
+const PartyModel := preload("res://scripts/game/party.gd")
+const DialogueBox := preload("res://scripts/ui/dialogue.gd")
+const Ctx := preload("res://scripts/game/event_context.gd")
 
 ## Maps worth opening on first, in this order: a town, an interior, a continent,
 ## a dungeon. `menu` walks the whole world from there.
@@ -24,6 +27,12 @@ const FIRST := ["harrowmere", "inn_harrowmere", "overworld", "sunkenvault"]
 
 var _db: Database
 var _field: Field
+var _party: Party
+var _dialogue: Dialogue
+var _ctx: EventContext
+## True while a scene is playing, so the field does not walk under it.
+var _scene_running := false
+var _last_event := ""
 var _ids: PackedStringArray = PackedStringArray()
 var _index := 0
 var _label: Label
@@ -45,6 +54,32 @@ func _ready() -> void:
 	for id in rest:
 		if not _ids.has(id):
 			_ids.append(id)
+
+	# A party, so the scenes have somebody to talk about. The opening three at the level
+	# the reference's New Game gives them.
+	_party = PartyModel.new(_db)
+	for id in ["vesna", "corvin", "wick"]:
+		_party.recruit(id, 6)
+
+	_dialogue = DialogueBox.new()
+	add_child(_dialogue)
+
+	_ctx = Ctx.new("first", false)
+	_ctx.database = _db
+	_ctx.party = _party
+	_ctx.dialogue = _dialogue
+	# The field diagnostic has no battle runtime wired to it yet, so a scene that starts
+	# one is told it was won. Said out loud rather than assumed: a scene that branches on
+	# the outcome would otherwise look like it had fought something.
+	_ctx.on_battle = func(encounter, _opts):
+		print("SCENE_BATTLE enemies=%s (assumed victory)" % str(encounter.get("enemies", [])))
+		return "victory"
+	_ctx.on_chest = func(spec):
+		print("SCENE_CHEST %s" % str(spec))
+	_ctx.on_music = func(track, _opts):
+		print("SCENE_MUSIC %s" % track)
+	_ctx.on_goto_map = func(id, _spawn):
+		print("SCENE_GOTO %s" % id)
 
 	_label = Label.new()
 	_label.add_theme_font_size_override("font_size", 20)
@@ -70,6 +105,15 @@ func _open(index: int) -> void:
 
 
 func _process(delta: float) -> void:
+	# A scene owns the screen while it plays. The field keeps its position and the
+	# camera keeps its bearing; nothing walks under a conversation.
+	if _scene_running:
+		_update_label()
+		return
+	if Actions.just_pressed("special"):
+		# On demand, so the browser check can start a scene without walking to one.
+		_run_event("harrowmere_intro")
+		return
 	if Actions.just_pressed("cancel"):
 		get_tree().change_scene_to_file("res://scenes/title.tscn")
 		return
@@ -81,6 +125,12 @@ func _process(delta: float) -> void:
 		_field.camera.orbit(-1)
 
 	var result := _field.update(delta, Actions.move_vector(), Actions.is_down("run"))
+	var trigger: Dictionary = result["trigger"]
+	if not trigger.is_empty() and String(trigger.get("kind", "")) == "event":
+		var id := String(trigger.get("data", {}).get("event", ""))
+		if not id.is_empty() and id != _last_event:
+			_run_event(id)
+			return
 	if not result["encounter"].is_empty():
 		# Reported rather than fought: the battle runtime is a later sub-project,
 		# and a counter that visibly ticks over is what proves the encounter
@@ -93,6 +143,19 @@ func _process(delta: float) -> void:
 
 var _encounters := 0
 var _trigger: Dictionary = {}
+
+
+## Play a scene. The same coroutines the harness compares, driven by a live context.
+func _run_event(id: String) -> void:
+	if _scene_running:
+		return
+	_scene_running = true
+	_last_event = id
+	print("SCENE_START %s" % id)
+	var known: bool = await Events.run(id, _ctx)
+	_dialogue.close()
+	print("SCENE_END %s known=%s" % [id, str(known)])
+	_scene_running = false
 
 
 func _update_label() -> void:
@@ -115,7 +178,9 @@ func _update_label() -> void:
 		var data: Dictionary = _trigger.get("data", {})
 		lines.append("on a %s trigger%s" % [_trigger["kind"],
 			(" → %s" % data["to"]) if data.has("to") else ""])
-	lines.append("move / run · Q,E orbit · C next map · Esc back")
+	if _scene_running:
+		lines.append("scene: %s" % _last_event)
+	lines.append("move / run · Q,E orbit · C next map · V play a scene · Esc back")
 	_label.text = "\n".join(lines)
 
 

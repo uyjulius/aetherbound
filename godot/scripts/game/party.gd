@@ -175,6 +175,13 @@ var inventory: Dictionary = {}
 ## Character id → "front" or "back".
 var rows: Dictionary = {}
 var world_state := "whole"
+## Story flags. A set, spelled as a dictionary because GDScript has no set type.
+var flags: Dictionary = {}
+## Quest id → the stage it is on, or -1 for "not started". `done` is a stage of its own
+## rather than a second field, because every reader wants to compare a number.
+var quests: Dictionary = {}
+## Magicite the party has been given, whether or not anyone is carrying it.
+var espers: Dictionary = {}
 
 var _db
 
@@ -233,6 +240,50 @@ func is_wiped() -> bool:
 
 func row_of(character_id: String) -> String:
 	return String(rows.get(character_id, "front"))
+
+
+# --- flags, quests and magicite ---------------------------------------------
+
+func has_flag(id: String) -> bool:
+	return bool(flags.get(id, false))
+
+
+func set_flag(id: String) -> void:
+	flags[id] = true
+
+
+## Open a quest at a stage. Silent if it is already open: several scenes offer the same
+## quest from two directions and the second must not reset the first.
+func start_quest(id: String, stage := 0) -> void:
+	if not quests.has(id):
+		quests[id] = stage
+
+
+func advance_quest(id: String, stage: int) -> void:
+	if not quests.has(id) or int(quests[id]) < stage:
+		quests[id] = stage
+
+
+func complete_quest(id: String) -> void:
+	quests[id] = 99
+
+
+## The stage a quest is on, or -1 if it has never been started — which is what the
+## scenes compare against, and why this is not simply zero.
+func quest_stage(id: String) -> int:
+	return int(quests.get(id, -1))
+
+
+func has_esper(id: String) -> bool:
+	return bool(espers.get(id, false))
+
+
+func add_esper(id: String) -> void:
+	espers[id] = true
+
+
+func remove_esper(id: String) -> void:
+	espers.erase(id)
 
 
 # --- inventory --------------------------------------------------------------

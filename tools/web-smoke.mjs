@@ -129,6 +129,9 @@ const warnings = [];
 const badResponses = [];
 let ready = null;
 let field = null;
+let sceneStarted = null;
+let sceneEnded = null;
+let dialogueOpened = null;
 
 // Godot writes its own warnings to stderr, which the browser reports as
 // console.error — so the two have to be told apart by their text rather than by
@@ -137,8 +140,14 @@ let field = null;
 // next real error will appear.
 page.on('console', (message) => {
   const text = message.text();
+  // Every line, when asked. The page's own prints are the only window into a build
+  // that is running but not doing what it should.
+  if (process.env.WEB_SMOKE_VERBOSE) console.log(`    [page] ${text.split('\n')[0].slice(0, 160)}`);
   if (text.includes('AETHERBOUND_READY')) ready = text.trim();
   if (text.includes('FIELD_READY')) field = text.trim();
+  if (text.includes('SCENE_START')) sceneStarted = text.trim();
+  if (text.includes('DIALOGUE_OPEN')) dialogueOpened = text.trim();
+  if (text.includes('SCENE_END')) sceneEnded = text.trim();
   if (message.type() !== 'error') return;
   if (/^\s*WARNING:/.test(text)) warnings.push(text.split('\n')[0].trim());
   else errors.push(text);
@@ -202,6 +211,35 @@ if (ready) {
     remote ? 'godot-web-field-live.png' : 'godot-web-field.png');
   fs.mkdirSync(path.dirname(shot), { recursive: true });
   await page.screenshot({ path: shot });
+
+  // And into a scene. The scripted scenes are the largest part of the port and the
+  // only way to know they *play* — rather than merely producing the right transcript
+  // in a harness — is to start one in a browser and watch a line of dialogue arrive.
+  if (field) {
+    await page.keyboard.press('KeyV');
+    const startedAt = Date.now();
+    while (!sceneStarted && Date.now() - startedAt < 30_000) await page.waitForTimeout(200);
+    check('a scripted scene starts', Boolean(sceneStarted), sceneStarted ?? 'no SCENE_START in 30s');
+    // Photographed mid-scene, with a line on screen. Taken after the scene ends and
+    // the picture is of an empty field, which is a poor way to prove a dialogue box
+    // works.
+    await page.waitForTimeout(1200);
+    const sceneShot = path.join(root, '.renders',
+      remote ? 'godot-web-scene-live.png' : 'godot-web-scene.png');
+    await page.screenshot({ path: sceneShot });
+    // Then the pages, turned with confirm, until the scene ends.
+    for (let i = 0; i < 12 && !sceneEnded; i++) {
+      await page.keyboard.press('Enter');
+      await page.waitForTimeout(700);
+    }
+    check('the scene plays to the end', Boolean(sceneEnded),
+      sceneEnded ?? 'no SCENE_END after twelve confirms');
+    // The box has to have a rect. A dialogue box with a zero-sized one plays the whole
+    // scene invisibly and every other check passes.
+    const box = dialogueOpened?.match(/box=\(([\d.]+), ([\d.]+)\)/);
+    check('the dialogue box has a rect', Boolean(box) && Number(box[1]) > 100,
+      dialogueOpened ?? 'no DIALOGUE_OPEN line');
+  }
 }
 
 check('nothing 404s', badResponses.length === 0, badResponses.slice(0, 3).join('; '));

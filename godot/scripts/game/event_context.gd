@@ -34,8 +34,21 @@ var policy := "first"
 var recording := true
 
 ## Live collaborators, when not recording.
+##
+## A scene never learns which mode it is in. That is the whole point of the split: the
+## transcript the harness compares is produced by the same code path the player sees,
+## with the effects swapped out rather than the script rewritten.
 var party: Party = null
 var database = null
+## The dialogue box, when there is one.
+var dialogue: Dialogue = null
+## Called with `(encounter, opts)` and expected to return "victory", "defeat" or
+## "flee". The host owns what a battle *is*; a scene only waits for the outcome.
+var on_battle: Callable = Callable()
+## Called with `(track, opts)`, `(map_id, spawn)` and `(spec)` respectively.
+var on_music: Callable = Callable()
+var on_goto_map: Callable = Callable()
+var on_chest: Callable = Callable()
 ## The field a scene is running in. A marker while recording, because a transcript
 ## that described the field would be a description of the harness.
 var field: Variant = "<field>"
@@ -60,6 +73,8 @@ func _record(call: String, args: Array = []) -> void:
 ## Several pages in sequence, then close. `lines` may be one string or many.
 func say(speaker: Variant, lines: Variant, opts: Dictionary = {}) -> void:
 	_record("dialogue.speak", [speaker, lines if lines is Array else [lines], opts])
+	if not recording and dialogue != null:
+		await dialogue.speak(speaker, lines if lines is Array else [lines], opts)
 
 
 ## The same, from a caller that passes no options at all.
@@ -79,6 +94,10 @@ func page(speaker: Variant, line: String, opts: Dictionary = {}) -> void:
 
 ## A choice. Returns the index taken — which is what the policy decides.
 func ask(question: Variant, choices: Array, opts: Dictionary = {}) -> int:
+	if not recording and dialogue != null:
+		# The player decides. The policy exists for the harness, where there is nobody
+		# to ask.
+		return await dialogue.ask(question, choices, opts)
 	var picked := 0
 	match policy:
 		"second":
@@ -91,6 +110,8 @@ func ask(question: Variant, choices: Array, opts: Dictionary = {}) -> int:
 
 func close_dialogue() -> void:
 	_record("dialogue.close", [])
+	if not recording and dialogue != null:
+		dialogue.close()
 
 
 # ---------------------------------------------------------------------------
@@ -99,6 +120,8 @@ func close_dialogue() -> void:
 
 func has_flag(id: String) -> bool:
 	_record("party.hasFlag", [id])
+	if not recording and party != null:
+		return party.has_flag(id)
 	if policy == "flagged":
 		return true
 	return bool(_flags.get(id, false))
@@ -107,6 +130,8 @@ func has_flag(id: String) -> bool:
 func set_flag(id: String) -> void:
 	_record("party.setFlag", [id])
 	_flags[id] = true
+	if not recording and party != null:
+		party.set_flag(id)
 
 
 func start_quest(id: String) -> void:
@@ -116,23 +141,35 @@ func start_quest(id: String) -> void:
 ## The reference's `startQuest(id, stage)`; several scenes open a quest at a stage.
 func start_quest_at(id: String, stage: int) -> void:
 	_record("party.startQuest", [id, stage])
+	if not recording and party != null:
+		party.start_quest(id, stage)
 
 
 func advance_quest(id: String, stage: Variant = null) -> void:
 	_record("party.advanceQuest", [id, stage])
+	if not recording and party != null:
+		party.advance_quest(id, int(stage) if stage != null else 1)
 
 
 func complete_quest(id: String) -> void:
 	_record("party.completeQuest", [id])
+	if not recording and party != null:
+		party.complete_quest(id)
 
 
 func quest_stage(id: String) -> int:
 	_record("party.questStage", [id])
+	if not recording and party != null:
+		return party.quest_stage(id)
 	return 99 if policy == "flagged" else 0
 
 
 func recruit(id: String, level: Variant = null) -> Dictionary:
 	_record("party.recruit", [id, level])
+	if not recording and party != null:
+		var member_ := party.recruit(id, int(level) if level != null else -1)
+		if member_ != null:
+			return {"id": member_.id, "name": member_.name(), "level": member_.level}
 	return _member(id)
 
 
@@ -150,6 +187,8 @@ func member(id: String) -> Dictionary:
 
 ## The ids of whoever is in the active party, in formation order.
 func active_ids() -> Array:
+	if not recording and party != null:
+		return party.active.duplicate()
 	if policy == "flagged":
 		return ["vesna", "corvin", "wick", "aurelian", "bastian", "idris", "osric",
 			"maret", "tam", "ilsabet", "kestrel", "oda", "rusk", "themask"]
@@ -215,6 +254,10 @@ func pick(list: Array) -> Variant:
 ## Everyone in the roster, as members. One scene walks it to take an esper back.
 func roster_members() -> Array:
 	var out: Array = []
+	if not recording and party != null:
+		for id in party.roster:
+			out.append({"id": id, "name": party.roster[id].name()})
+		return out
 	for id in active_ids():
 		out.append(_member(id))
 	return out
@@ -278,14 +321,20 @@ func present(ids: Array) -> Dictionary:
 
 func add_item(id: String, count: Variant = null) -> void:
 	_record("party.addItem", [id, count])
+	if not recording and party != null:
+		party.add_item(id, int(count) if count != null else 1)
 
 
 func add_gold(amount: int) -> void:
 	_record("party.addGold", [amount])
+	if not recording and party != null:
+		party.add_gold(amount)
 
 
 func spend_gold(amount: int) -> bool:
 	_record("party.spendGold", [amount])
+	if not recording and party != null:
+		return party.spend_gold(amount)
 	return true
 
 
@@ -303,6 +352,8 @@ func full_restore() -> void:
 
 func has_esper(id: String) -> bool:
 	_record("party.espers.has", [id])
+	if not recording and party != null:
+		return party.has_esper(id)
 	return policy == "flagged"
 
 
@@ -312,6 +363,8 @@ func add_esper(id: String) -> void:
 
 func in_roster(id: String) -> bool:
 	_record("party.roster.has", [id])
+	if not recording and party != null:
+		return party.roster.has(id)
 	return policy == "flagged"
 
 
@@ -326,16 +379,22 @@ func bestiary_size() -> int:
 
 func play_music(id: String, opts: Dictionary = {}) -> void:
 	_record("playMusic", [id, opts])
+	if not recording and on_music.is_valid():
+		on_music.call(id, opts)
 
 
 ## The reference hands this the chest *spec* — `{kind, id, label}` — and the field to
 ## place it in, in that order.
 func grant_chest(spec: Variant, field: Variant = null) -> void:
 	_record("grantChest", [spec, field])
+	if not recording and on_chest.is_valid():
+		await on_chest.call(spec)
 
 
 func goto_map(id: String, spawn: Variant = null) -> void:
 	_record("gotoMap", [id, spawn])
+	if not recording and on_goto_map.is_valid():
+		on_goto_map.call(id, spawn)
 
 
 func celebrate(a: Variant = null, b: Variant = null) -> void:
@@ -356,6 +415,8 @@ func autosave(reason: String) -> void:
 
 ## Start a battle from inside a scene and wait for the outcome.
 func battle(encounter: Dictionary, opts: Dictionary = {}) -> String:
+	if not recording and on_battle.is_valid():
+		return await on_battle.call(encounter, opts)
 	var result := "defeat" if policy == "lost" else "victory"
 	_record("startBattleScene", [encounter, opts, result])
 	return result
@@ -405,6 +466,12 @@ func stage_class(name: String, on: bool) -> void:
 func wait(seconds: float) -> void:
 	if recording:
 		log.append({"yield": "wait", "seconds": snappedf(seconds, 0.0001)})
+		return
+	if dialogue != null:
+		# Real time, on the scene's own clock. The scheduler owns game time for
+		# everything that has to pause with the world; a beat between two lines of
+		# dialogue is presentation and belongs on the frame clock.
+		await dialogue.get_tree().create_timer(seconds).timeout
 
 
 ## Run a callback every step for a duration, as the reference's `over` does.
