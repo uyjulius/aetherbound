@@ -44,6 +44,15 @@ const STUCK_EPISODES := 3
 ## How fast a villager strolls. The reference's number.
 const NPC_SPEED := 1.9
 
+# The airship. Every number is the reference's, because the reach of the ship decides which
+# continents a player can get to at all.
+const AIRSHIP_SPEED := 17.0
+const AIRSHIP_BOOST_SPEED := 30.0
+const AIRSHIP_ALTITUDE := 9.5
+const AIRSHIP_PARKED_Y := 0.9
+const AIRSHIP_CAMERA_DISTANCE := 30.0
+const AIRSHIP_CAMERA_PITCH := 0.82
+
 ## A chest is a thing on the ground rather than a person to face.
 const CHEST_REACH := 1.7
 
@@ -398,7 +407,21 @@ func interact_target() -> Dictionary:
 				best_distance = d
 				best = {"kind": "object", "prop": prop,
 					"label": String(Dictionary(prop.get("interact", {})).get("prompt", "Examine"))}
+	# A ship left on the ground is boardable from where it stands, so landing somewhere remote
+	# is a decision rather than a mistake.
+	if not parked.is_empty():
+		var to_ship := sqrt(pow(ax - float(parked["x"]), 2.0)
+			+ pow(az - float(parked["z"]), 2.0))
+		if to_ship < 3.4 and to_ship < best_distance:
+			best_distance = to_ship
+			best = {"kind": "airship", "label": "Board"}
 	return best
+
+
+## The ship, while the party is flying it: `{x, z, facing, thrust}`. Empty on the ground.
+var vehicle: Dictionary = {}
+## Where the hull is sitting, when it is sitting: `{x, z, facing}`.
+var parked: Dictionary = {}
 
 
 ## Chests this field has been told are already open, by prop id.
@@ -406,6 +429,128 @@ func interact_target() -> Dictionary:
 ## Passed in rather than read from the party, so the field stays a simulation with no
 ## opinion about save files — which is what lets `field-parity.mjs` drive it without one.
 var opened_chests: Dictionary = {}
+
+
+# ---------------------------------------------------------------------------
+# The airship
+# ---------------------------------------------------------------------------
+
+## Get in. The ship lifts from wherever the party is standing.
+##
+## The parked hull is reused rather than a second one spawned, which is the reference's note
+## and its reason: boarding used to leave a ship next to the one already there.
+func board() -> void:
+	if not vehicle.is_empty():
+		return
+	vehicle = {
+		"x": player.x, "z": player.z, "facing": player.facing, "thrust": 0.0,
+	}
+	parked = {}
+	camera.target_distance = AIRSHIP_CAMERA_DISTANCE
+	camera.pitch = AIRSHIP_CAMERA_PITCH
+	camera.height = AIRSHIP_ALTITUDE * 0.8
+
+
+## Step off onto the tile below, leaving the ship where it stands — a little to one side, so
+## the party is not standing inside it.
+func disembark() -> void:
+	if vehicle.is_empty():
+		return
+	var x := float(vehicle["x"])
+	var z := float(vehicle["z"])
+	var facing := float(vehicle["facing"])
+	vehicle = {}
+	parked = {
+		"x": x + sin(facing + PI / 2.0) * 3.2,
+		"z": z + cos(facing + PI / 2.0) * 3.2,
+		"facing": facing,
+	}
+	player.x = x
+	player.z = z
+	player.facing = facing
+	player.target_facing = facing
+	player.speed = 0.0
+	camera.target_distance = float(_map_def.get("cameraDistance", 13.5))
+	camera.pitch = float(_map_def.get("cameraPitch", 0.72))
+	camera.height = 1.4
+	camera.look = Vector3(x, camera.height, z)
+	encounter_threshold = roll_encounter_threshold()
+
+
+## Is the ship over ground it could put down on?
+##
+## The landing tile *and* its four neighbours have to be clear, so the party never disembarks
+## into a one-tile pocket they cannot walk out of.
+func can_land() -> bool:
+	if vehicle.is_empty():
+		return false
+	var x := float(vehicle["x"])
+	var z := float(vehicle["z"])
+	for offset in [[0, 0], [1, 0], [-1, 0], [0, 1], [0, -1]]:
+		if not grid.is_walk_world(x + float(offset[0]) * _tile, z + float(offset[1]) * _tile):
+			return false
+	return true
+
+
+## Is the ship pressed against the named edge of the map?
+func at_crossing_edge(edge: String) -> bool:
+	if vehicle.is_empty():
+		return false
+	var margin := _tile * 1.5
+	var x := float(vehicle["x"])
+	var z := float(vehicle["z"])
+	match edge:
+		"west": return x <= margin
+		"east": return x >= float(grid.w) * _tile - margin
+		"north": return z <= margin
+		"south": return z >= float(grid.h) * _tile - margin
+	return false
+
+
+## Fly. Returns `{crossing, landable}` — what the screen should be offering.
+##
+## Momentum, so the ship feels heavy rather than like a cursor: about a second and a half to
+## reach cruise and rather longer to stop. The clamp keeps it over the ground plane, because a
+## ship that flies off the edge of a map is looking at nothing.
+func update_airship(dt: float, move: Vector2, boosting: bool) -> Dictionary:
+	if vehicle.is_empty():
+		return {}
+	var magnitude := minf(1.0, move.length())
+	var moving := magnitude > 0.01
+	var top := AIRSHIP_BOOST_SPEED if boosting else AIRSHIP_SPEED
+	var wanted := top if moving else 0.0
+	var thrust := float(vehicle["thrust"])
+	thrust += (minf(1.0, wanted / AIRSHIP_BOOST_SPEED) - thrust) \
+		* minf(1.0, dt * (0.9 if moving else 1.6))
+	vehicle["thrust"] = thrust
+
+	if moving:
+		var dir := camera.transform_input(move.x, move.y)
+		var length := sqrt(dir[0] * dir[0] + dir[1] * dir[1])
+		if length <= 0.0:
+			length = 1.0
+		var target := atan2(dir[0] / length, dir[1] / length)
+		var diff := target - float(vehicle["facing"])
+		while diff > PI:
+			diff -= PI * 2.0
+		while diff < -PI:
+			diff += PI * 2.0
+		vehicle["facing"] = float(vehicle["facing"]) + diff * minf(1.0, dt * 2.4)
+
+	var speed := thrust * AIRSHIP_BOOST_SPEED
+	vehicle["x"] = float(vehicle["x"]) + sin(float(vehicle["facing"])) * speed * dt
+	vehicle["z"] = float(vehicle["z"]) + cos(float(vehicle["facing"])) * speed * dt
+	vehicle["x"] = clampf(float(vehicle["x"]), _tile, float(grid.w) * _tile - _tile)
+	vehicle["z"] = clampf(float(vehicle["z"]), _tile, float(grid.h) * _tile - _tile)
+
+	camera.update(dt, float(vehicle["x"]), float(vehicle["z"]))
+
+	# A crossing is offered only in the air. A continent with no road to it is the whole reason
+	# the ship exists, and letting a walker paddle across would undo that in one line.
+	var crossing: Dictionary = _map_def.get("crossing", {})
+	if not crossing.is_empty() and at_crossing_edge(String(crossing.get("edge", ""))):
+		return {"crossing": crossing}
+	return {"landable": can_land()}
 
 
 ## Move the people who move, and turn the ones the party walks up to.

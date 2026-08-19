@@ -161,6 +161,8 @@ const found = [];
 let chest = null;
 let chestDone = null;
 let savePoint = null;
+let boarded = null;
+let landed = null;
 let wiped = null;
 let rolledBack = null;
 const configured = [];
@@ -217,6 +219,8 @@ page.on('console', (message) => {
   if (/^CHEST /.test(text.trim())) chest = text.trim();
   if (/^CHEST_DONE /.test(text.trim())) chestDone = text.trim();
   if (/^SAVE_POINT /.test(text.trim())) savePoint = text.trim();
+  if (/^BOARDED /.test(text.trim())) boarded = text.trim();
+  if (/^LANDED /.test(text.trim())) landed = text.trim();
   if (/^FOUND /.test(text.trim())) found.push(text.trim());
   if (text.includes('PARTY_WIPED')) wiped = text.trim();
   if (text.includes('ROLLED_BACK')) rolledBack = text.trim();
@@ -874,6 +878,34 @@ if (audioReady) {
   check('the shop and the inn have their own themes',
     asked.includes('shop') && asked.includes('inn'),
     asked.join(' → ').slice(0, 220));
+}
+
+// --- the airship -------------------------------------------------------------
+//
+// Won two thirds of the way through the story and reachable by key here, because two of the
+// ninety-five maps have no road to them: the ship is not a convenience, it is the only way to
+// reach the Meridian Reach. Its flight is compared step for step against the reference's in
+// `field-parity.mjs`; what this proves is that a player can get in it, fly it and put it down.
+if (field) {
+  await page.keyboard.press('KeyY');
+  await page.waitForTimeout(600);
+  check('the party can board the airship', Boolean(boarded), boarded ?? 'no BOARDED line');
+  // Fly for a couple of seconds, then look for somewhere to land. `Land` is offered wherever
+  // the tile below and its four neighbours are clear, so a short hop over open ground finds
+  // one.
+  for (let i = 0; i < 12; i++) {
+    await page.keyboard.down('ArrowDown');
+    await page.waitForTimeout(140);
+    await page.keyboard.up('ArrowDown');
+  }
+  for (let i = 0; i < 10 && !landed; i++) {
+    await page.keyboard.press('Enter');
+    await page.waitForTimeout(300);
+  }
+  check('and put it down again', Boolean(landed), landed ?? 'no LANDED line');
+  await page.screenshot({ path: path.join(root, '.renders',
+    remote ? 'godot-web-airship-live.png' : 'godot-web-airship.png') });
+  await clearField();
 }
 
 // --- every map in the world --------------------------------------------------

@@ -76,7 +76,8 @@ func _initialize() -> void:
 			"standing_clear": field.standing_clear(),
 		}
 
-	print(JSON.stringify({"maps": maps, "cases": _cases(), "walks": _walks(db)}))
+	print(JSON.stringify({"maps": maps, "cases": _cases(), "walks": _walks(db),
+		"flights": _flights(db)}))
 	quit()
 
 
@@ -106,6 +107,50 @@ func _triggers(grid) -> Array:
 			"w": snappedf(t["w"], 0.0001), "d": snappedf(t["d"], 0.0001),
 			"kind": t["kind"], "to": data.get("to", null),
 		})
+	return out
+
+
+## Scripted flights: the airship, stepped the way the walks are.
+##
+## The same script and the same delta as the harvest. What is compared is where the ship ends
+## up, which is a game rule rather than a feel: two continents in this world have no road to
+## them, and how far the ship travels in a second decides whether they can be reached.
+const FLIGHT_SCRIPT := [
+	[[0, -1], 90], [[1, 0], 60], [[0, 0], 40],
+	[[-1, 0], 120], [[0.7, 0.7], 80], [[0, 0], 60],
+]
+const FLIGHT_MAPS := ["overworld", "eastreach"]
+
+
+func _flights(db) -> Dictionary:
+	var out := {}
+	for id in FLIGHT_MAPS:
+		if not db.maps.has(id):
+			continue
+		for boosting in [false, true]:
+			var field = FieldSim.new(Build.resolve(db.maps[id], "whole"), db.legend,
+				db.footprints, "default", db.encounters, RNG.new(1))
+			field.camera.yaw = PI
+			field.camera.target_yaw = PI
+			field.board()
+			var trail: Array = []
+			for entry in FLIGHT_SCRIPT:
+				var move := Vector2(float(entry[0][0]), float(entry[0][1]))
+				for _i in int(entry[1]):
+					field.update_airship(1.0 / 60.0, move, boosting)
+					trail.append([
+						snappedf(float(field.vehicle["x"]), 0.000001),
+						snappedf(float(field.vehicle["z"]), 0.000001),
+						snappedf(float(field.vehicle["facing"]), 0.000001),
+						snappedf(float(field.vehicle["thrust"]), 0.000001),
+					])
+			var crossing: Dictionary = Dictionary(db.maps[id]).get("crossing", {})
+			out["%s@%s" % [id, "boost" if boosting else "cruise"]] = {
+				"trail": trail,
+				"landable": field.can_land(),
+				"crossing": field.at_crossing_edge(String(crossing.get("edge", ""))) \
+					if not crossing.is_empty() else false,
+			}
 	return out
 
 

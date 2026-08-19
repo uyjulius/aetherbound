@@ -10,6 +10,7 @@ a model is CC-BY, saying so is also the licence.
 
 | Kit | Model | Author | Licence | Source |
 |---|---|---|---|---|
+| airship | Airship | Poly by Google | CC-BY 3.0 | https://poly.pizza/m/cr7RPZ4RfGM |
 | airshipmast | Column | Quaternius | CC0 1.0 | https://poly.pizza/m/wLubNpOTX4 |
 | barrel | Barrel | Quaternius | CC0 1.0 | https://poly.pizza/m/MraIiFnpAY |
 | bench | Bench | Quaternius | CC0 1.0 | https://poly.pizza/m/nARUaxtRHA |

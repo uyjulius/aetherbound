@@ -65,6 +65,7 @@ var _crowd: Array[Node3D] = []
 var _crowd_clips: Array[String] = []
 ## What the walker is doing, so a clip is only restarted when it changes.
 var _walker_clip := ""
+var _ship: Node3D
 var _sun: DirectionalLight3D
 var _environment: Environment
 var _place: Label
@@ -169,7 +170,7 @@ func _ready() -> void:
 	# diagnostic that can only reach a fight by walking until one happens is a
 	# diagnostic nobody uses.
 	for action in ["debug_battle", "debug_boss", "debug_map", "debug_shop", "debug_inn",
-			"debug_lose", "debug_grid", "debug_chest"]:
+			"debug_lose", "debug_grid", "debug_chest", "debug_fly"]:
 		if InputMap.has_action(action):
 			InputMap.erase_action(action)
 		InputMap.add_action(action)
@@ -209,6 +210,12 @@ func _ready() -> void:
 	var t := InputEventKey.new()
 	t.physical_keycode = KEY_T
 	InputMap.action_add_event("debug_chest", t)
+	# The ship, which is won two thirds of the way through the story. Reaching it by playing
+	# there is not something a check can do, and the reach of the ship is what decides whether
+	# two of the continents can be visited at all.
+	var y := InputEventKey.new()
+	y.physical_keycode = KEY_Y
+	InputMap.action_add_event("debug_fly", y)
 
 	_ctx = Ctx.new("first", false)
 	_ctx.database = _db
@@ -276,6 +283,16 @@ func _open(index: int, spawn := "default") -> void:
 	var def := MapBuilder.resolve(_db.maps[id], _party.world_state)
 	_field = FieldSim.new(def, _db.legend, _db.footprints, spawn,
 		_db.encounters, RngStreams.encounter)
+	# The ship, if it was left on this map. It is in the save file, so it is still there.
+	if not _party.airship.is_empty() and String(_party.airship.get("map", "")) == id:
+		_field.parked = {
+			"x": float(_party.airship.get("x", 0.0)),
+			"z": float(_party.airship.get("z", 0.0)),
+			"facing": float(_party.airship.get("facing", 0.0)),
+		}
+	if _ship != null:
+		_place_airship()
+
 	# Which chests here are already empty. The party carries that, which is to say the save
 	# file does: the reference kept it on the shared map definition once, and all 383 chests in
 	# the game reopened on reload.
@@ -493,6 +510,86 @@ func _spawn_crowd() -> void:
 	print("CROWD map=%s people=%d" % [_ids[_index], _crowd.size()])
 
 
+## Flying.
+##
+## The movement, the momentum, the clamp and the landing rule are all in `Field`, checked
+## against the reference over four scripted flights — this only shows the ship and offers what
+## the simulation says is available.
+func _fly(delta: float) -> void:
+	var offer := _field.update_airship(delta, Actions.move_vector(), Actions.is_down("run"))
+	_place_airship()
+	_follow_camera()
+
+	var crossing: Dictionary = offer.get("crossing", {})
+	if not crossing.is_empty():
+		_prompt.text = String(crossing.get("prompt", "Cross"))
+		if Actions.just_pressed("confirm"):
+			# Crossing is the airship's whole reason to exist: the Meridian Reach has no road
+			# to it. The ship comes along, parked wherever the party lands next.
+			var to := String(crossing.get("to", ""))
+			var spawn := String(crossing.get("spawn", "default"))
+			print("CROSSED to=%s" % to)
+			_field.vehicle = {}
+			_travel(to, spawn)
+			# Still aboard on the other side, which is what "cross" means.
+			_field.board()
+			_place_airship()
+		_update_label()
+		return
+
+	if bool(offer.get("landable", false)):
+		_prompt.text = "Land"
+		if Actions.just_pressed("confirm"):
+			_field.disembark()
+			_party.airship = {
+				"map": _ids[_index],
+				"x": float(_field.parked.get("x", 0.0)),
+				"z": float(_field.parked.get("z", 0.0)),
+				"facing": float(_field.parked.get("facing", 0.0)),
+			}
+			print("LANDED map=%s at %.2f,%.2f" % [_ids[_index],
+				_field.player.x, _field.player.z])
+			_place_airship()
+			_play_map_music(1.2)
+	else:
+		_prompt.text = ""
+	_update_label()
+
+
+## Where the hull is, and whether the party is inside it.
+##
+## One model, moved: boarding used to spawn a second ship beside the one already parked, which
+## is the reference's own note.
+func _place_airship() -> void:
+	if _ship == null:
+		var spec: Dictionary = _scenery.plan.get("kits", {}).get("airship", {})
+		if spec.is_empty():
+			return
+		var scene_path := "res://assets/props/%s" % String(spec.get("file", ""))
+		if not ResourceLoader.exists(scene_path):
+			return
+		var scene: PackedScene = load(scene_path)
+		_ship = scene.instantiate()
+		var scale := float(spec.get("scale", 1.0))
+		_ship.scale = Vector3(scale, scale, scale)
+		_world.add_child(_ship)
+	var flying := not _field.vehicle.is_empty()
+	var source: Dictionary = _field.vehicle if flying else _field.parked
+	if source.is_empty():
+		_ship.visible = false
+		return
+	_ship.visible = true
+	_ship.position = Vector3(float(source["x"]),
+		Field.AIRSHIP_ALTITUDE if flying else Field.AIRSHIP_PARKED_Y, float(source["z"]))
+	_ship.rotation.y = float(source["facing"]) + PI
+	# The party is inside it while it flies.
+	if _walker != null:
+		_walker.visible = not flying
+	for node in _crowd:
+		if node != null:
+			node.visible = not flying
+
+
 ## Walk the crowd's models to wherever the simulation has put them.
 func _move_crowd() -> void:
 	for i in mini(_crowd.size(), _field.npcs.size()):
@@ -604,6 +701,12 @@ func _process(delta: float) -> void:
 	if Input.is_action_just_pressed("debug_lose"):
 		_lose()
 		return
+	if Input.is_action_just_pressed("debug_fly"):
+		print("BOARDED map=%s" % _ids[_index])
+		Sound.play_music("airship", 1.2)
+		_field.board()
+		_place_airship()
+		return
 	if Input.is_action_just_pressed("debug_chest"):
 		_open_nearest_chest()
 		return
@@ -633,6 +736,12 @@ func _process(delta: float) -> void:
 		_field.camera.orbit(1)
 	if Actions.just_pressed("pageRight"):
 		_field.camera.orbit(-1)
+
+	# In the air, the ship is the whole of the update: the party is aboard, there is nothing to
+	# collide with and no encounters to walk into.
+	if not _field.vehicle.is_empty():
+		_fly(delta)
+		return
 
 	# The villagers, before the party moves: thirty-one of them wander and the rest turn to
 	# look at whoever has come close. Outside `Field.update` on purpose — their colliders travel
@@ -665,6 +774,11 @@ func _process(delta: float) -> void:
 				_talk_to(_interact["npc"])
 			"chest":
 				_open_chest(_interact["prop"])
+			"airship":
+				print("BOARDED map=%s" % _ids[_index])
+				Sound.play_music("airship", 1.2)
+				_field.board()
+				_place_airship()
 			"object":
 				_examine(_interact["prop"])
 		return
@@ -1085,7 +1199,7 @@ func _update_label() -> void:
 	if _battle != null and _battle.visible:
 		lines.append("in battle")
 	lines.append("move / run · Q,E orbit · C menu · M next map · V scene · B fight · N boss"
-		+ " · K shop · L inn · T chest · P wipe · G grid · Esc back")
+		+ " · K shop · L inn · T chest · Y fly · P wipe · G grid · Esc back")
 	_label.text = "\n".join(lines)
 
 

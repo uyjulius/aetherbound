@@ -81,6 +81,9 @@ const KITS = [
   { kit: 'well', count: 52, terms: ['well', 'water well'] },
   { kit: 'bridge', count: 2, terms: ['bridge', 'small bridge'] },
   { kit: 'airshipmast', count: 1, terms: ['tower', 'mast', 'windmill'] },
+  // The ship itself. Two continents in this world have no road to them, so this is not
+  // scenery: it is the only way to reach them.
+  { kit: 'airship', count: 1, terms: ['airship', 'blimp', 'zeppelin'] },
   // Not props but the ground and the walls, instanced per tile from the map's own terrain
   // rows. A modular piece placed at authored coordinates is level assembly; the alternative
   // — a plane and a box built in code — is the thing this project does not do.

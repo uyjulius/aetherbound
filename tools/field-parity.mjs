@@ -27,6 +27,11 @@
  * bug that was correct at the default angle and reversed a quarter turn away, and
  * both times it survived because the tests only measured the default.
  *
+ * **The flights.** The airship, stepped the same way, at cruise and at full boost. Its reach
+ * is a game rule rather than a feel: two continents in this world have no road to them, so how
+ * far the ship travels in a second and where it is allowed to put down decide whether they can
+ * be reached at all.
+ *
  * **The oracle's age.** The fixture records a hash of `maps.json`. If the maps have
  * changed since the harvest, this fails and asks for a re-harvest rather than
  * comparing today's port against last week's world.
@@ -146,6 +151,7 @@ say('─'.repeat(56));
 const failures = [];
 const tally = {
   cells: 0, shapes: 0, triggers: 0, spawns: 0, clear: 0, resolve: 0, trigger_at: 0, trail: 0,
+  flight: 0,
 };
 const fail = (line) => { if (failures.length < 16) failures.push(line); else failures.push(null); };
 
@@ -276,9 +282,55 @@ for (const [key, expected] of Object.entries(fixture.walks ?? {})) {
   }
 }
 
+// --- the flights -------------------------------------------------------------
+//
+// Four of them: two maps, cruise and boost. Compared the same way as the walks and with the
+// same bound, plus the two answers that decide where a player can go — whether the ship may
+// put down here, and whether it is against the edge that crosses to another continent.
+let worstFlight = 0;
+let worstFlightKey = '';
+for (const [key, expected] of Object.entries(fixture.flights ?? {})) {
+  const actual = ported.flights?.[key];
+  if (!actual) { fail(`flight ${key}: the port produced no trail`); continue; }
+  if (actual.trail.length !== expected.trail.length) {
+    fail(`flight ${key}: ${actual.trail.length} positions, expected ${expected.trail.length}`);
+    continue;
+  }
+  const FLIGHT_TOLERANCE = 0.0001;
+  let worst = 0;
+  let worstStep = -1;
+  for (let i = 0; i < expected.trail.length; i++) {
+    tally.flight++;
+    // Position, bearing and thrust: a wrong turn rate shows in the bearing long before it
+    // shows in the position, and thrust is the momentum the reference deliberately gave it.
+    const drift = Math.max(
+      Math.abs(actual.trail[i][0] - expected.trail[i][0]),
+      Math.abs(actual.trail[i][1] - expected.trail[i][1]),
+      Math.abs(actual.trail[i][2] - expected.trail[i][2]),
+      Math.abs(actual.trail[i][3] - expected.trail[i][3]));
+    if (drift > worst) { worst = drift; worstStep = i; }
+  }
+  if (worst > worstFlight) { worstFlight = worst; worstFlightKey = key; }
+  if (worst > FLIGHT_TOLERANCE) {
+    fail(`flight ${key}: drifts ${worst.toFixed(5)} by step ${worstStep} — `
+      + `port ${JSON.stringify(actual.trail[worstStep])}`
+      + `, reference ${JSON.stringify(expected.trail[worstStep])}`);
+  }
+  tally.flight += 2;
+  if (actual.landable !== expected.landable) {
+    fail(`flight ${key}: the port ${actual.landable ? 'would' : 'would not'} land here, `
+      + `the reference ${expected.landable ? 'would' : 'would not'}`);
+  }
+  if (actual.crossing !== expected.crossing) {
+    fail(`flight ${key}: the port ${actual.crossing ? 'is' : 'is not'} at the crossing edge, `
+      + `the reference ${expected.crossing ? 'is' : 'is not'}`);
+  }
+}
+
 const labels = {
   cells: 'walk cells', shapes: 'colliders', triggers: 'triggers', spawns: 'spawn points',
   clear: 'clear()', resolve: 'resolve()', trigger_at: 'trigger_at()', trail: 'walk positions',
+  flight: 'flight steps',
 };
 const real = failures.filter(Boolean);
 for (const [key, label] of Object.entries(labels)) {
@@ -298,6 +350,8 @@ if (real.length) {
 const worstDrift = drifts.reduce((n, [, d]) => Math.max(n, d), 0);
 say(`  worst walk drift ${worstDrift.toExponential(1)} units, on `
   + `${drifts.filter(([, d]) => d > 0).length} of ${drifts.length} walks`);
+say(`  worst flight drift ${worstFlight.toExponential(1)} on `
+  + `${worstFlightKey || 'nothing'}`);
 if (process.env.FIELD_PARITY_DETAIL) {
   for (const [key, drift, step] of drifts) {
     say(`    ${key.padEnd(20)} ${drift.toFixed(5)} at step ${step}`);
@@ -309,4 +363,5 @@ const keys = Object.keys(fixture.grids);
 const ruinKeys = keys.filter((k) => k.endsWith('#ruin')).length;
 say(`\x1b[32mOK\x1b[0m — ${total.toLocaleString()} values across ${keys.length - ruinKeys} maps `
   + `and the ${ruinKeys} of them the cataclysm changes: every walkable cell,`);
-say('     every collider, every trigger, every spawn, and every step of sixteen walks.');
+say('     every collider, every trigger, every spawn, every step of sixteen walks, and four'
+  + ' flights.');

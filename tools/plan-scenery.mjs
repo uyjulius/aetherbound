@@ -75,6 +75,12 @@ const RULES = {
   savepoint: { fit: 'height', height: 2.2 },
   airshipmast: { fit: 'height', height: 12.0 },
 
+  // The airship, scaled by its longest side rather than by width or height: it arrives 195
+  // by 352 by 404 units, and which of those is its length depends on how its author stood it
+  // up. Eleven units is a ship a party of four could ride and still see past — at sixteen it
+  // fills the screen and the world behind it disappears.
+  airship: { fit: 'longest', length: 11.0 },
+
   // Buildings scale to their own declared box, per placement.
   building: { fit: 'box' },
 };
@@ -170,7 +176,9 @@ for (const [kit, rule] of Object.entries(RULES)) {
   } : null;
 
   let scale;
-  if (rule.fit === 'height') {
+  if (rule.fit === 'longest') {
+    scale = rule.length / Math.max(sx, sy, asset.size[2] ?? 0, 1);
+  } else if (rule.fit === 'height') {
     scale = rule.height / (sy || 1);
   } else if (footprint) {
     scale = footprint.w / (sx || 1);
@@ -241,7 +249,8 @@ say('\x1b[1mHow the scenery is placed\x1b[0m');
 say('─'.repeat(58));
 for (const [kit, k] of Object.entries(plan.kits)) {
   const target = k.fit === 'height' ? `${(k.model[1] * k.scale).toFixed(2)} tall`
-    : `${(k.model[0] * k.scale).toFixed(2)} wide`;
+    : (k.fit === 'longest' ? `${(Math.max(...k.model) * k.scale).toFixed(2)} long`
+      : `${(k.model[0] * k.scale).toFixed(2)} wide`);
   say(`  ${kit.padEnd(13)} ×${k.scale.toFixed(3).padStart(7)}  → ${target.padEnd(12)}`
     + `${k.footprint ? `collider ${k.footprint.w}×${k.footprint.d}` : ''}`);
 }

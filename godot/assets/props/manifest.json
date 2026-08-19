@@ -570,5 +570,27 @@
   "meshes": 1,
   "materials": 8,
   "bytes": 670832
+ },
+ "airship": {
+  "file": "airship.glb",
+  "id": "cr7RPZ4RfGM",
+  "title": "Airship",
+  "author": "Poly by Google",
+  "licence": "CC-BY 3.0",
+  "attribution": "\"Airship\" by Poly by Google, https://poly.pizza/m/cr7RPZ4RfGM. Licence at https://creativecommons.org/licenses/by/3.0",
+  "source": "https://poly.pizza/m/cr7RPZ4RfGM",
+  "size": [
+   195.1332,
+   352.655,
+   404.151
+  ],
+  "base": -139.907,
+  "centre": [
+   1.8915,
+   2.0425
+  ],
+  "meshes": 1,
+  "materials": 1,
+  "bytes": 240604
  }
 }

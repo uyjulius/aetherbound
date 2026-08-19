@@ -282,14 +282,99 @@ const mapsHash = crypto.createHash('sha256')
 
 fs.writeFileSync(path.join(root, 'godot', 'data', 'footprints.json'),
   JSON.stringify(footprints));
+// --- scripted flights ------------------------------------------------------
+//
+// The airship, stepped the same way the walks are. It matters more than it looks: the reach of
+// the ship is what decides which continents a player can get to at all — the Meridian Reach
+// has no road to it — so its momentum, its turn rate, its clamp to the map and its landing
+// rule are game rules rather than feel. Two of the ninety-five maps carry a `crossing`, and
+// both are only reachable in the air.
+//
+// `buildAirship` puts a Three.js rig in the scene, so the reference's `_updateAirship` is
+// driven with a stub rig: what is recorded is the *state* — position, bearing, thrust — and
+// what the screen would be offering.
+const FLIGHT_SCRIPT = [
+  [[0, -1], 90], [[1, 0], 60], [[0, 0], 40],
+  [[-1, 0], 120], [[0.7, 0.7], 80], [[0, 0], 60],
+];
+const FLIGHT_MAPS = ['overworld', 'eastreach'];
+const flights = {};
+for (const id of FLIGHT_MAPS) {
+  if (!maps.includes(id)) continue;
+  for (const boost of [false, true]) {
+    const flight = await page.evaluate(async ({ mapId, script, boosting }) => {
+      const game = window.__game;
+      await game.gotoMap(mapId, 'default');
+      await new Promise((resolve) => setTimeout(resolve, 380));
+      const state = game.state;
+      const input = window.__input;
+
+      const bearing = Math.PI;
+      state.camera.yaw = bearing;
+      state.camera.targetYaw = bearing;
+      state._checkTriggers = () => {};
+
+      const realMove = input.moveVector.bind(input);
+      const realDown = input.isDown.bind(input);
+      let vector = { x: 0, y: 0 };
+      input.moveVector = () => vector;
+      input.isDown = (action) => (action === 'run' ? boosting : false);
+      // The prompt element and the exit callback, stubbed: this is measuring where the ship
+      // goes, not what the DOM says about it.
+      const realPrompt = state.promptEl;
+      const offered = [];
+      state.promptEl = { textContent: '', classList: { add() {}, remove() {}, toggle() {} } };
+      const realExit = state.onExit;
+      state.onExit = (payload) => { offered.push({ crossed: payload }); };
+
+      const trail = [];
+      try {
+        state.board(game);
+        // The rig is a Three.js object the harness has no use for; only its transform is
+        // written to, so a plain stand-in is enough.
+        state.vehicle.rig = { root: { position: { x: 0, y: 0, z: 0 }, rotation: { y: 0 },
+          userData: {} } };
+        for (const [move, steps] of script) {
+          vector = { x: move[0], y: move[1] };
+          for (let i = 0; i < steps; i++) {
+            state._updateAirship(1 / 60);
+            const v = state.vehicle;
+            if (!v) break;
+            trail.push([
+              Number(v.x.toFixed(6)), Number(v.z.toFixed(6)),
+              Number(v.facing.toFixed(6)), Number(v.thrust.toFixed(6)),
+            ]);
+          }
+        }
+      } finally {
+        input.moveVector = realMove;
+        input.isDown = realDown;
+        state.promptEl = realPrompt;
+        state.onExit = realExit;
+      }
+      return {
+        trail,
+        landable: state.canLand(),
+        crossing: state.mapDef.crossing
+          ? state._atCrossingEdge(state.mapDef.crossing.edge) : false,
+        offered: offered.length,
+      };
+    }, { mapId: id, script: FLIGHT_SCRIPT, boosting: boost });
+    flights[`${id}@${boost ? 'boost' : 'cruise'}`] = flight;
+  }
+  process.stdout.write(`\r  flew ${id.padEnd(20)}     `);
+}
+say();
+
 fs.writeFileSync(path.join(root, 'tools', 'fixtures', 'reference-grids.json'),
-  JSON.stringify({ maps_hash: mapsHash, harvested: targets.length, grids, walks }));
+  JSON.stringify({ maps_hash: mapsHash, harvested: targets.length, grids, walks, flights }));
 
 await browser.close();
 stopServer();
 
 say();
 say(`  footprints  ${Object.keys(footprints).length} maps, ${colliderCount} colliders`);
+say(`  flights     ${Object.keys(flights).length} recorded`);
 say(`  fixture     ${Object.keys(grids).length} maps, ${Object.keys(walks).length} walks, `
   + `maps.json hash ${mapsHash}`);
 if (shared) {

@@ -266,6 +266,19 @@
     4.0723,
     1.3041
    ]
+  },
+  "airship": {
+   "file": "airship.glb",
+   "scale": 0.0272,
+   "y": 3.8079,
+   "yaw": 0,
+   "fit": "longest",
+   "footprint": null,
+   "model": [
+    195.1332,
+    352.655,
+    404.151
+   ]
   }
  },
  "buildings": {
