@@ -139,6 +139,18 @@ let mapEntered = null;
 let talked = null;
 let menuOpened = null;
 let menuClosed = null;
+let shopOpened = null;
+let shopStock = null;
+let shopClosed = null;
+const bought = [];
+const sold = [];
+let innRest = null;
+let innWoke = null;
+let innDone = null;
+let compared = null;
+// Gil, as last reported by any line that mentions it — the inn's bill is checked
+// against what the party had a moment before rather than against the inn's own word.
+let lastGold = NaN;
 const equipped = [];
 
 // Godot writes its own warnings to stderr, which the browser reports as
@@ -160,6 +172,17 @@ page.on('console', (message) => {
   if (text.includes('TALK ')) talked = text.trim();
   if (text.includes('MENU_OPEN')) menuOpened = text.trim();
   if (text.includes('MENU_CLOSED')) menuClosed = text.trim();
+  if (text.includes('SHOP_OPEN')) shopOpened = text.trim();
+  if (/^SHOP \S+ stock=/.test(text.trim())) shopStock = text.trim();
+  if (text.includes('SHOP_CLOSED')) shopClosed = text.trim();
+  if (text.includes('BOUGHT ')) bought.push(text.trim());
+  if (text.includes('SOLD ')) sold.push(text.trim());
+  if (text.includes('INN_REST')) innRest = text.trim();
+  if (text.includes('INN_WOKE')) innWoke = text.trim();
+  if (text.includes('INN_DONE')) innDone = text.trim();
+  if (text.includes('SHOP_COMPARE')) compared = text.trim();
+  const gold = text.match(/gold=(\d+)/);
+  if (gold) lastGold = Number(gold[1]);
   if (text.includes('EQUIPPED ')) equipped.push(text.trim());
   if (text.includes('BATTLE_START')) battleStarted = text.trim();
   if (text.includes('BATTLE_END')) battleEnded = text.trim();
@@ -338,6 +361,101 @@ if (ready) {
       check('the menu closes when backed out of', Boolean(menuClosed),
         menuClosed ?? 'no MENU_CLOSED after six cancels');
     }
+
+    // The shop. Harrowmere's general store, reached the way a player reaches it — through
+    // the map's own NPC — and the two things a store must get right: money leaves when
+    // something is bought, and money arrives when something is sold.
+    const goldOf = (line) => Number(line.match(/gold=(\d+)/)?.[1] ?? NaN);
+    await page.keyboard.press('KeyK');
+    // The shopkeeper has something to say first, as everybody in this world does, so the
+    // way in is through their lines. Confirm turns those pages and the store opens after
+    // the last of them.
+    for (let i = 0; i < 12 && !shopOpened; i++) {
+      await page.keyboard.press('Enter');
+      await page.waitForTimeout(450);
+    }
+    check('a shop opens', Boolean(shopOpened), shopOpened ?? 'no SHOP_OPEN after twelve confirms');
+    if (shopOpened) {
+      const stock = Number(shopStock?.match(/stock=(\d+)/)?.[1] ?? 0);
+      check('the shop has its stock from the table', stock > 0, shopStock ?? 'no SHOP line');
+      const goldBefore = goldOf(shopOpened);
+      // Buy, into the list and take the first row.
+      for (const key of ['Enter', 'Enter']) {
+        await page.keyboard.press(key);
+        await page.waitForTimeout(320);
+      }
+      // Down to the Wayfarer's Robe, ninth on these shelves and the one piece of stock
+      // that gets a different answer out of all three of them: Vesna and Wick both wear
+      // body armour it would improve by different amounts, and Corvin cannot wear a robe
+      // at all. The comparison is what this screen is *for*, so the picture is taken of
+      // it and the same text is read back out through `special`.
+      for (let i = 0; i < 8; i++) {
+        await page.keyboard.press('ArrowDown');
+        await page.waitForTimeout(140);
+      }
+      await page.waitForTimeout(250);
+      await page.screenshot({ path: path.join(root, '.renders',
+        remote ? 'godot-web-shop-live.png' : 'godot-web-shop.png') });
+      await page.keyboard.press('KeyV');
+      await page.waitForTimeout(500);
+      // The three answers, from the starting kit and the cast's equip lists: the robe is
+      // 26 defence, Vesna is in a Travel Vest at 14, Wick in a Silk Robe at 20, and
+      // Corvin's list has no robe in it.
+      const legs = (compared ?? '').split('|').slice(1).map((l) => l.trim());
+      check('the shop compares the party against what it sells',
+        legs.length === 3
+          && /^Vesna\s+Travel Vest\s+DEF \+12$/.test(legs[0])
+          && /^Corvin\s+cannot equip$/.test(legs[1])
+          && /^Wick\s+Silk Robe\s+DEF \+6$/.test(legs[2]),
+        compared ?? 'no SHOP_COMPARE line');
+      check('buying takes the money', bought.length > 0 && goldOf(bought[0]) < goldBefore,
+        bought[0] ?? `no BOUGHT line (gold was ${goldBefore})`);
+      // Back out to the root, then Sell, and sell the first thing in the bag.
+      for (const key of ['Escape', 'ArrowDown', 'Enter', 'Enter']) {
+        await page.keyboard.press(key);
+        await page.waitForTimeout(320);
+      }
+      check('selling pays out', sold.length > 0
+        && (bought.length === 0 || goldOf(sold[0]) > goldOf(bought[0])),
+        sold[0] ?? 'no SOLD line');
+      for (let i = 0; i < 4 && !shopClosed; i++) {
+        await page.keyboard.press('Escape');
+        await page.waitForTimeout(280);
+      }
+      check('the shop closes', Boolean(shopClosed), shopClosed ?? 'no SHOP_CLOSED');
+    }
+
+    // The inn. The fight above left the party hurt, so a night that costs gil and hands
+    // back full HP is visible in the numbers rather than only in the fade.
+    const goldAtDoor = lastGold;
+    await page.keyboard.press('KeyL');
+    // The innkeeper's lines, then the offer of a room — 'Rest' is the first choice, so
+    // confirm carries the party through both.
+    for (let i = 0; i < 14 && !innWoke; i++) {
+      await page.keyboard.press('Enter');
+      await page.waitForTimeout(500);
+    }
+    const bill = Number(innRest?.match(/price=(\d+)/)?.[1] ?? NaN);
+    const paid = Number(innRest?.match(/gold=(\d+)/)?.[1] ?? NaN);
+    check('a night at the inn costs its price in gil',
+      Boolean(innRest) && paid === goldAtDoor - bill,
+      innRest ? `${innRest}, and ${goldAtDoor} at the door` : 'no INN_REST in 20s');
+    // Everybody, to the top of both bars. The fight above left them hurt, so this is a
+    // change rather than a coincidence.
+    const bars = (innWoke ?? '').trim().split(/\s+/).slice(1);
+    const allFull = bars.length > 0 && bars.every((b) => {
+      const m = b.match(/^(\w+):(\d+)\/(\d+):(\d+)\/(\d+)$/);
+      return Boolean(m) && m[2] === m[3] && m[4] === m[5];
+    });
+    check('the party wakes rested', allFull, innWoke ?? 'no INN_WOKE in 20s');
+    // Past the line the party says on waking, and no further: the night is over when the
+    // field says so, not when a fade of a known length ought to have finished.
+    for (let i = 0; i < 10 && !innDone; i++) {
+      await page.keyboard.press('Enter');
+      await page.waitForTimeout(450);
+    }
+    check('the night ends and hands the field back', Boolean(innDone),
+      innDone ?? 'no INN_DONE after ten confirms');
 
     // Then out of the village. Harrowmere's south bridge is an exit, and the party
     // spawns at the top of the map, so walking down far enough should change map — which

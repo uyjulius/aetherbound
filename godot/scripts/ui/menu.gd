@@ -1,13 +1,14 @@
 class_name Menu
-extends Control
+extends ListScreen
 ##
 ## The field menu: items, magic, equipment, status, magicite and the formation.
 ##
 ## A port of `src/ui/menu.js`, and like the dialogue box it is a reimplementation rather
 ## than a translation — the reference draws with HTML and CSS. What crosses is the shape
-## of the thing: a stack of screens, a list on the left, and a panel on the right that
-## explains whatever the cursor is on. Comparison is the entire point of an equip screen,
-## so the panel shows what a piece of equipment would *change*, with the deltas signed.
+## of the thing, which `ListScreen` holds: a stack of screens, a list on the left, and a
+## panel on the right that explains whatever the cursor is on. Comparison is the entire
+## point of an equip screen, so the panel shows what a piece of equipment would *change*,
+## with the deltas signed.
 ##
 ## Screens that are genuinely elsewhere say so rather than pretending: the bestiary, the
 ## journal, the config and saving are their own pieces, and a menu entry that opens an
@@ -19,212 +20,15 @@ const SLOT_LABEL := {
 	"relic1": "Relic", "relic2": "Relic",
 }
 const STATS := ["vig", "spd", "sta", "mag", "res", "lck"]
-## Rows shown at once before the list scrolls.
-const PAGE := 12
-
-signal closed
-
-var party: Party
-var database
-
-## Screens, innermost last. Each is `{title, rows, on_select, detail, on_special}`.
-var _stack: Array = []
-var _index := 0
-var _scroll := 0
-
-var _title: Label
-var _list: VBoxContainer
-var _detail: Label
-var _footer: Label
-var _confirms := 0
-var _cancels := 0
-var _specials := 0
 
 
-func _ready() -> void:
-	set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
-	mouse_filter = Control.MOUSE_FILTER_IGNORE
-	set_process_input(true)
-	_build()
-	visible = false
-
-
-func _input(event: InputEvent) -> void:
-	# Only while the menu is up. Counters are the only honest way to read a press that a
-	# coroutine might otherwise miss, but a counter that keeps ticking behind a closed
-	# menu hands it a fistful of confirms the moment it opens — the first row would be
-	# chosen by a key pressed during the last fight.
-	if not visible or event.is_echo():
-		return
-	if event.is_action_pressed("confirm"):
-		_confirms += 1
-	if event.is_action_pressed("cancel"):
-		_cancels += 1
-	if event.is_action_pressed("special"):
-		_specials += 1
-
-
-func _build() -> void:
-	var ground := ColorRect.new()
-	ground.color = Color(Palette.ink)
-	ground.color.a = 0.96
-	ground.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
-	add_child(ground)
-
-	_title = Label.new()
-	_title.position = Vector2(80, 60)
-	_title.add_theme_font_size_override("font_size", 40)
-	_title.add_theme_color_override("font_color", Palette.ui_color("select"))
-	add_child(_title)
-
-	_list = VBoxContainer.new()
-	_list.position = Vector2(80, 140)
-	_list.add_theme_constant_override("separation", 6)
-	add_child(_list)
-
-	_detail = Label.new()
-	_detail.position = Vector2(760, 140)
-	_detail.custom_minimum_size = Vector2(1080, 700)
-	_detail.add_theme_font_size_override("font_size", 22)
-	_detail.add_theme_color_override("font_color", Palette.ui_color("text"))
-	add_child(_detail)
-
-	_footer = Label.new()
-	_footer.position = Vector2(80, 980)
-	_footer.add_theme_font_size_override("font_size", 20)
-	_footer.add_theme_color_override("font_color", Palette.ui_color("textDim"))
-	add_child(_footer)
+func _tag() -> String:
+	return "MENU"
 
 
 ## Open on the root screen.
 func open(for_party: Party, db) -> void:
-	party = for_party
-	database = db
-	_stack.clear()
-	_confirms = 0
-	_cancels = 0
-	_specials = 0
-	visible = true
-	_push(_root())
-	print("MENU_OPEN gold=%d items=%d" % [party.gold, party.inventory.size()])
-
-
-func close() -> void:
-	visible = false
-	_stack.clear()
-	print("MENU_CLOSED")
-	closed.emit()
-
-
-func _process(_delta: float) -> void:
-	if not visible or _stack.is_empty():
-		return
-	var screen: Dictionary = _stack[_stack.size() - 1]
-	var rows: Array = screen["rows"]
-
-	if Actions.just_pressed("down"):
-		_move(1, rows.size())
-	if Actions.just_pressed("up"):
-		_move(-1, rows.size())
-	if Actions.just_pressed("pageRight"):
-		_move(PAGE, rows.size())
-	if Actions.just_pressed("pageLeft"):
-		_move(-PAGE, rows.size())
-
-	if _cancels > 0:
-		_cancels = 0
-		_pop()
-		return
-	if _specials > 0:
-		_specials = 0
-		var on_special: Callable = screen.get("on_special", Callable())
-		if on_special.is_valid() and not rows.is_empty():
-			on_special.call(rows[_index])
-			_rebuild()
-	if _confirms > 0:
-		_confirms = 0
-		if not rows.is_empty() and not bool(rows[_index].get("disabled", false)):
-			var on_select: Callable = screen.get("on_select", Callable())
-			if on_select.is_valid():
-				on_select.call(rows[_index])
-				_rebuild()
-	_paint()
-
-
-func _move(by: int, count: int) -> void:
-	if count == 0:
-		return
-	_index = clampi(_index + by, 0, count - 1)
-	if _index < _scroll:
-		_scroll = _index
-	if _index >= _scroll + PAGE:
-		_scroll = _index - PAGE + 1
-
-
-func _push(screen: Dictionary) -> void:
-	_stack.append(screen)
-	_index = 0
-	_scroll = 0
-	_paint()
-
-
-func _pop() -> void:
-	_stack.pop_back()
-	if _stack.is_empty():
-		close()
-		return
-	_index = 0
-	_scroll = 0
-	_paint()
-
-
-## Rebuild the current screen's rows in place, for the screens that change what they show
-## as they are used — the bag empties, the formation shuffles.
-func _rebuild() -> void:
-	if _stack.is_empty():
-		return
-	var screen: Dictionary = _stack[_stack.size() - 1]
-	var builder: Callable = screen.get("rebuild", Callable())
-	if builder.is_valid():
-		screen["rows"] = builder.call()
-		_index = clampi(_index, 0, maxi(0, screen["rows"].size() - 1))
-	_paint()
-
-
-func _paint() -> void:
-	if _stack.is_empty():
-		return
-	var screen: Dictionary = _stack[_stack.size() - 1]
-	var rows: Array = screen["rows"]
-	_title.text = String(screen.get("title", ""))
-
-	while _list.get_child_count() < PAGE:
-		var row := Label.new()
-		row.add_theme_font_size_override("font_size", 26)
-		_list.add_child(row)
-	for i in PAGE:
-		var row: Label = _list.get_child(i)
-		var at := _scroll + i
-		if at >= rows.size():
-			row.text = ""
-			continue
-		var entry: Dictionary = rows[at]
-		var right := String(entry.get("right", ""))
-		row.text = "%s %-28s %s" % [">" if at == _index else " ",
-			String(entry.get("label", "")), right]
-		var colour := Palette.ui_color("text")
-		if bool(entry.get("disabled", false)):
-			colour = Palette.ui_color("textDisabled")
-		elif at == _index:
-			colour = Palette.ui_color("select")
-		row.add_theme_color_override("font_color", colour)
-
-	var detail: Callable = screen.get("detail", Callable())
-	_detail.text = ""
-	if detail.is_valid() and not rows.is_empty():
-		_detail.text = String(detail.call(rows[_index]))
-	_footer.text = "%d gil    %s" % [party.gold, String(screen.get("footer",
-		"confirm select · cancel back"))]
+	_begin(for_party, db)
 
 
 # ---------------------------------------------------------------------------

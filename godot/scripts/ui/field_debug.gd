@@ -22,6 +22,7 @@ const DialogueBox := preload("res://scripts/ui/dialogue.gd")
 const Ctx := preload("res://scripts/game/event_context.gd")
 const BattleScreen := preload("res://scripts/ui/battle_view.gd")
 const MenuScreen := preload("res://scripts/ui/menu.gd")
+const ShopScreen := preload("res://scripts/ui/shop.gd")
 
 ## Maps worth opening on first, in this order: a town, an interior, a continent,
 ## a dungeon. `M` walks the whole world from there.
@@ -37,6 +38,8 @@ var _scene_running := false
 var _last_event := ""
 var _battle: BattleView
 var _menu: Menu
+var _shop: Shop
+var _fade: ColorRect
 var _last_trigger := ""
 var _interact: Dictionary = {}
 ## The encounter RNG, so the same walk meets the same monsters.
@@ -87,10 +90,22 @@ func _ready() -> void:
 	_menu = MenuScreen.new()
 	add_child(_menu)
 
+	_shop = ShopScreen.new()
+	add_child(_shop)
+
+	# The screen going dark and coming back is the whole of an inn. Above everything so a
+	# night's sleep covers the HUD too.
+	_fade = ColorRect.new()
+	_fade.color = Color(Palette.ink)
+	_fade.color.a = 0.0
+	_fade.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	_fade.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	add_child(_fade)
+
 	# The reference binds a debug encounter to B and a boss to N. Kept, because a
 	# diagnostic that can only reach a fight by walking until one happens is a
 	# diagnostic nobody uses.
-	for action in ["debug_battle", "debug_boss", "debug_map"]:
+	for action in ["debug_battle", "debug_boss", "debug_map", "debug_shop", "debug_inn"]:
 		if InputMap.has_action(action):
 			InputMap.erase_action(action)
 		InputMap.add_action(action)
@@ -105,6 +120,14 @@ func _ready() -> void:
 	var m := InputEventKey.new()
 	m.physical_keycode = KEY_M
 	InputMap.action_add_event("debug_map", m)
+	# The shop and the inn, without walking to them. Ninety-nine of the people in this
+	# world keep one, and reaching the nearest on foot is a poor way to check a screen.
+	var k := InputEventKey.new()
+	k.physical_keycode = KEY_K
+	InputMap.action_add_event("debug_shop", k)
+	var l := InputEventKey.new()
+	l.physical_keycode = KEY_L
+	InputMap.action_add_event("debug_inn", l)
 
 	_ctx = Ctx.new("first", false)
 	_ctx.database = _db
@@ -159,6 +182,9 @@ func _process(delta: float) -> void:
 	if _menu != null and _menu.visible:
 		_label.visible = false
 		return
+	if _shop != null and _shop.visible:
+		_label.visible = false
+		return
 	_label.visible = true
 	# A scene owns the screen while it plays. The field keeps its position and the
 	# camera keeps its bearing; nothing walks under a conversation.
@@ -175,6 +201,12 @@ func _process(delta: float) -> void:
 	if Input.is_action_just_pressed("debug_boss"):
 		# One of the optional bosses, so a boss fight can be seen without finding it.
 		_start_battle({"enemies": ["weighmaster"], "boss": true})
+		return
+	if Input.is_action_just_pressed("debug_shop"):
+		_talk_to_keeper("shop")
+		return
+	if Input.is_action_just_pressed("debug_inn"):
+		_talk_to_keeper("inn")
 		return
 	if Actions.just_pressed("special"):
 		# On demand, so the browser check can start a scene without walking to one.
@@ -281,18 +313,71 @@ func _talk_to(npc: Dictionary) -> void:
 		lines = talk
 	elif talk != null:
 		lines = [String(talk)]
-	if def.has("shop"):
-		lines.append("(%s keeps a shop. The shop screen is not built yet.)"
-			% name)
-	elif def.has("inn"):
-		lines.append("(%s keeps an inn, %d gil. The inn is not built yet.)"
-			% [name, int(def.get("inn", {}).get("price", 0))])
-	if lines.is_empty():
+	if lines.is_empty() and not (def.has("shop") or def.has("inn")):
 		return
 	_scene_running = true
 	print("TALK %s lines=%d" % [String(def.get("id", "?")), lines.size()])
-	await _dialogue.speak(name, lines)
+	if not lines.is_empty():
+		await _dialogue.speak(name, lines)
+	# Whatever they keep, after what they had to say. Their own line first is the
+	# reference's order and it is the reason a shopkeeper has a personality at all.
+	if def.has("shop"):
+		_scene_running = false
+		_shop.open(String(def["shop"]), _party, _db)
+		return
+	if def.has("inn"):
+		await _rest_at_inn(def.get("inn", {}), name)
 	_scene_running = false
+
+
+## A night at an inn: the price, the fade, the rest, the fade back.
+##
+## The beat is the reference's, waits and all. A rest that snapped the HP bars full
+## without the screen going dark reads as a bug rather than as a night.
+func _rest_at_inn(inn: Dictionary, name: String) -> void:
+	var price := int(inn.get("price", 30))
+	var choice := await _dialogue.ask("A room is %d gil. Rest?" % price,
+		["Rest", "Not now"], {"speaker": name, "cancelable": true})
+	if choice != 0:
+		_dialogue.close()
+		return
+	if not _party.spend_gold(price):
+		await _dialogue.speak(name, ["You haven\'t the coin. Come back when you have."])
+		return
+	_dialogue.close()
+	print("INN_REST price=%d gold=%d" % [price, _party.gold])
+	await _fade_to(1.0, 1.0)
+	_party.rest_all()
+	var rested: Array = []
+	for id in _party.active:
+		var m: Party.Member = _party.roster[id]
+		rested.append("%s:%d/%d:%d/%d" % [id, m.hp, m.max_hp(), m.mp, m.max_mp()])
+	print("INN_WOKE %s" % " ".join(rested))
+	await _fade_to(0.0, 1.0)
+	await _dialogue.speak(null, ["The party wakes rested. HP and MP fully restored."])
+	# Said out loud because the night ends *after* the fade and the line, and anything
+	# checking this wants to know when the field is walkable again rather than guess from
+	# how long a fade takes.
+	print("INN_DONE")
+
+
+func _fade_to(alpha: float, seconds: float) -> void:
+	var tween := create_tween()
+	tween.tween_property(_fade, "color:a", alpha, seconds)
+	await tween.finished
+
+
+## Talk to whoever on this map keeps a shop or an inn.
+##
+## The real path, from the map's own data — a debug key that opened a hard-coded shop
+## would pass while the maps said something else entirely.
+func _talk_to_keeper(kind: String) -> void:
+	var def: Dictionary = _db.maps[_ids[_index]]
+	for npc in def.get("npcs", []):
+		if npc.has(kind):
+			_talk_to({"def": npc})
+			return
+	print("NO_%s_HERE %s" % [kind.to_upper(), _ids[_index]])
 
 
 ## Start a fight from an encounter table or an explicit formation.
@@ -356,7 +441,8 @@ func _update_label() -> void:
 		lines.append("scene: %s" % _last_event)
 	if _battle != null and _battle.visible:
 		lines.append("in battle")
-	lines.append("move / run · Q,E orbit · C menu · M next map · V scene · B fight · N boss · Esc back")
+	lines.append("move / run · Q,E orbit · C menu · M next map · V scene · B fight · N boss"
+		+ " · K shop · L inn · Esc back")
 	_label.text = "\n".join(lines)
 
 

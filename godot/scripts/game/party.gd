@@ -411,6 +411,14 @@ func count_item(item_id: String) -> int:
 	return int(inventory.get(item_id, 0))
 
 
+## A night's sleep. Everybody, not just the active three — the reference rests the whole
+## roster, and a bench member who woke up on 1 HP would be a nasty surprise in the fight
+## after the next formation change.
+func rest_all() -> void:
+	for id in roster:
+		roster[id].full_restore()
+
+
 func add_gold(amount: int) -> void:
 	gold = clampi(gold + amount, 0, MAX_GOLD)
 
