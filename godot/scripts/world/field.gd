@@ -40,6 +40,10 @@ const STUCK_AFTER := 3.0
 ## unhealed, which a smoke run proved.
 const STUCK_EPISODES := 3
 
+## How far ahead the party reaches, and how far that reach carries.
+const REACH_AHEAD := 0.9
+const REACH := 1.7
+
 
 class Player:
 	extends RefCounted
@@ -173,6 +177,9 @@ func _spawn_npcs() -> void:
 			"x": x, "z": z, "home_x": x, "home_z": z,
 			"facing": float(FACINGS.get(String(def.get("face", "south")), 0.0)),
 			"shape": grid.shapes[grid.shapes.size() - 1],
+			# The authored row, so an interaction can read what this person offers —
+			# a line, a shop, a bed, a scene.
+			"def": def,
 		})
 
 
@@ -338,6 +345,43 @@ func _watch_for_stuck(dt: float, asking: bool, travelled: float) -> bool:
 		_stuck_episodes += 1
 		return true
 	return false
+
+
+## What the party is facing and could interact with, or an empty dictionary.
+##
+## Looked for slightly *ahead* of the player rather than at them, so you interact with
+## what you are facing — standing on top of something and turning around should not keep
+## opening it.
+func interact_target() -> Dictionary:
+	var ax := player.x + sin(player.facing) * REACH_AHEAD
+	var az := player.z + cos(player.facing) * REACH_AHEAD
+	var best := {}
+	var best_distance := INF
+	for npc in npcs:
+		var def: Dictionary = npc["def"]
+		if not (def.has("talk") or def.has("shop") or def.has("inn") or def.has("event")):
+			continue
+		var d := sqrt(pow(ax - float(npc["x"]), 2.0) + pow(az - float(npc["z"]), 2.0))
+		if d < REACH and d < best_distance:
+			best_distance = d
+			best = {"kind": "npc", "npc": npc,
+				"label": String(def.get("prompt", "Talk"))}
+	return best
+
+
+## The flag that spends a `once` trigger.
+##
+## Keyed on the map and the event rather than on the trigger object, because it has to
+## survive a save and a re-entry — and it is armed *after* the scene finishes, so a
+## player who flees the fight or closes the tab has not silently spent the content.
+func trigger_key(trigger: Dictionary) -> String:
+	var data: Dictionary = trigger.get("data", {})
+	if not bool(data.get("once", false)):
+		return ""
+	var name := String(data.get("event", ""))
+	if name.is_empty():
+		name = "%d,%d" % [int(trigger.get("x", 0)), int(trigger.get("z", 0))]
+	return "trigger:%s:%s" % [String(_map_def.get("id", "?")), name]
 
 
 ## Is the party standing somewhere legal? Diagnostic, and the thing the never-trap

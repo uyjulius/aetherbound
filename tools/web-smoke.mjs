@@ -135,6 +135,8 @@ let dialogueOpened = null;
 let battleStarted = null;
 let battleEnded = null;
 let partyReady = null;
+let mapEntered = null;
+let talked = null;
 
 // Godot writes its own warnings to stderr, which the browser reports as
 // console.error — so the two have to be told apart by their text rather than by
@@ -151,6 +153,8 @@ page.on('console', (message) => {
   if (text.includes('SCENE_START')) sceneStarted = text.trim();
   if (text.includes('DIALOGUE_OPEN')) dialogueOpened = text.trim();
   if (text.includes('PARTY_READY')) partyReady = text.trim();
+  if (text.includes('MAP_ENTERED')) mapEntered = text.trim();
+  if (text.includes('TALK ')) talked = text.trim();
   if (text.includes('BATTLE_START')) battleStarted = text.trim();
   if (text.includes('BATTLE_END')) battleEnded = text.trim();
   if (text.includes('SCENE_END')) sceneEnded = text.trim();
@@ -281,6 +285,22 @@ if (ready) {
         await page.waitForTimeout(180);
       }
       check('the fight resolves', Boolean(battleEnded), battleEnded ?? 'no BATTLE_END in 80 presses');
+    }
+
+    // Then out of the village. Harrowmere's south bridge is an exit, and the party
+    // spawns at the top of the map, so walking down far enough should change map — which
+    // is the whole difference between a diagnostic and a world.
+    for (let i = 0; i < 60 && !mapEntered; i++) {
+      await page.keyboard.down('ArrowUp');
+      await page.waitForTimeout(140);
+      await page.keyboard.up('ArrowUp');
+    }
+    check('walking out of the map arrives somewhere', Boolean(mapEntered),
+      mapEntered ?? 'no MAP_ENTERED after sixty steps');
+    if (mapEntered) {
+      await page.waitForTimeout(600);
+      await page.screenshot({ path: path.join(root, '.renders',
+        remote ? 'godot-web-travel-live.png' : 'godot-web-travel.png') });
     }
   }
 }

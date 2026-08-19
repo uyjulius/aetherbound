@@ -35,6 +35,8 @@ var _ctx: EventContext
 var _scene_running := false
 var _last_event := ""
 var _battle: BattleView
+var _last_trigger := ""
+var _interact: Dictionary = {}
 ## The encounter RNG, so the same walk meets the same monsters.
 var _encounter_rng := RNG.new(0x9d2f11)
 var _ids: PackedStringArray = PackedStringArray()
@@ -121,11 +123,12 @@ func _ready() -> void:
 	set_process(true)
 
 
-func _open(index: int) -> void:
+func _open(index: int, spawn := "default") -> void:
 	_index = posmod(index, _ids.size())
 	var id := _ids[_index]
-	_field = FieldSim.new(_db.maps[id], _db.legend, _db.footprints, "default",
+	_field = FieldSim.new(_db.maps[id], _db.legend, _db.footprints, spawn,
 		_db.encounters, RngStreams.encounter)
+	_last_event = ""
 	# One line per map opened, so `tools/web-smoke.mjs` can prove the field runs in
 	# a browser rather than only in the editor — and so a map that builds an empty
 	# grid is visible as numbers rather than as a blank screen.
@@ -176,12 +179,24 @@ func _process(delta: float) -> void:
 	if not result["encounter"].is_empty():
 		_start_battle(result["encounter"])
 		return
+	# What the party has walked onto. A trigger fires once on entry and not again while
+	# they stand on it, which is what `_last_trigger` is for.
 	var trigger: Dictionary = result["trigger"]
-	if not trigger.is_empty() and String(trigger.get("kind", "")) == "event":
-		var id := String(trigger.get("data", {}).get("event", ""))
-		if not id.is_empty() and id != _last_event:
-			_run_event(id)
-			return
+	if trigger.is_empty():
+		_last_trigger = ""
+	else:
+		var signature := "%s:%d,%d" % [String(trigger.get("kind", "")),
+			int(trigger.get("x", 0)), int(trigger.get("z", 0))]
+		if signature != _last_trigger:
+			_last_trigger = signature
+			if _fire_trigger(trigger):
+				return
+
+	# Talking. The prompt says who, and confirm starts whatever they have.
+	_interact = _field.interact_target()
+	if not _interact.is_empty() and Actions.just_pressed("confirm"):
+		_talk_to(_interact["npc"])
+		return
 	_trigger = result["trigger"]
 	queue_redraw()
 	_update_label()
@@ -189,6 +204,77 @@ func _process(delta: float) -> void:
 
 var _encounters := 0
 var _trigger: Dictionary = {}
+
+
+## Act on a trigger. Returns true when it took over the screen.
+##
+## A `once` trigger is spent by a flag armed *after* its scene finishes, so fleeing the
+## fight or closing the tab does not quietly consume the content — the reference learned
+## that one the hard way.
+func _fire_trigger(trigger: Dictionary) -> bool:
+	var data: Dictionary = trigger.get("data", {})
+	var key := _field.trigger_key(trigger)
+	if not key.is_empty() and _party.has_flag(key):
+		return false
+
+	match String(trigger.get("kind", "")):
+		"exit":
+			var to := String(data.get("to", ""))
+			if to.is_empty() or not _db.maps.has(to):
+				print("EXIT_UNKNOWN to=%s" % to)
+				return false
+			if not key.is_empty():
+				_party.set_flag(key)
+			_travel(to, String(data.get("spawn", "default")))
+			return true
+		"event":
+			var id := String(data.get("event", ""))
+			if id.is_empty():
+				return false
+			_run_event(id)
+			if not key.is_empty():
+				_party.set_flag(key)
+			return true
+	return false
+
+
+## Walk out of one map and into another.
+func _travel(map_id: String, spawn: String) -> void:
+	var at := _ids.find(map_id)
+	if at < 0:
+		print("EXIT_UNKNOWN to=%s" % map_id)
+		return
+	print("MAP_ENTERED %s spawn=%s" % [map_id, spawn])
+	_open(at, spawn)
+	_last_trigger = ""
+
+
+## Talk to somebody. Their scene if they have one, their lines if they do not, and a note
+## about the shop or the bed they keep — those are screens of their own.
+func _talk_to(npc: Dictionary) -> void:
+	var def: Dictionary = npc["def"]
+	var name := String(def.get("name", def.get("id", "?")))
+	if def.has("event"):
+		_run_event(String(def["event"]))
+		return
+	var lines: Array = []
+	var talk: Variant = def.get("talk", null)
+	if talk is Array:
+		lines = talk
+	elif talk != null:
+		lines = [String(talk)]
+	if def.has("shop"):
+		lines.append("(%s keeps a shop. The shop screen is not built yet.)"
+			% name)
+	elif def.has("inn"):
+		lines.append("(%s keeps an inn, %d gil. The inn is not built yet.)"
+			% [name, int(def.get("inn", {}).get("price", 0))])
+	if lines.is_empty():
+		return
+	_scene_running = true
+	print("TALK %s lines=%d" % [String(def.get("id", "?")), lines.size()])
+	await _dialogue.speak(name, lines)
+	_scene_running = false
 
 
 ## Start a fight from an encounter table or an explicit formation.
@@ -241,6 +327,9 @@ func _update_label() -> void:
 		("next encounter in %.0f units (%d so far)" % [remaining, _encounters]) if table \
 			and not table.is_empty() else "no encounters here",
 	]
+	if not _interact.is_empty():
+		lines.append("%s: %s" % [String(_interact["label"]),
+			String(_interact["npc"]["def"].get("name", "?"))])
 	if not _trigger.is_empty():
 		var data: Dictionary = _trigger.get("data", {})
 		lines.append("on a %s trigger%s" % [_trigger["kind"],
