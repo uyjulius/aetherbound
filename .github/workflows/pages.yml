@@ -116,6 +116,9 @@ jobs:
 
       - name: Install the browser
         timeout-minutes: 8
+        # `--with-deps` is deliberately absent — see the cache step above. No ffmpeg
+        # either: the audio checks decode through this browser, because the runner image
+        # stopped shipping ffmpeg and Playwright's own build cannot read an ogg.
         run: npx playwright install chromium
 
       # The parity suite is the port's entire guarantee — 3,804 formula values,

@@ -14,6 +14,35 @@
 import { execFileSync } from 'node:child_process';
 import crypto from 'node:crypto';
 
+/**
+ * Where a *usable* ffmpeg is.
+ *
+ * Usable means it can encode Ogg Vorbis, which is the only thing this project asks of it.
+ * The distinction matters: Playwright ships its own ffmpeg and it is built
+ * `--disable-everything` with mjpeg, vp8 and png — it answers `-version` perfectly and
+ * cannot touch an ogg. A search that stopped at "a binary exists" would have found it and
+ * failed later, somewhere less obvious.
+ *
+ * Only the *renderer* needs this. Nothing that merely reads the audio does: the checks
+ * decode through a browser, which every one of them already has open.
+ */
+export function ffmpeg() {
+  if (_ffmpeg !== undefined) return _ffmpeg;
+  for (const candidate of [process.env.FFMPEG, 'ffmpeg'].filter(Boolean)) {
+    try {
+      const encoders = execFileSync(candidate, ['-hide_banner', '-encoders'],
+        { encoding: 'utf8', stdio: ['ignore', 'pipe', 'ignore'] });
+      if (/\bvorbis\b/.test(encoders)) {
+        _ffmpeg = candidate;
+        return _ffmpeg;
+      }
+    } catch { /* try the next one */ }
+  }
+  _ffmpeg = null;
+  return _ffmpeg;
+}
+let _ffmpeg;
+
 /** The seed every render uses, so one score gives one file. */
 export const SEED = 0x5eed1e;
 export const SAMPLE_RATE = 44100;
@@ -84,7 +113,7 @@ export function wav(channels, sampleRate) {
  * and compares it to the signal that went in.
  */
 export function encode(wavBuffer, file, quality = QUALITY) {
-  execFileSync('ffmpeg', [
+  execFileSync(ffmpeg() ?? 'ffmpeg', [
     '-hide_banner', '-loglevel', 'error', '-y',
     '-f', 'wav', '-i', 'pipe:0',
     '-strict', '-2', '-c:a', 'vorbis', '-q:a', String(quality),
@@ -92,14 +121,30 @@ export function encode(wavBuffer, file, quality = QUALITY) {
   ], { input: wavBuffer });
 }
 
-/** Decode an audio file back to interleaved 32-bit floats at its own rate. */
-export function decode(file, sampleRate = SAMPLE_RATE) {
-  const raw = execFileSync('ffmpeg', [
-    '-hide_banner', '-loglevel', 'error',
-    '-i', file, '-f', 'f32le', '-ar', String(sampleRate), '-ac', '2', 'pipe:1',
-  ], { encoding: 'buffer', maxBuffer: 512 * 1024 * 1024 });
-  const samples = new Float32Array(raw.buffer, raw.byteOffset, Math.floor(raw.length / 4));
-  return samples;
+/**
+ * Decode an audio file back to samples, in the browser.
+ *
+ * Through `decodeAudioData` rather than through ffmpeg, and that is a deliberate choice
+ * rather than a convenience. Reading the shipped audio back is the whole basis of
+ * `audio-parity.mjs`, and making it depend on an ffmpeg build that happens to include Vorbis
+ * meant the checks stopped running the day the CI image dropped the package. Every one of
+ * these tools already has a browser open, and a browser is a Vorbis decoder that is never
+ * going away.
+ *
+ * Returns `{channels, sampleRate, frames}` with one Float32Array per channel.
+ */
+export async function decodeInPage(page, bytes, sampleRate = SAMPLE_RATE) {
+  return page.evaluate(async ({ data, rate }) => {
+    const buffer = new Uint8Array(data).buffer;
+    // An offline context so the rate is ours rather than the device's.
+    const ctx = new OfflineAudioContext(2, 1, rate);
+    const decoded = await ctx.decodeAudioData(buffer);
+    const channels = [];
+    for (let c = 0; c < decoded.numberOfChannels; c++) {
+      channels.push(Array.from(decoded.getChannelData(c)));
+    }
+    return { channels, sampleRate: decoded.sampleRate, frames: decoded.length };
+  }, { data: Array.from(bytes), rate: sampleRate });
 }
 
 export function digest(buffer) {

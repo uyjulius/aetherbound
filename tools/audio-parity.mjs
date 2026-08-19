@@ -12,10 +12,12 @@
  *      in a player's browser and nothing at all in a log.
  *   2. Each file is the length its score says. A loop rendered a bar short is a loop that
  *      lurches every time round.
- *   3. Each file still decodes to the signal it was made from — peak and loudness within
- *      the encoder's error, and not silence. This ffmpeg has no `libvorbis` and its own
- *      Vorbis encoder is marked experimental, so the encoder is measured rather than
- *      trusted.
+ *   3. Each file still decodes to the signal it was made from — peak, loudness and loudness
+ *      over time, within the encoder's error, and not silence. The encoder available here is
+ *      ffmpeg's own Vorbis, which it still marks experimental, so it is measured rather than
+ *      trusted. The decoding is done by the browser this harness already has open, not by
+ *      ffmpeg: the day the CI image stopped shipping ffmpeg, an ffmpeg-based check would
+ *      simply have stopped running.
  *   4. A looping track joins to itself. The jump across the wrap is compared against the
  *      jumps inside the track: a loop that clicks has one discontinuity far larger than
  *      anything the music does on its own.
@@ -40,7 +42,7 @@ import { fileURLToPath } from 'node:url';
 import { TRACKS } from '../src/data/music.js';
 import { resolveMap } from '../src/world/map.js';
 import {
-  SAMPLE_RATE, SFX, compareFingerprints, decode, fingerprint, renderSfx, renderTrack,
+  SAMPLE_RATE, SFX, compareFingerprints, decodeInPage, fingerprint, renderSfx, renderTrack,
   scoreDigest,
 } from './lib/audio-render.mjs';
 
@@ -65,15 +67,6 @@ if (!fs.existsSync(manifestPath)) {
   say('\x1b[31mFAIL\x1b[0m — no godot/audio/manifest.json. Run `npm run render:music`.');
   process.exit(1);
 }
-// ffmpeg decodes every file back for the comparison. Said plainly here rather than as an
-// ENOENT from a child process forty lines down.
-try {
-  execFileSync('ffmpeg', ['-hide_banner', '-version'], { stdio: 'ignore' });
-} catch {
-  say('\x1b[31mFAIL\x1b[0m — ffmpeg is not on PATH, and every check below decodes audio with it.');
-  process.exit(1);
-}
-
 const manifest = JSON.parse(fs.readFileSync(manifestPath, 'utf8'));
 const audioDir = path.join(root, 'godot', 'audio');
 /**
@@ -131,6 +124,24 @@ for (const name of new Set(handled)) {
 }
 say(`  inventory        ${Object.keys(TRACKS).length} tracks, ${handled.length} effects`);
 
+// --- the browser, which is both the renderer and the decoder ----------------
+const server = spawn(process.execPath, [path.join(root, 'tools', 'serve.mjs')], {
+  env: { ...process.env, PORT: String(port) },
+  stdio: 'ignore',
+});
+process.on('exit', () => { try { server.kill(); } catch { /* gone */ } });
+
+const browser = await chromium.launch({
+  headless: true,
+  channel: 'chromium',
+  args: ['--use-gl=angle', '--use-angle=swiftshader', '--enable-unsafe-swiftshader',
+    '--autoplay-policy=no-user-gesture-required'],
+});
+const page = await browser.newPage({ viewport: { width: 640, height: 400 } });
+await page.goto(`http://localhost:${port}/`, { waitUntil: 'domcontentloaded' });
+await page.waitForFunction(() => Boolean(window.__tracks && window.__audio), null,
+  { timeout: 60_000 });
+
 // --- 2 & 3 & 4. the files themselves ----------------------------------------
 let worstJoin = 0;
 let worstJoinTrack = '';
@@ -157,10 +168,12 @@ for (const [id, entry] of Object.entries(manifest.music ?? {})) {
     }
   }
 
-  const samples = decode(file);
-  const frames = Math.floor(samples.length / 2);
+  const decoded = await decodeInPage(page, fs.readFileSync(file));
+  const left = Float32Array.from(decoded.channels[0] ?? []);
+  const right = Float32Array.from(decoded.channels[1] ?? decoded.channels[0] ?? []);
+  const frames = decoded.frames;
   compared++;
-  const seconds = frames / SAMPLE_RATE;
+  const seconds = frames / decoded.sampleRate;
   const expectedSeconds = entry.duration ?? entry.seconds;
   // Vorbis is gapless, so this is a tight bound on purpose: a decoder that padded would
   // put a gap in every loop.
@@ -170,12 +183,14 @@ for (const [id, entry] of Object.entries(manifest.music ?? {})) {
 
   let peak = 0;
   let sum = 0;
-  for (let i = 0; i < samples.length; i++) {
-    const v = Math.abs(samples[i]);
-    if (v > peak) peak = v;
-    sum += samples[i] * samples[i];
+  for (const channel of [left, right]) {
+    for (const value of channel) {
+      const v = Math.abs(value);
+      if (v > peak) peak = v;
+      sum += value * value;
+    }
   }
-  const rms = Math.sqrt(sum / samples.length);
+  const rms = Math.sqrt(sum / (left.length + right.length));
   compared += 2;
   if (peak < 0.01) fail(`${id}: decodes to silence`);
   // The encoder is allowed to move the peak a little and no more. Anything larger is not
@@ -193,9 +208,6 @@ for (const [id, entry] of Object.entries(manifest.music ?? {})) {
   // second half is silence.
   if (entry.signal) {
     compared++;
-    const left = new Float32Array(frames);
-    const right = new Float32Array(frames);
-    for (let i = 0; i < frames; i++) { left[i] = samples[i * 2]; right[i] = samples[i * 2 + 1]; }
     const drift = compareFingerprints(entry.signal, fingerprint([left, right]), 0.01, 0.05);
     if (drift.length) {
       fail(`${id}: the file no longer matches what was rendered (${drift.slice(0, 2).join('; ')})`);
@@ -207,12 +219,10 @@ for (const [id, entry] of Object.entries(manifest.music ?? {})) {
   if (entry.loop && frames > SAMPLE_RATE) {
     compared++;
     const steps = [];
-    for (let i = 1; i < frames; i++) {
-      steps.push(Math.abs(samples[i * 2] - samples[(i - 1) * 2]));
-    }
+    for (let i = 1; i < frames; i++) steps.push(Math.abs(left[i] - left[i - 1]));
     steps.sort((a, b) => a - b);
     const typical = steps[Math.floor(steps.length * 0.9999)] || 0.001;
-    const join = Math.abs(samples[0] - samples[(frames - 1) * 2]);
+    const join = Math.abs(left[0] - left[frames - 1]);
     const ratio = join / Math.max(typical, 1e-6);
     if (ratio > worstJoin) { worstJoin = ratio; worstJoinTrack = id; }
     // Three times the largest step the music itself takes. A rendered loop that had not
@@ -229,23 +239,6 @@ say(`  files            ${Object.keys(manifest.music ?? {}).length} decoded, `
 
 // --- 5. still the same score ------------------------------------------------
 const resample = has('all') ? Object.keys(manifest.music ?? {}) : RESAMPLE;
-const server = spawn(process.execPath, [path.join(root, 'tools', 'serve.mjs')], {
-  env: { ...process.env, PORT: String(port) },
-  stdio: 'ignore',
-});
-process.on('exit', () => { try { server.kill(); } catch { /* gone */ } });
-
-const browser = await chromium.launch({
-  headless: true,
-  channel: 'chromium',
-  args: ['--use-gl=angle', '--use-angle=swiftshader', '--enable-unsafe-swiftshader',
-    '--autoplay-policy=no-user-gesture-required'],
-});
-const page = await browser.newPage({ viewport: { width: 640, height: 400 } });
-await page.goto(`http://localhost:${port}/`, { waitUntil: 'domcontentloaded' });
-await page.waitForFunction(() => Boolean(window.__tracks && window.__audio), null,
-  { timeout: 60_000 });
-
 for (const id of resample) {
   const entry = manifest.music[id];
   if (!entry || !TRACKS[id]) continue;

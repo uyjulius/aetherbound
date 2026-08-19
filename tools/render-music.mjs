@@ -28,7 +28,7 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import {
   QUALITY, SAMPLE_RATE, SEED, SFX,
-  encode, fingerprint, renderSfx, renderTrack, scoreDigest, wav,
+  encode, ffmpeg, fingerprint, renderSfx, renderTrack, scoreDigest, wav,
 } from './lib/audio-render.mjs';
 
 const root = path.dirname(fileURLToPath(new URL('../package.json', import.meta.url)));
@@ -45,6 +45,15 @@ const say = (s = '') => console.log(s);
 
 if (!fs.existsSync(path.join(root, 'public', 'game.js'))) {
   say('\x1b[31mFAIL\x1b[0m — public/game.js is missing. Run `npm run build` first.');
+  process.exit(1);
+}
+// The one thing in this project that needs ffmpeg, and it needs an ffmpeg that can encode
+// Vorbis — which the one Playwright ships cannot. Said here rather than in the middle of the
+// thirtieth track.
+if (!ffmpeg()) {
+  say('\x1b[31mFAIL\x1b[0m — no ffmpeg that can encode Ogg Vorbis.');
+  say('  Install one, or point $FFMPEG at it. Only this tool needs it: the checks decode');
+  say('  through a browser.');
   process.exit(1);
 }
 
