@@ -177,7 +177,7 @@ func _ready() -> void:
 	# diagnostic that can only reach a fight by walking until one happens is a
 	# diagnostic nobody uses.
 	for action in ["debug_battle", "debug_boss", "debug_map", "debug_shop", "debug_inn",
-			"debug_lose", "debug_grid", "debug_chest", "debug_fly"]:
+			"debug_lose", "debug_grid", "debug_chest", "debug_fly", "debug_scene"]:
 		if InputMap.has_action(action):
 			InputMap.erase_action(action)
 		InputMap.add_action(action)
@@ -223,19 +223,28 @@ func _ready() -> void:
 	var y := InputEventKey.new()
 	y.physical_keycode = KEY_Y
 	InputMap.action_add_event("debug_fly", y)
+	# A story scene with a fight in it, on demand. Every boss in this game arrives inside a
+	# scene — the scene sets the stage, the fight happens, and the scene hands over what was
+	# behind it — and until the fight was real, all three of those were untested together. The
+	# barrow is the first one the party would reach.
+	var j := InputEventKey.new()
+	j.physical_keycode = KEY_J
+	InputMap.action_add_event("debug_scene", j)
 
 	_ctx = Ctx.new("first", false)
 	_ctx.database = _db
 	_ctx.party = _party
 	_ctx.dialogue = _dialogue
-	# The field diagnostic has no battle runtime wired to it yet, so a scene that starts
-	# one is told it was won. Said out loud rather than assumed: a scene that branches on
-	# the outcome would otherwise look like it had fought something.
-	_ctx.on_battle = func(encounter, _opts):
-		print("SCENE_BATTLE enemies=%s (assumed victory)" % str(encounter.get("enemies", [])))
-		return "victory"
+	# A scene that starts a fight gets a fight. This used to print a line and answer "victory",
+	# which meant every boss in the game was won by being reached — including the two the story
+	# branches on the outcome of.
+	_ctx.on_battle = func(encounter, opts):
+		return await _fight_for_scene(encounter, opts)
+	# And a scene that hands something over hands it over. Every esper in the game arrives
+	# through here; while this only printed, the whole magic system was unobtainable.
 	_ctx.on_chest = func(spec):
 		print("SCENE_CHEST %s" % str(spec))
+		await _grant(spec)
 	_ctx.on_music = func(track, opts):
 		print("SCENE_MUSIC %s" % track)
 		Sound.play_music(String(track), float(opts.get("fade", 1.2)))
@@ -902,6 +911,13 @@ func _process(delta: float) -> void:
 	if Input.is_action_just_pressed("debug_lose"):
 		_lose()
 		return
+	if Input.is_action_just_pressed("debug_scene"):
+		# Round the list rather than one fixed scene: the two things a scene does that nothing
+		# else does are fight and hand something over, and they are in different scenes.
+		var scene := String(DEBUG_SCENES[_debug_scene % DEBUG_SCENES.size()])
+		_debug_scene += 1
+		_run_event(scene)
+		return
 	if Input.is_action_just_pressed("debug_fly"):
 		print("BOARDED map=%s" % _ids[_index])
 		Telemetry.track(Telemetry.AIRSHIP_BOARDED, {"map": _ids[_index]})
@@ -1010,6 +1026,21 @@ func _process(delta: float) -> void:
 
 
 var _encounters := 0
+## True while a fight a scene asked for is on screen, so the scene keeps ownership of what
+## happens when it ends.
+var _scene_battle := false
+## Set from the fight's own options while a scene's fight is on screen.
+var _scene_allows_defeat := false
+
+## What `J` runs, in order. The barrow is the first boss the party would reach and the only
+## place a scene's fight can be seen at all; the toll clerk is a scene that hands over a key
+## item, which is the other half of what a scene can do to a party.
+## The granting scene first: the fight in the other one is lost by a starting party, and losing
+## rolls the world back, which is a poor state to ask a second scene to start in.
+const DEBUG_SCENES := ["carter_pass", "fenbarrow_boss"]
+## Static, so it survives the scene reload a rollback does: losing the barrow fight reloads the
+## field, and a counter that started again would run the same boss scene for ever.
+static var _debug_scene := 0
 ## Distance walked this session and time since the last pacing report. Neither is saved: see
 ## `_report_pacing`.
 var _walked := 0.0
@@ -1442,6 +1473,54 @@ func _start_battle(table: Dictionary) -> void:
 	_battle.begin(_party, group, _db, ground, def)
 
 
+## A fight a scene asked for, awaited, with its result handed back to the scene.
+##
+## Not `_start_battle`: that one rolls a group out of an encounter table and belongs to walking
+## about. A scene names its formation exactly, and bosses are named formations.
+##
+## The result is what the scene branches on, so a defeat is *returned* rather than rolled back
+## here — some scenes are written to be lost, and the ones that are not hand "defeat" straight
+## back to `_run_event`, which lets the wipe happen after the scene has closed itself.
+func _fight_for_scene(encounter: Dictionary, opts: Dictionary) -> String:
+	print("SCENE_BATTLE enemies=%s" % str(encounter.get("enemies", [])))
+	if _world != null:
+		_world.visible = false
+	var def := MapBuilder.resolve(_db.maps[_ids[_index]], _party.world_state)
+	var ground := String(_scenery.plan.get("ground", {}).get(
+		String(def.get("base", "grass")), {}).get("texture", "grass.png"))
+	var formation := encounter.duplicate()
+	# `boss` rides on the encounter, because that is where the battle model reads it, and the
+	# music and the escape rule both hang off it.
+	if bool(opts.get("boss", false)):
+		formation["boss"] = true
+	_scene_battle = true
+	# The reference's rule, and its flag: a defeat in a scene's fight is a wipe unless the scene
+	# says otherwise. Nothing in the game says otherwise today, and the flag is honoured anyway
+	# rather than assumed away — a scene written to be lost is a thing this engine allows.
+	_scene_allows_defeat = bool(opts.get("allowDefeat", false))
+	# The box comes off the screen for the fight and goes back afterwards: a scene is usually
+	# mid-page when it calls for a fight, and the page belongs to the line before it.
+	var box_was_open := _dialogue.visible
+	_dialogue.visible = false
+	_battle.begin(_party, formation, _db, ground, def)
+	var result: String = await _battle.finished
+	_dialogue.visible = box_was_open
+	_scene_battle = false
+	print("SCENE_BATTLE_END result=%s" % result)
+	return result
+
+
+## Is anybody still on their feet? An empty roster is not a wipe: a scene can run before the
+## party exists at all.
+func _everybody_down() -> bool:
+	if _party.roster.is_empty():
+		return false
+	for id in _party.active:
+		if not _party.roster[id].is_ko():
+			return false
+	return true
+
+
 func _note_no_encounter() -> void:
 	print("BATTLE_NONE nothing to fight here")
 
@@ -1452,6 +1531,10 @@ func _on_battle_finished(result: String) -> void:
 		_world.visible = true
 	_follow_camera()
 	print("BATTLE_CLOSED result=%s" % result)
+	# A scene's fight belongs to the scene: it is waiting on the result and decides what a
+	# defeat means. Rolling back from here would tear the world down underneath it.
+	if _scene_battle:
+		return
 	if result == "defeat":
 		_lose()
 		return
@@ -1519,6 +1602,12 @@ func _run_event(id: String) -> void:
 		_open(_index, "")
 	_play_map_music(1.4)
 	_scene_running = false
+	# A scene can be lost. Some are written to be — they carry on and say something about it —
+	# but a party left with nobody standing has to be rolled back, and only the scene knows when
+	# it has finished saying its piece, so this is the moment to check rather than the fight's.
+	if _everybody_down() and not _scene_allows_defeat:
+		_lose()
+	_scene_allows_defeat = false
 
 
 func _update_label() -> void:

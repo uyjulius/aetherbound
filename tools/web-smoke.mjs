@@ -136,6 +136,13 @@ let field = null;
 const opened = new Set();
 const doors = [];
 let analytics = null;
+const scenesRun = [];
+const scenesEnded = [];
+/** Everything the build said, most recent last, so a failing check can show its own context. */
+const chatter = [];
+let sceneBattle = null;
+let sceneBattleEnd = null;
+let sceneChest = null;
 const taps = [];
 let sceneStarted = null;
 let sceneEnded = null;
@@ -202,7 +209,11 @@ page.on('console', (message) => {
     const id = text.match(/map=(\S+)/)?.[1];
     if (id) opened.add(id);
   }
-  if (text.includes('SCENE_START')) sceneStarted = text.trim();
+  if (text.trim()) {
+    chatter.push(text.trim().split('\n')[0].slice(0, 120));
+    if (chatter.length > 400) chatter.shift();
+  }
+  if (text.includes('SCENE_START')) { sceneStarted = text.trim(); scenesRun.push(text.trim()); }
   if (text.includes('DIALOGUE_OPEN')) { dialogueOpened = text.trim(); dialogues++; }
   if (text.includes('PARTY_READY')) partyReady = text.trim();
   if (text.includes('MAP_ENTERED')) mapEntered = text.trim();
@@ -219,6 +230,9 @@ page.on('console', (message) => {
   if (text.includes('INN_DONE')) innDone = text.trim();
   if (text.includes('SHOP_COMPARE')) compared = text.trim();
   if (/^SCENERY /.test(text.trim())) scenery.push(text.trim());
+  if (/^SCENE_BATTLE /.test(text.trim())) sceneBattle = text.trim();
+  if (/^SCENE_BATTLE_END /.test(text.trim())) sceneBattleEnd = text.trim();
+  if (/^SCENE_CHEST /.test(text.trim())) sceneChest = text.trim();
   if (/^DOORS /.test(text.trim())) doors.push(text.trim());
   if (/^CROWD /.test(text.trim())) crowd.push(text.trim());
   if (/^STAGE /.test(text.trim())) stage = text.trim();
@@ -247,7 +261,7 @@ page.on('console', (message) => {
   if (text.includes('EQUIPPED ')) equipped.push(text.trim());
   if (text.includes('BATTLE_START')) battleStarted = text.trim();
   if (text.includes('BATTLE_END')) battleEnded = text.trim();
-  if (text.includes('SCENE_END')) sceneEnded = text.trim();
+  if (text.includes('SCENE_END')) { sceneEnded = text.trim(); scenesEnded.push(text.trim()); }
   if (message.type() !== 'error') return;
   if (/^\s*WARNING:/.test(text)) warnings.push(text.split('\n')[0].trim());
   else errors.push(text);
@@ -917,6 +931,86 @@ if (audioReady) {
   check('the shop and the inn have their own themes',
     asked.includes('shop') && asked.includes('inn'),
     asked.join(' → ').slice(0, 220));
+}
+
+// --- what a scene does to the world -----------------------------------------
+//
+// Every boss in this game arrives inside a story scene, and so does every esper: the scene sets
+// the stage, calls for the fight, waits for the result, and hands over what was behind it. The
+// port used to answer that call with a printed line and the word "victory", and answer the grant
+// with a printed line and nothing at all — so every boss was won by being reached and the whole
+// magic system was unobtainable. `J` walks a short list of scenes; these are both of them.
+if (field) {
+  await closeMenu();
+  // The scene that only hands something over, first — the fight below is lost by a starting
+  // party, and losing rolls the world back to the last save, which is a poor state to start a
+  // second scene in.
+  const beforeGrant = found.length;
+  for (let attempt = 0; attempt < 4 && !scenesRun.some((l) => /carter_pass/.test(l)); attempt++) {
+    await page.keyboard.press('KeyJ');
+    await page.waitForTimeout(1200);
+  }
+  check('a granting scene runs', scenesRun.some((l) => /carter_pass/.test(l)),
+    scenesRun.slice(-3).join(' | ') || 'no scene started');
+  for (let i = 0; i < 90 && found.length === beforeGrant; i++) {
+    await page.keyboard.press('Enter');
+    await page.waitForTimeout(220);
+  }
+  check('and hands over what it promised', found.length > beforeGrant,
+    found.slice(beforeGrant).join(' | ')
+      || `nothing granted in 90 confirms (${chatter.slice(-4).join(' / ')})`);
+
+  // Then the boss — but not until the scene above has finished. A scene runs one at a time and
+  // the key is ignored while one is up, so the first attempt at this pressed J into a scene that
+  // was still saying goodbye and then waited ninety confirms for a fight nobody had started.
+  for (let i = 0; i < 40 && !scenesEnded.some((l) => /carter_pass/.test(l)); i++) {
+    await page.keyboard.press('Enter');
+    await page.waitForTimeout(220);
+  }
+  await closeMenu();
+  // Confirming all the way once it starts: the scene talks first — a letterbox, four pages of it
+  // — and calls for the fight when the talking is done, so waiting quietly waits forever.
+  for (let attempt = 0; attempt < 4 && !scenesRun.some((l) => /fenbarrow_boss/.test(l)); attempt++) {
+    await page.keyboard.press('KeyJ');
+    await page.waitForTimeout(900);
+  }
+  for (let i = 0; i < 90 && !sceneBattle; i++) {
+    await page.keyboard.press('Enter');
+    await page.waitForTimeout(250);
+  }
+  check('a scene can start a fight', Boolean(sceneBattle),
+    sceneBattle ?? `no SCENE_BATTLE in 90 confirms (${chatter.slice(-4).join(' / ')})`);
+  if (sceneBattle) {
+    // Two confirms a turn, and a boss takes rather more turns than a rat.
+    for (let i = 0; i < 260 && !sceneBattleEnd; i++) {
+      await page.keyboard.press('Enter');
+      await page.waitForTimeout(150);
+    }
+    check('and the scene is still there when it ends', Boolean(sceneBattleEnd),
+      sceneBattleEnd ?? 'no SCENE_BATTLE_END in 260 presses');
+    // Whichever way it went, the game has to do the right thing with it. A win hands over what
+    // the scene promised; a loss is a wipe inside a scene, which has to roll back to the last
+    // save rather than stand the dead party up in the boss's chamber. The starting party fights
+    // this boss twenty levels early, so which of the two happens is not this check's business.
+    const beforeSpoils = found.length;
+    for (let i = 0; i < 60 && found.length === beforeSpoils && !rolledBack; i++) {
+      await page.keyboard.press('Enter');
+      await page.waitForTimeout(200);
+    }
+    if (/result=victory/.test(sceneBattleEnd ?? '')) {
+      check('a scene that is won hands over what was behind it', found.length > beforeSpoils,
+        found.slice(beforeSpoils).join(' | ') || 'nothing granted');
+    } else {
+      check('a scene that is lost rolls the party back', Boolean(rolledBack),
+        rolledBack ?? 'no ROLLED_BACK after a defeat inside a scene');
+    }
+  }
+  // A rollback leaves its own page up — "The party falls. Returning to Solmere" — and reloads
+  // the map underneath it. Everything after this section starts by pressing something, so the
+  // page has to be gone before it does: the airship checks read as broken for one run because
+  // their key presses were being eaten by that sentence.
+  await clearField();
+  await closeMenu();
 }
 
 // --- the airship -------------------------------------------------------------
