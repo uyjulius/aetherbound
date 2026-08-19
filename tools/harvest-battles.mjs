@@ -39,6 +39,22 @@ const port = Number(flag('port', 5180));
 const say = (s = '') => console.log(s);
 
 /**
+ * How a player's turn is decided.
+ *
+ * Named rather than described, because the port has to make exactly the same
+ * decision from the same state: a policy that differs by one turn compares two
+ * different fights. Each is deliberately mechanical — no "best" target, no
+ * cleverness — so both engines can implement it without interpretation.
+ *
+ *   attack        the first living enemy, every turn
+ *   magic         the caster's first known attack spell on the first living enemy,
+ *                 falling back to a swing when it is unknown or unaffordable
+ *   heal          a Potion on the actor below three fifths health, else a swing
+ *   defend-first  defend on the actor's first turn, swing after
+ */
+const POLICIES = ['attack', 'magic', 'heal', 'defend-first', 'special', 'steal', 'summon', 'limit'];
+
+/**
  * The fights. Attack-only groups on purpose: the spine resolves attacks and
  * defends, and a creature whose rules reach for a spell would be compared against
  * a port that cannot cast one. Varied in size, level and speed so turn order is
@@ -56,6 +72,55 @@ const SCENARIOS = [
   // opening swing proves the opening swing.
   { name: 'coursing-hounds', enemies: ['coursinghound', 'coursinghound'], seed: 0xbeef },
   { name: 'the-far-runner', enemies: ['thefarrunner'], seed: 0xfeed },
+
+  // The other three policies, so spells, items and Defend are exercised rather
+  // than described. The same groups deliberately reappear under a different
+  // policy: the fight is the control and the decision is the variable.
+  { name: 'magic-two-fenrat', enemies: ['fenrat', 'fenrat'], seed: 0x51a3c7, policy: 'magic' },
+  { name: 'magic-roadwolves', enemies: ['roadwolf', 'roadwolf'], seed: 0x7c40b3, policy: 'magic' },
+  { name: 'magic-brigands', enemies: ['brigand', 'brigandarcher'], seed: 0x33ba9e, policy: 'magic' },
+  { name: 'heal-hounds', enemies: ['coursinghound'], seed: 0xbeef, policy: 'heal' },
+  { name: 'heal-roadwolves', enemies: ['roadwolf', 'roadwolf'], seed: 0x1234, policy: 'heal' },
+  { name: 'defend-hounds', enemies: ['coursinghound'], seed: 0xfeed, policy: 'defend-first' },
+  { name: 'defend-brigands', enemies: ['brigand', 'brigandarcher'], seed: 0xabc, policy: 'defend-first' },
+
+  // The per-character commands, summons and desperation. The `move` travels with
+  // the scenario rather than being looked up: the fourteen command *tables* still
+  // live in the reference's menu code and are a separate job, so what is under test
+  // here is the resolution — which is the part with the arithmetic in it.
+  {
+    name: 'special-hammerfall', enemies: ['roadwolf', 'roadwolf'], seed: 0x7c40b3,
+    policy: 'special', side: 'enemies',
+    move: { label: 'Hammerfall', power: 2.1, target: 'all' },
+  },
+  {
+    name: 'special-silence', enemies: ['brigand', 'brigandarcher'], seed: 0x33ba9e,
+    policy: 'special', side: 'enemies',
+    move: { label: 'Third Form: Silence', power: 2.6, status: { silence: 60 } },
+  },
+  {
+    name: 'special-litany', enemies: ['coursinghound'], seed: 0xbeef,
+    policy: 'special', side: 'party',
+    move: { label: 'Litany of the Ninth', heal: 0.35, status: { regen: 100 } },
+  },
+  {
+    name: 'special-quarry', enemies: ['roadwolf', 'roadwolf'], seed: 0x1234,
+    policy: 'special', side: 'enemies',
+    move: { label: 'Quarry', quarry: true },
+  },
+  {
+    name: 'special-overclock', enemies: ['brigand', 'brigandarcher'], seed: 0xfeed,
+    policy: 'special', side: 'enemies',
+    move: { label: 'Overclock', overclock: 0.15, power: 2.4 },
+  },
+  {
+    name: 'special-unmake', enemies: ['roadwolf', 'roadwolf'], seed: 0x2f6e2b1,
+    policy: 'special', side: 'enemies',
+    move: { label: 'Unmake', unmake: true, power: 1.2 },
+  },
+  { name: 'steal-brigands', enemies: ['brigand', 'brigandarcher'], seed: 0x51a3c7, policy: 'steal' },
+  { name: 'summon-roadwolves', enemies: ['roadwolf', 'roadwolf'], seed: 0x9d2f11, policy: 'summon' },
+  { name: 'limit-hounds', enemies: ['coursinghound'], seed: 0x33ba9e, policy: 'limit' },
 ];
 
 /** Frames a fight is given before it is called a runaway. */
@@ -99,6 +164,7 @@ const partyState = await page.evaluate(() => {
   const party = window.__game.party;
   return {
     gold: party.gold,
+    inventory: Object.fromEntries(party.inventory),
     members: [...party.roster.values()].map((m) => ({
       id: m.id,
       level: m.level,
@@ -121,7 +187,7 @@ say(`  party       ${partyState.members.length} member(s), `
 const transcripts = {};
 for (const [index, scenario] of SCENARIOS.entries()) {
   if (index > 0) await freshCampaign();
-  const harvested = await page.evaluate(async ({ enemies, seed, frameCap }) => {
+  const harvested = await page.evaluate(async ({ enemies, seed, frameCap, policy, move, side }) => {
     const game = window.__game;
 
     // A fresh fight from a known stream state, and the party restored to full so
@@ -168,13 +234,94 @@ for (const [index, scenario] of SCENARIOS.entries()) {
     }
     const state = game.state;
 
-    // Scripted policy: the first living enemy, every turn. `_openCommandMenu` is
-    // the one hook a player's turn passes through, so replacing it is the whole
-    // script — no synthesised key presses, no menu navigation, nothing that could
-    // land a frame late and change the transcript.
+    // `_openCommandMenu` is the one hook a player's turn passes through, so
+    // replacing it is the whole script — no synthesised key presses, no menu
+    // navigation, nothing that could land a frame late and change the transcript.
     state._openCommandMenu = (actor) => {
       const target = state.enemies.find((e) => !e.isKO);
-      state._commitAction({ actor, kind: 'attack', targets: target ? [target] : [] });
+      const swing = () => state._commitAction(
+        { actor, kind: 'attack', targets: target ? [target] : [] });
+
+      if (policy === 'magic') {
+        const known = Object.entries(actor.member?.spells ?? {})
+          .filter(([, proficiency]) => proficiency >= 100)
+          .map(([id]) => window.__spells[id])
+          .filter((spell) => spell?.kind === 'attack')
+          .sort((a, b) => a.id.localeCompare(b.id));
+        const spell = known[0];
+        if (spell && actor.mp >= spell.mp && target) {
+          state._commitAction({ actor, kind: 'spell', spell, targets: [target] });
+          return;
+        }
+        swing();
+        return;
+      }
+
+      if (policy === 'heal') {
+        const item = window.__items.potion;
+        if (actor.hp < actor.maxHP * 0.6 && state.game.party.countItem('potion') > 0) {
+          state._commitAction({ actor, kind: 'item', item, targets: [actor] });
+          return;
+        }
+        swing();
+        return;
+      }
+
+      if (policy === 'special') {
+        const pool = side === 'party' ? state.party : state.enemies;
+        const living = pool.filter((c) => !c.isKO);
+        const targets = move.target === 'all' || side === 'party' ? living : living.slice(0, 1);
+        if (targets.length) {
+          state._commitAction({ actor, kind: 'special', move, targets });
+          return;
+        }
+        swing();
+        return;
+      }
+
+      if (policy === 'steal') {
+        if (actor.turnCount === 0 && target) {
+          state._commitAction({ actor, kind: 'steal', targets: [target] });
+          return;
+        }
+        swing();
+        return;
+      }
+
+      if (policy === 'summon') {
+        const esper = actor.member?.esper;
+        const summon = esper?.summon ?? {};
+        const helps = summon.heal !== undefined
+          || ['buffParty', 'healParty', 'hasteParty'].includes(summon.effect);
+        const pool = helps ? state.party : state.enemies;
+        const targets = pool.filter((c) => !c.isKO);
+        if (esper && !actor._summoned && actor.mp >= esper.mp && targets.length) {
+          state._commitAction({ actor, kind: 'summon', esper, targets });
+          return;
+        }
+        swing();
+        return;
+      }
+
+      if (policy === 'limit') {
+        if (actor.limit >= 100 && target) {
+          state._commitAction({ actor, kind: 'limit', targets: [target] });
+          return;
+        }
+        swing();
+        return;
+      }
+
+      if (policy === 'defend-first') {
+        if (actor.turnCount === 0) {
+          state._commitAction({ actor, kind: 'defend', targets: [] });
+          return;
+        }
+        swing();
+        return;
+      }
+
+      swing();
     };
 
     const log = [];
@@ -220,15 +367,19 @@ for (const [index, scenario] of SCENARIOS.entries()) {
       levels: Object.fromEntries([...game.party.roster.values()].map((m) => [m.id, m.level])),
       inventory: Object.fromEntries(game.party.inventory),
     };
-  }, { enemies: scenario.enemies, seed: scenario.seed, frameCap: FRAME_CAP });
+  }, {
+    enemies: scenario.enemies, seed: scenario.seed, frameCap: FRAME_CAP,
+    policy: scenario.policy ?? 'attack',
+    move: scenario.move ?? {}, side: scenario.side ?? 'enemies',
+  });
 
   if (harvested.error) {
     say(`  \x1b[31mFAIL\x1b[0m ${scenario.name}: ${harvested.error}`);
     continue;
   }
   transcripts[scenario.name] = { ...scenario, ...harvested };
-  say(`  ${scenario.name.padEnd(16)} ${String(harvested.turns.length).padStart(3)} turns  `
-    + `${harvested.result ?? 'unfinished'}`);
+  say(`  ${scenario.name.padEnd(18)} ${(scenario.policy ?? 'attack').padEnd(12)} `
+    + `${String(harvested.turns.length).padStart(3)} turns  ${harvested.result ?? 'unfinished'}`);
 }
 
 if (pageErrors.length) {
@@ -250,8 +401,10 @@ fs.mkdirSync(path.join(root, 'tools', 'fixtures'), { recursive: true });
 fs.writeFileSync(path.join(root, 'tools', 'fixtures', 'battle-setup.json'),
   JSON.stringify({
     party: partyState,
-    scenarios: Object.values(transcripts)
-      .map(({ name, enemies, seed }) => ({ name, enemies, seed })),
+    scenarios: Object.values(transcripts).map(({ name, enemies, seed, policy, move, side }) => ({
+      name, enemies, seed, policy: policy ?? 'attack',
+      move: move ?? {}, side: side ?? 'enemies',
+    })),
   }, null, 1));
 fs.writeFileSync(path.join(root, 'tools', 'fixtures', 'reference-battles.json'),
   JSON.stringify({ scenarios: transcripts }, null, 1));

@@ -42,6 +42,7 @@ import { CHARACTERS, CAST_ORDER } from '../src/data/characters.js';
 import { RAMPS, INK, PAPER, UI, ELEMENT_COLOR } from '../src/engine/palette.js';
 import { TILE, LEGEND, WALL_EXPOSURE, GLYPH_PROP_RADII } from '../src/world/map.js';
 import { STATUSES, TICK_RATES } from '../src/battle/formulas.js';
+import { COMMANDS } from '../src/battle/commands.js';
 import { ACTIONS, DEFAULT_BINDINGS, PAD_BUTTONS } from '../src/engine/input.js';
 
 const root = path.dirname(fileURLToPath(new URL('../package.json', import.meta.url)));
@@ -154,6 +155,12 @@ const written = [
   // happened, twice, in the reference — so it crosses as data rather than being
   // retyped in GDScript.
   write('statuses', { statuses: STATUSES, tick_rates: TICK_RATES }),
+
+  // The fourteen per-character commands. Every character's second command is the
+  // reason to bring them, and the numbers on the options are balance decisions —
+  // Rusk's tiers cost a quarter, a half and nine tenths of his health for 2.2, 4.0
+  // and 7.5 times a swing. The port reads these rather than a transcription.
+  write('commands', COMMANDS),
 ];
 
 // A manifest so the Godot side can assert it loaded everything it was given,

@@ -1,6 +1,11 @@
 {
  "party": {
   "gold": 500,
+  "inventory": {
+   "potion": 5,
+   "antidote": 2,
+   "tonic": 2
+  },
   "members": [
    {
     "id": "vesna",
@@ -83,14 +88,20 @@
     "fenrat",
     "fenrat"
    ],
-   "seed": 5350343
+   "seed": 5350343,
+   "policy": "attack",
+   "move": {},
+   "side": "enemies"
   },
   {
    "name": "one-mireslug",
    "enemies": [
     "mireslug"
    ],
-   "seed": 49734321
+   "seed": 49734321,
+   "policy": "attack",
+   "move": {},
+   "side": "enemies"
   },
   {
    "name": "three-mixed",
@@ -99,7 +110,10 @@
     "mireslug",
     "fenrat"
    ],
-   "seed": 10301201
+   "seed": 10301201,
+   "policy": "attack",
+   "move": {},
+   "side": "enemies"
   },
   {
    "name": "two-roadwolf",
@@ -107,7 +121,10 @@
     "roadwolf",
     "roadwolf"
    ],
-   "seed": 8143027
+   "seed": 8143027,
+   "policy": "attack",
+   "move": {},
+   "side": "enemies"
   },
   {
    "name": "brigands",
@@ -115,7 +132,10 @@
     "brigand",
     "brigandarcher"
    ],
-   "seed": 3390110
+   "seed": 3390110,
+   "policy": "attack",
+   "move": {},
+   "side": "enemies"
   },
   {
    "name": "three-carrionbat",
@@ -124,7 +144,10 @@
     "carrionbat",
     "carrionbat"
    ],
-   "seed": 1234
+   "seed": 1234,
+   "policy": "attack",
+   "move": {},
+   "side": "enemies"
   },
   {
    "name": "coursing-hounds",
@@ -132,14 +155,219 @@
     "coursinghound",
     "coursinghound"
    ],
-   "seed": 48879
+   "seed": 48879,
+   "policy": "attack",
+   "move": {},
+   "side": "enemies"
   },
   {
    "name": "the-far-runner",
    "enemies": [
     "thefarrunner"
    ],
-   "seed": 65261
+   "seed": 65261,
+   "policy": "attack",
+   "move": {},
+   "side": "enemies"
+  },
+  {
+   "name": "magic-two-fenrat",
+   "enemies": [
+    "fenrat",
+    "fenrat"
+   ],
+   "seed": 5350343,
+   "policy": "magic",
+   "move": {},
+   "side": "enemies"
+  },
+  {
+   "name": "magic-roadwolves",
+   "enemies": [
+    "roadwolf",
+    "roadwolf"
+   ],
+   "seed": 8143027,
+   "policy": "magic",
+   "move": {},
+   "side": "enemies"
+  },
+  {
+   "name": "magic-brigands",
+   "enemies": [
+    "brigand",
+    "brigandarcher"
+   ],
+   "seed": 3390110,
+   "policy": "magic",
+   "move": {},
+   "side": "enemies"
+  },
+  {
+   "name": "heal-hounds",
+   "enemies": [
+    "coursinghound"
+   ],
+   "seed": 48879,
+   "policy": "heal",
+   "move": {},
+   "side": "enemies"
+  },
+  {
+   "name": "heal-roadwolves",
+   "enemies": [
+    "roadwolf",
+    "roadwolf"
+   ],
+   "seed": 4660,
+   "policy": "heal",
+   "move": {},
+   "side": "enemies"
+  },
+  {
+   "name": "defend-hounds",
+   "enemies": [
+    "coursinghound"
+   ],
+   "seed": 65261,
+   "policy": "defend-first",
+   "move": {},
+   "side": "enemies"
+  },
+  {
+   "name": "defend-brigands",
+   "enemies": [
+    "brigand",
+    "brigandarcher"
+   ],
+   "seed": 2748,
+   "policy": "defend-first",
+   "move": {},
+   "side": "enemies"
+  },
+  {
+   "name": "special-hammerfall",
+   "enemies": [
+    "roadwolf",
+    "roadwolf"
+   ],
+   "seed": 8143027,
+   "policy": "special",
+   "move": {
+    "label": "Hammerfall",
+    "power": 2.1,
+    "target": "all"
+   },
+   "side": "enemies"
+  },
+  {
+   "name": "special-silence",
+   "enemies": [
+    "brigand",
+    "brigandarcher"
+   ],
+   "seed": 3390110,
+   "policy": "special",
+   "move": {
+    "label": "Third Form: Silence",
+    "power": 2.6,
+    "status": {
+     "silence": 60
+    }
+   },
+   "side": "enemies"
+  },
+  {
+   "name": "special-litany",
+   "enemies": [
+    "coursinghound"
+   ],
+   "seed": 48879,
+   "policy": "special",
+   "move": {
+    "label": "Litany of the Ninth",
+    "heal": 0.35,
+    "status": {
+     "regen": 100
+    }
+   },
+   "side": "party"
+  },
+  {
+   "name": "special-quarry",
+   "enemies": [
+    "roadwolf",
+    "roadwolf"
+   ],
+   "seed": 4660,
+   "policy": "special",
+   "move": {
+    "label": "Quarry",
+    "quarry": true
+   },
+   "side": "enemies"
+  },
+  {
+   "name": "special-overclock",
+   "enemies": [
+    "brigand",
+    "brigandarcher"
+   ],
+   "seed": 65261,
+   "policy": "special",
+   "move": {
+    "label": "Overclock",
+    "overclock": 0.15,
+    "power": 2.4
+   },
+   "side": "enemies"
+  },
+  {
+   "name": "special-unmake",
+   "enemies": [
+    "roadwolf",
+    "roadwolf"
+   ],
+   "seed": 49734321,
+   "policy": "special",
+   "move": {
+    "label": "Unmake",
+    "unmake": true,
+    "power": 1.2
+   },
+   "side": "enemies"
+  },
+  {
+   "name": "steal-brigands",
+   "enemies": [
+    "brigand",
+    "brigandarcher"
+   ],
+   "seed": 5350343,
+   "policy": "steal",
+   "move": {},
+   "side": "enemies"
+  },
+  {
+   "name": "summon-roadwolves",
+   "enemies": [
+    "roadwolf",
+    "roadwolf"
+   ],
+   "seed": 10301201,
+   "policy": "summon",
+   "move": {},
+   "side": "enemies"
+  },
+  {
+   "name": "limit-hounds",
+   "enemies": [
+    "coursinghound"
+   ],
+   "seed": 3390110,
+   "policy": "limit",
+   "move": {},
+   "side": "enemies"
   }
  ]
 }

@@ -324,8 +324,25 @@ func commit_action(action: Dictionary) -> void:
 			_do_attack(actor, action.get("targets", []), action.get("move", {}))
 		"defend":
 			_do_defend(actor)
+		"spell":
+			_do_spell(actor, action.get("targets", []), action.get("spell", {}))
+		"item":
+			_do_item(actor, action.get("targets", []), action.get("item", {}))
+		"scan":
+			_do_scan(action.get("targets", []))
+		"special":
+			_do_special(actor, action.get("targets", []), action.get("move", {}))
+		"steal":
+			_do_steal(actor, action.get("targets", []))
+		"summon":
+			_do_summon(actor, action.get("targets", []), action.get("esper", {}))
+		"limit":
+			_do_limit(actor, action.get("targets", []))
+		"row":
+			# Swapping rows costs the turn, which is the whole cost of the decision.
+			actor.row = "back" if actor.row == "front" else "front"
 		_:
-			push_error("battle spine cannot resolve '%s' yet" % kind)
+			unsupported.append("%s: %s" % [actor.id, kind])
 
 	actor.atb = 0.0
 	actor.turn_count += 1
@@ -360,7 +377,10 @@ func _do_attack(actor: Combatant, targets: Array, move: Dictionary) -> void:
 		for target in living:
 			if target.is_ko():
 				continue
+			# A move's element wins, then Attune, then whatever the weapon is.
 			var element := String(move.get("element", ""))
+			if element.is_empty():
+				element = actor.attuned_element
 			if element.is_empty() and actor.kind == "party":
 				element = String(actor.weapon().get("element", ""))
 			_resolve_physical(actor, target, float(move.get("power", 1.0)) * pass_power,
@@ -368,13 +388,377 @@ func _do_attack(actor: Combatant, targets: Array, move: Dictionary) -> void:
 
 
 ## Defend: brace for the round, and take the guard into the next turn.
+##
+## Two turns of Protect, not the status table's default of "until removed".
+## `_end_of_turn` runs in the same wrap-up as this action, so a guard raised for one
+## turn went up and came down before a single enemy could swing — the most-pressed
+## non-attack button in the game bought nothing at all. The `defending` stamp is
+## what lets the teardown tell "the turn I defended" from "the turn after".
 func _do_defend(actor: Combatant) -> void:
+	actor.add_status("protect", 2)
 	actor.defending = true
-	actor.add_status("protect")
+
+
+## The MP a spell costs this caster. Relics can halve it or flatten it to one.
+func _spell_cost(actor: Combatant, spell: Dictionary) -> int:
+	var cost := int(spell.get("mp", 0))
+	if actor.kind != "party":
+		return cost
+	for slot in actor.member.equipment:
+		var effects: Array = actor.member.equipment[slot].get("effects", [])
+		if effects.has("halfMP"):
+			cost = int(ceil(float(cost) / 2.0))
+		if effects.has("oneMP"):
+			cost = 1
+	return maxi(0, cost)
+
+
+func _do_spell(actor: Combatant, targets: Array, spell: Dictionary) -> void:
+	if spell.is_empty():
+		return
+	var cost := _spell_cost(actor, spell)
+	if actor.kind == "party":
+		if actor.mp < cost:
+			return
+		actor.mp -= cost
+
+	# `doubleCast` resolves the spell twice for one payment, and the second pass
+	# re-checks the target list so a wide spell that already killed everything does
+	# not swing at corpses.
+	var passes := 1
+	if actor.kind == "party" and actor.has_effect("doubleCast"):
+		passes = 2
+
+	for pass_index in passes:
+		var live: Array = targets
+		if pass_index > 0:
+			live = []
+			for t in targets:
+				if not t.is_ko() or bool(spell.get("targetsKO", false)):
+					live.append(t)
+		if live.is_empty():
+			break
+		for target in live:
+			# Reflect bounces the spell back at the caster's own side. Grey magic
+			# and buffs pass through, which is what makes Reflect a defence rather
+			# than a wall.
+			if target.has_status("reflect") and String(spell.get("school", "")) != "grey" \
+					and String(spell.get("kind", "")) != "buff":
+				var pool: Array = party if actor.kind == "party" else enemies
+				var bounce := _living_except(pool, null)
+				if not bounce.is_empty():
+					_apply_spell(actor, _battle_rng.pick(bounce), spell)
+				continue
+			_apply_spell(actor, target, spell)
+
+
+func _apply_spell(actor: Combatant, target: Combatant, spell: Dictionary) -> void:
+	var caster_magic := float(actor.stat("mag"))
+	var kind := String(spell.get("kind", ""))
+
+	if kind == "attack":
+		var mdef := float(target.magic_defence())
+		if target.has_status("shell"):
+			mdef = floor(mdef * 1.6)
+		# Same split as a swing: the party's spells climb, a creature's spell is
+		# worth a multiple of its own magic.
+		var dmg := 0
+		if actor.kind == "party":
+			dmg = Formulas.magic_damage(actor.level, caster_magic,
+				float(spell.get("power", 0)), mdef)
+		else:
+			dmg = Formulas.monster_damage(actor.level, caster_magic, mdef,
+				float(spell.get("power", 0)) / Formulas.MONSTER_SPELL_REFERENCE, target.row)
+		dmg = Formulas.apply_variance(dmg, 224 + _battle_rng.int_below(33))
+
+		var mult := Formulas.elemental_multiplier(String(spell.get("element", "")),
+			target.affinity())
+		if String(spell.get("element", "")) == "earth" and target.has_status("float") \
+				and String(spell.get("ignores", "")) != "float":
+			mult = 0.0
+		dmg = int(round(float(dmg) * absf(mult)))
+		if mult < 0.0:
+			target.hp = mini(target.max_hp, target.hp + dmg)
+		elif mult != 0.0:
+			_apply_damage(target, dmg)
+		_roll_statuses(actor, target, spell.get("status", {}), false)
+	elif kind == "heal":
+		if String(spell.get("effect", "")) == "fullHeal":
+			target.hp = target.max_hp
+		else:
+			var amount := Formulas.heal_amount(actor.level, caster_magic,
+				float(spell.get("power", 0)))
+			# Undead take healing as damage — an old trick, still a good one. Only a
+			# creature can be authored undead; a party member gets there through
+			# Zombie.
+			var undead := target.has_status("zombie")
+			if target is EnemyCombatant and bool((target as EnemyCombatant).def.get("undead", false)):
+				undead = true
+			if undead:
+				_apply_damage(target, amount)
+			else:
+				target.hp = mini(target.max_hp, target.hp + amount)
+	elif kind == "status" or kind == "buff":
+		_roll_statuses(actor, target, spell.get("status", {}), kind == "buff")
+	elif kind == "special":
+		_apply_special_spell(actor, target, spell)
+
+
+## Statuses from a move or a spell. A buff lands without a roll; everything else
+## is contested by the target's resistance, immunities and level.
+func _roll_statuses(actor: Combatant, target: Combatant, statuses: Dictionary,
+		guaranteed: bool) -> void:
+	for status_id in statuses:
+		var lands := guaranteed
+		if not lands:
+			lands = Formulas.roll_status(_battle_rng, float(statuses[status_id]),
+				float(target.magic_defence()), target.immune, String(status_id),
+				actor.level, target.level)
+		if not lands:
+			continue
+		if String(status_id) == "ko":
+			_apply_damage(target, target.hp)
+		else:
+			target.add_status(String(status_id))
+
+
+func _apply_special_spell(actor: Combatant, target: Combatant, spell: Dictionary) -> void:
+	match String(spell.get("effect", "")):
+		"revive":
+			if not target.is_ko():
+				return
+			target.remove_status("ko")
+			target.hp = maxi(1, int(floor(float(target.max_hp) * float(spell.get("ratio", 0.25)))))
+		"cureStatus":
+			for status_id in spell.get("cures", []):
+				target.remove_status(String(status_id))
+		"drainHP":
+			var dmg := 0
+			if actor.kind == "party":
+				dmg = Formulas.magic_damage(actor.level, float(actor.stat("mag")),
+					float(spell.get("power", 0)), float(target.magic_defence()))
+			else:
+				dmg = Formulas.monster_damage(actor.level, float(actor.stat("mag")),
+					float(target.magic_defence()),
+					float(spell.get("power", 0)) / Formulas.MONSTER_SPELL_REFERENCE, target.row)
+			dmg = Formulas.apply_variance(dmg, 224 + _battle_rng.int_below(33))
+			_apply_damage(target, dmg)
+			actor.hp = mini(actor.max_hp, actor.hp + dmg)
+		"drainMP":
+			var amount := mini(target.mp, int(floor(float(spell.get("power", 0)) * 0.6)))
+			target.mp -= amount
+			actor.mp = mini(actor.max_mp, actor.mp + amount)
+		"fractionHP":
+			_apply_damage(target, maxi(1, int(floor(float(target.hp)
+				* float(spell.get("fraction", 0.5))))))
+		"stripBuffs":
+			for status_id in target.statuses.keys():
+				if String(_statuses.get(status_id, {}).get("kind", "")) == "good":
+					target.remove_status(String(status_id))
+		"scan":
+			target.scanned = true
+		"flee":
+			_finish("flee")
+		"levelMultiple":
+			# The classic level-N roulette: it lands only where the level divides
+			# evenly, which is why it reads the bestiary's levels rather than a
+			# damage curve.
+			if target.level % int(spell.get("of", 1)) != 0:
+				return
+			var dmg := 0
+			if actor.kind == "party":
+				dmg = Formulas.magic_damage(actor.level, float(actor.stat("mag")), 90.0,
+					float(target.magic_defence()))
+			else:
+				dmg = Formulas.monster_damage(actor.level, float(actor.stat("mag")),
+					float(target.magic_defence()),
+					90.0 / Formulas.MONSTER_SPELL_REFERENCE, target.row)
+			dmg = Formulas.apply_variance(dmg, 224 + _battle_rng.int_below(33))
+			_apply_damage(target, dmg)
+		"extraTurn":
+			# The gauge refilled rather than a turn granted directly: the ATB is the
+			# only clock in the fight, so a full bar says the same thing in the
+			# system's own terms and cannot double-book the actor.
+			target.atb = ATB_FULL
+		"swapHPMP":
+			# Both clamped, because the pools are not the same size and this should
+			# never be a free full heal or a way to mint MP.
+			var hp := mini(target.hp, target.max_mp)
+			var mp := mini(target.mp, target.max_hp)
+			target.hp = maxi(1, mp)
+			target.mp = hp
+
+
+func _do_item(actor: Combatant, targets: Array, item: Dictionary) -> void:
+	if item.is_empty():
+		return
+	if not _party_ref.remove_item(String(item.get("id", "")), 1):
+		return
+	var effect: Dictionary = item.get("effect", {})
+	for target in targets:
+		if effect.has("heal"):
+			target.hp = mini(target.max_hp, target.hp + int(effect["heal"]))
+		if effect.has("mp"):
+			target.mp = mini(target.max_mp, target.mp + int(effect["mp"]))
+		if bool(effect.get("fullHeal", false)):
+			target.hp = target.max_hp
+		if bool(effect.get("fullMP", false)):
+			target.mp = target.max_mp
+		for status_id in effect.get("cure", []):
+			target.remove_status(String(status_id))
+		if bool(effect.get("cureAll", false)):
+			target.clear_bad_statuses()
+		if effect.has("revive") and target.is_ko():
+			target.remove_status("ko")
+			target.hp = int(floor(float(target.max_hp) * float(effect["revive"])))
+		for status_id in effect.get("status", {}):
+			target.add_status(String(status_id))
+		if effect.has("damage"):
+			var mult := Formulas.elemental_multiplier(String(effect.get("element", "")),
+				target.affinity())
+			var dmg := int(round(float(effect["damage"]) * absf(mult)))
+			_apply_damage(target, maxi(1, dmg) if mult != 0.0 else 0)
+
+
+## A per-character special command.
+##
+## Data-driven on purpose: every one of the fourteen commands builds a `move` and
+## this resolves it, so the fifteenth needs a table entry rather than a branch.
+##
+## Statuses ride the blow and roll like any other. They used to be applied here as
+## well, unconditionally, before the swing got a look at them — so each landed twice
+## and the first was a certainty. The bestiary writes *chances*: a `{berserk: 70}` is
+## meant to be seven turns in ten, and arrived as ten, on the whole party, skipping
+## the immunity list and the level term on the way past.
+func _do_special(actor: Combatant, targets: Array, move: Dictionary) -> void:
+	# Overclock pays first, so the cost lands even if the blow misses.
+	if move.has("overclock"):
+		var spent := maxi(1, int(floor(float(actor.max_hp) * float(move["overclock"]))))
+		actor.hp = maxi(1, actor.hp - spent)
+
+	for target in targets:
+		if bool(move.get("unmake", false)):
+			# Strip every good status, then blank the affinity table for the rest of
+			# the fight: an absorb becomes a plain hit and a resistance stops
+			# mattering. This is the counter to a boss built around one element.
+			for status_id in target.statuses.keys():
+				if String(_statuses.get(status_id, {}).get("kind", "")) == "good":
+					target.remove_status(String(status_id))
+			if target is EnemyCombatant:
+				(target as EnemyCombatant).unmade = true
+
+		if bool(move.get("quarry", false)):
+			target.quarry = true
+
+		if bool(move.get("render", false)):
+			_render_spell(actor, target)
+
+		if move.has("heal"):
+			var amount := int(floor(float(target.max_hp) * float(move["heal"])))
+			target.hp = mini(target.max_hp, target.hp + amount)
+
+		if move.has("power") and float(move["power"]) > 0.0:
+			_resolve_physical(actor, target, float(move["power"]),
+				String(move.get("element", "")), move.get("status", {}))
+		elif move.has("status"):
+			# A pure status move has no blow to ride, so it rolls on its own.
+			_roll_statuses(actor, target, move["status"], false)
+
+	if move.has("attune"):
+		actor.attuned_element = String(move["attune"])
+
+
+## Render: learn one spell the target knows and the caster does not.
+func _render_spell(actor: Combatant, target: Combatant) -> void:
+	if actor.kind != "party" or not (target is EnemyCombatant):
+		return
+	var theirs: Array = []
+	for rule in (target as EnemyCombatant).def.get("ai", []):
+		var spell_id := String(rule.get("do", {}).get("spell", ""))
+		if spell_id.is_empty() or not _db.spells.has(spell_id):
+			continue
+		if float(actor.member.spells.get(spell_id, 0)) >= 100.0:
+			continue
+		theirs.append(spell_id)
+	if theirs.is_empty():
+		return
+	actor.member.spells[String(_battle_rng.pick(theirs))] = 100.0
+
+
+## Pilfer. Rolled on the loot stream, like every other acquisition, so a fight
+## replays identically from a seed whatever the party is wearing.
+func _do_steal(actor: Combatant, targets: Array) -> void:
+	if targets.is_empty() or not (targets[0] is EnemyCombatant):
+		return
+	var target: EnemyCombatant = targets[0]
+	var bonus := 2.0 if actor.kind == "party" and actor.has_effect("stealUp") else 1.0
+	for entry in target.def.get("steal", []):
+		if _loot_rng.next() < float(entry.get("chance", 0)) * bonus:
+			var item_id := String(entry.get("id", ""))
+			if _db.items.has(item_id):
+				_party_ref.add_item(item_id, 1)
+			return
+
+
+## Summon. One per battle, and the most expensive button in the game.
+func _do_summon(actor: Combatant, targets: Array, esper: Dictionary) -> void:
+	if esper.is_empty():
+		return
+	actor.mp -= int(esper.get("mp", 0))
+	actor.summoned = true
+	var summon: Dictionary = esper.get("summon", {})
+	var effect := String(summon.get("effect", ""))
+
+	for target in targets:
+		if summon.has("heal"):
+			target.hp = mini(target.max_hp,
+				target.hp + int(floor(float(target.max_hp) * float(summon["heal"]))))
+		elif effect == "buffParty":
+			target.add_status("protect")
+			target.add_status("shell")
+			target.add_status("haste")
+		elif effect == "healParty":
+			target.hp = mini(target.max_hp, target.hp
+				+ Formulas.heal_amount(actor.level, float(actor.stat("mag")), 90.0))
+		elif effect == "hasteParty":
+			target.add_status("haste")
+		elif effect == "silenceAll":
+			if not target.immune.has("silence"):
+				target.add_status("silence")
+		elif effect == "fractionHP":
+			# Proportional damage. Bosses are immune, or this trivialises every long
+			# fight in the game.
+			if not (target is EnemyCombatant and (target as EnemyCombatant).is_boss()):
+				_apply_damage(target, maxi(1, int(floor(float(target.hp)
+					* float(summon.get("fraction", 0.5))))))
+		else:
+			var mdef := float(target.magic_defence())
+			if target.has_status("shell"):
+				mdef = floor(mdef * 1.6)
+			var dmg := Formulas.magic_damage(actor.level, float(actor.stat("mag")),
+				float(summon.get("power", 0)), mdef)
+			var mult := Formulas.elemental_multiplier(String(summon.get("element", "")),
+				target.affinity())
+			if mult < 0.0:
+				target.hp = mini(target.max_hp, target.hp + dmg)
+			elif mult > 0.0:
+				_apply_damage(target, int(round(float(dmg) * mult)))
+
+
+## Desperation. Spends the gauge for one blow that half-ignores defence.
+func _do_limit(actor: Combatant, targets: Array) -> void:
+	actor.limit = 0.0
+	for target in targets:
+		_resolve_physical(actor, target, 3.2, actor.attuned_element, {}, 0.5)
+
+
+func _do_scan(targets: Array) -> void:
+	for target in targets:
+		target.scanned = true
 
 
 func _resolve_physical(actor: Combatant, target: Combatant, power: float,
-		element: String, status: Dictionary) -> int:
+		element: String, status: Dictionary, ignore_defence := 0.0) -> int:
 	var accuracy := 100.0 + (float(actor.stat("lck")) * 0.2 if actor.kind == "party" else 6.0)
 	if not Formulas.roll_hit(_battle_rng, accuracy, float(target.evade()),
 			actor.has_status("blind"), target.has_status("vanish")):
@@ -398,15 +782,20 @@ func _resolve_physical(actor: Combatant, target: Combatant, power: float,
 		multiplier *= 1.25
 	if actor.has_status("imp"):
 		multiplier *= 0.25
+	# Quarry marks a target for the whole party, not just for the character who
+	# marked it — which is what makes it worth a turn.
+	if target.quarry:
+		multiplier *= 1.25
 
 	var dmg := 0
 	if actor.kind == "party":
 		dmg = Formulas.physical_damage(actor.level, float(actor.stat("vig")),
 			float(actor.attack_power()), defence, actor.row, target.row, crit,
-			multiplier, 0.0, actor.weapon().get("effects", []).has("reachBack"))
+			multiplier, ignore_defence,
+			actor.weapon().get("effects", []).has("reachBack"))
 	else:
 		dmg = Formulas.monster_damage(actor.level, float(actor.attack_power()), defence,
-			multiplier * (1.5 if crit else 1.0), actor.row)
+			multiplier * (1.5 if crit else 1.0), target.row, ignore_defence)
 
 	# Variance, drawn here rather than inside the damage function.
 	#
@@ -432,11 +821,7 @@ func _resolve_physical(actor: Combatant, target: Combatant, power: float,
 		_apply_damage(target, dmg, crit)
 
 	if not status.is_empty() and not target.is_ko():
-		for status_id in status:
-			if Formulas.roll_status(_battle_rng, float(status[status_id]),
-					float(target.magic_defence()), target.immune, String(status_id),
-					actor.level, target.level):
-				target.add_status(String(status_id))
+		_roll_statuses(actor, target, status, false)
 	return dmg
 
 
@@ -666,6 +1051,12 @@ func _random_living(pool: Array) -> Combatant:
 	if living.is_empty():
 		return null
 	return _battle_rng.pick(living)
+
+
+## The party this fight is being fought by — the roster, the purse and the bag. A
+## command policy needs it to know whether there is a Potion to use.
+func party_ref() -> Party:
+	return _party_ref
 
 
 ## The first living enemy, which is what a scripted policy attacks.

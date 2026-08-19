@@ -57,6 +57,8 @@ func _read_setup() -> Dictionary:
 func _build_party(db, description: Dictionary):
 	var party = PartyModel.new(db)
 	party.gold = int(description.get("gold", 0))
+	for item_id in description.get("inventory", {}):
+		party.inventory[String(item_id)] = int(description["inventory"][item_id])
 	var active: Array = []
 	for entry in description.get("members", []):
 		var id := String(entry["id"])
@@ -87,6 +89,101 @@ func _build_party(db, description: Dictionary):
 	return party
 
 
+## The scripted decision for a player turn.
+##
+## The same four policies the harvest implements, and deliberately mechanical: no
+## best target, no cleverness, nothing either side has to interpret. A policy that
+## differs by one turn compares two different fights.
+func _policy(db, name: String, scenario: Dictionary) -> Callable:
+	var move: Dictionary = scenario.get("move", {})
+	var side := String(scenario.get("side", "enemies"))
+	match name:
+		"magic":
+			return func(fight, actor):
+				var target = fight.first_living_enemy()
+				var known: Array = []
+				for spell_id in actor.member.spells:
+					if float(actor.member.spells[spell_id]) < 100.0:
+						continue
+					var spell: Dictionary = db.spells.get(String(spell_id), {})
+					if String(spell.get("kind", "")) == "attack":
+						known.append(spell)
+				known.sort_custom(func(a, b): return String(a["id"]) < String(b["id"]))
+				if not known.is_empty() and target != null \
+						and actor.mp >= int(known[0].get("mp", 0)):
+					return {"actor": actor, "kind": "spell", "spell": known[0],
+						"targets": [target]}
+				return {"actor": actor, "kind": "attack",
+					"targets": [target] if target != null else []}
+		"heal":
+			return func(fight, actor):
+				var target = fight.first_living_enemy()
+				if float(actor.hp) < float(actor.max_hp) * 0.6 \
+						and fight.party_ref().count_item("potion") > 0:
+					return {"actor": actor, "kind": "item",
+						"item": db.items.get("potion", {}), "targets": [actor]}
+				return {"actor": actor, "kind": "attack",
+					"targets": [target] if target != null else []}
+		"special":
+			return func(fight, actor):
+				var pool: Array = fight.party if side == "party" else fight.enemies
+				var living: Array = []
+				for c in pool:
+					if not c.is_ko():
+						living.append(c)
+				var targets: Array = living
+				if String(move.get("target", "")) != "all" and side != "party":
+					targets = living.slice(0, 1)
+				if not targets.is_empty():
+					return {"actor": actor, "kind": "special", "move": move,
+						"targets": targets}
+				return _swing(fight, actor)
+		"steal":
+			return func(fight, actor):
+				var target = fight.first_living_enemy()
+				if actor.turn_count == 0 and target != null:
+					return {"actor": actor, "kind": "steal", "targets": [target]}
+				return _swing(fight, actor)
+		"summon":
+			return func(fight, actor):
+				var esper: Dictionary = actor.member.esper if actor.kind == "party" else {}
+				var summon: Dictionary = esper.get("summon", {})
+				var helps := summon.has("heal") or ["buffParty", "healParty", "hasteParty"] \
+					.has(String(summon.get("effect", "")))
+				var pool: Array = fight.party if helps else fight.enemies
+				var targets: Array = []
+				for c in pool:
+					if not c.is_ko():
+						targets.append(c)
+				if not esper.is_empty() and not actor.summoned \
+						and actor.mp >= int(esper.get("mp", 0)) and not targets.is_empty():
+					return {"actor": actor, "kind": "summon", "esper": esper,
+						"targets": targets}
+				return _swing(fight, actor)
+		"limit":
+			return func(fight, actor):
+				var target = fight.first_living_enemy()
+				if actor.limit >= 100.0 and target != null:
+					return {"actor": actor, "kind": "limit", "targets": [target]}
+				return _swing(fight, actor)
+		"defend-first":
+			return func(fight, actor):
+				if actor.turn_count == 0:
+					return {"actor": actor, "kind": "defend", "targets": []}
+				var target = fight.first_living_enemy()
+				return {"actor": actor, "kind": "attack",
+					"targets": [target] if target != null else []}
+	return func(fight, actor):
+		return _swing(fight, actor)
+
+
+## The fallback every policy shares: swing at the first living enemy.
+func _swing(fight, actor) -> Dictionary:
+	var target = fight.first_living_enemy()
+	return {"actor": actor, "kind": "attack",
+		"targets": [target] if target != null else []}
+
+
 func _fight(db, party_description: Dictionary, scenario: Dictionary) -> Dictionary:
 	var party = _build_party(db, party_description)
 	var seed_value := int(scenario.get("seed", 0))
@@ -96,10 +193,7 @@ func _fight(db, party_description: Dictionary, scenario: Dictionary) -> Dictiona
 	var battle = BattleModel.new(party, {"enemies": scenario.get("enemies", [])},
 		db, battle_rng, loot_rng)
 	battle.can_flee = false
-	battle.command_policy = func(fight, actor):
-		var target = fight.first_living_enemy()
-		return {"actor": actor, "kind": "attack",
-			"targets": [target] if target != null else []}
+	battle.command_policy = _policy(db, String(scenario.get("policy", "attack")), scenario)
 
 	var frames := 0
 	while battle.phase != BattleModel.Phase.ENDING and frames < FRAME_CAP:

@@ -34,6 +34,13 @@ var scanned := false
 var defending := false
 ## Fill accumulated while unable to act, which buys status ticks instead of turns.
 var blocked_fill := 0.0
+## Marked by Quarry: everything the party throws at this target hits harder, not
+## just the character who marked it.
+var quarry := false
+## Vesna's Attune replaces her weapon's element for the rest of the fight.
+var attuned_element := ""
+## One summon per battle. An esper is a resource you spend, not a spell you spam.
+var summoned := false
 
 var _statuses_table: Dictionary = {}
 

@@ -11,6 +11,7 @@ import { enemyById } from '../data/enemies.js';
 import { ELEMENT_COLOR } from '../engine/palette.js';
 import { PACING } from './pacing.js';
 import { chooseAction } from './ai.js';
+import { COMMANDS, movesFor } from './commands.js';
 import { audio } from '../audio/audio.js';
 import { analytics, EV } from '../engine/analytics.js';
 import { playSpellFX } from '../fx/spellfx.js';
@@ -549,11 +550,7 @@ export class BattleState {
           this._commitAction({ actor, kind: 'steal', targets }));
         break;
       case 'blitz': {
-        const moves = [
-          { label: 'Rising Gale', power: 1.6, element: 'wind' },
-          { label: 'Hammerfall', power: 2.1, target: 'all' },
-          { label: 'Sunbreaker', power: 2.8, element: 'fire' },
-        ].filter((m, i) => actor.level >= 1 + i * 8);
+        const moves = movesFor('blitz', actor.level);
         this.ui.showCommands(moves.map((m) => ({ label: m.label, move: m })), {
           title: 'Blitz',
           onSelect: (item) => this._beginTargeting(actor, item.move.target === 'all' ? 'allEnemies' : 'oneEnemy',
@@ -563,11 +560,7 @@ export class BattleState {
         break;
       }
       case 'iaido': {
-        const moves = [
-          { label: 'First Form: Dew', power: 1.5 },
-          { label: 'Second Form: Reed', power: 2.0, target: 'all' },
-          { label: 'Third Form: Silence', power: 2.6, status: { silence: 60 } },
-        ].filter((m, i) => actor.level >= 1 + i * 9);
+        const moves = movesFor('iaido', actor.level);
         this.ui.showCommands(moves.map((m) => ({ label: m.label, move: m })), {
           title: 'Iaido',
           onSelect: (item) => this._beginTargeting(actor, item.move.target === 'all' ? 'allEnemies' : 'oneEnemy',
@@ -582,16 +575,11 @@ export class BattleState {
         break;
       case 'litany':
         this._commitAction({ actor, kind: 'special', targets: this.party.filter((p) => !p.isKO),
-          move: { label: 'Litany of the Ninth', heal: 0.35, status: { regen: 100 } } });
+          move: COMMANDS.litany.move });
         break;
       case 'wager': {
-        const outcomes = [
-          { label: 'Cinders', power: 1.4, element: 'fire', target: 'all' },
-          { label: 'Hail', power: 1.6, element: 'ice', target: 'all' },
-          { label: 'The Long Odds', power: 3.4 },
-          { label: 'Nothing', power: 0 },
-        ];
-        const pick = rng.battle.weighted(outcomes.map((o, i) => [i === 3 ? 1 : i === 2 ? 1.5 : 3, o]));
+        const outcomes = COMMANDS.wager.outcomes;
+        const pick = rng.battle.weighted(outcomes.map((o) => [o.weight, o]));
         this._commitAction({ actor, kind: 'special', move: pick,
           targets: pick.target === 'all' ? this.enemies.filter((e) => !e.isKO) : [this._randomEnemy()] });
         break;
@@ -605,7 +593,7 @@ export class BattleState {
        * and start swinging the right one.
        */
       case 'attune': {
-        const items = ['fire', 'ice', 'bolt', 'water', 'wind', 'earth', 'holy', 'shadow'].map((el) => ({
+        const items = COMMANDS.attune.elements.map((el) => ({
           label: el[0].toUpperCase() + el.slice(1),
           right: actor._attune === el ? 'attuned' : '',
           element: el,
@@ -630,12 +618,7 @@ export class BattleState {
        * than a second sword.
        */
       case 'contraption': {
-        const devices = [
-          { label: 'Scattergun', power: 1.5, target: 'all', desc: 'all foes' },
-          { label: 'Ward Frame', heal: 0, status: { protect: 1, shell: 1 }, self: true, desc: 'party guard' },
-          { label: 'Grapnel', power: 2.4, desc: 'one foe, hard' },
-          { label: 'Smoke Pot', status: { blind: 1 }, target: 'all', desc: 'blind all' },
-        ];
+        const devices = COMMANDS.contraption.moves;
         this.ui.showCommands(devices.map((d) => ({ label: d.label, right: d.desc, device: d })), {
           title: 'Contraption',
           onSelect: ({ device }) => {
@@ -658,7 +641,7 @@ export class BattleState {
        */
       case 'unmake':
         this._beginTargeting(actor, 'oneEnemy', (targets) =>
-          this._commitAction({ actor, kind: 'special', targets, move: { label: 'Unmake', unmake: true } }));
+          this._commitAction({ actor, kind: 'special', targets, move: COMMANDS.unmake.move }));
         break;
 
       /**
@@ -667,7 +650,7 @@ export class BattleState {
        */
       case 'quarry':
         this._beginTargeting(actor, 'oneEnemy', (targets) =>
-          this._commitAction({ actor, kind: 'special', targets, move: { label: 'Quarry', quarry: true } }));
+          this._commitAction({ actor, kind: 'special', targets, move: COMMANDS.quarry.move }));
         break;
 
       /**
@@ -676,19 +659,14 @@ export class BattleState {
        */
       case 'render':
         this._beginTargeting(actor, 'oneEnemy', (targets) =>
-          this._commitAction({ actor, kind: 'special', targets, move: { label: 'Render', render: true } }));
+          this._commitAction({ actor, kind: 'special', targets, move: COMMANDS.render.move }));
         break;
 
       /**
        * Oda — Stance. A standing trade, changed as a turn, never for free.
        */
       case 'stance': {
-        const stances = [
-          { label: 'Open Hand', id: null, desc: 'no trade' },
-          { label: 'Falling Guard', id: 'protect', desc: 'guard up, slow' },
-          { label: 'Running Form', id: 'haste', desc: 'fast, fragile' },
-          { label: 'Ninth Form', id: 'critUp', desc: 'strike true' },
-        ];
+        const stances = COMMANDS.stance.stances;
         this.ui.showCommands(stances.map((s) => ({
           label: s.label, right: actor._stance === s.id ? 'held' : s.desc, stance: s,
         })), {
@@ -713,11 +691,7 @@ export class BattleState {
        * standing against a wall for eleven years; he is not precious about it.
        */
       case 'overclock': {
-        const tiers = [
-          { label: 'Quarter', cost: 0.25, power: 2.2 },
-          { label: 'Half', cost: 0.5, power: 4.0 },
-          { label: 'Everything', cost: 0.9, power: 7.5 },
-        ];
+        const tiers = COMMANDS.overclock.tiers;
         // Priced off max HP, not current. Off current it was a fraction of a
         // shrinking number floored at 1, so at 1 HP "Everything" cost one
         // point and left him on one point — a free power-7.5 strike every

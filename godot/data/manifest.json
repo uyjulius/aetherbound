@@ -13,5 +13,6 @@
  "palette": 5,
  "input": 3,
  "legend": 4,
- "statuses": 2
+ "statuses": 2,
+ "commands": 14
 }
