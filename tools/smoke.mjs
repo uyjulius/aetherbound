@@ -1426,16 +1426,76 @@ check('the warning goes away once you outgrow it', !warned.high.deadly.warn,
 // that moves nobody, reports the whole input state, and rebuilds that state
 // from the physically held keys. This drives the exact corruption class the
 // watchdog exists for and expects to be walking again within four seconds.
+//
+// The ground is *chosen*, not arrived at, and that is the whole reason this check is
+// trustworthy. It used to re-enter the overworld through its return point and start walking
+// from wherever that left the party — which by this point in the suite is wherever the
+// signposting section last stood them, two and a half units north of a gate. Sometimes that
+// is open ground and sometimes it is a doorway or a coastline, so the check failed about one
+// run in three with the watchdog reporting a healthy `episodes=1`: the heal had worked and
+// there was simply nowhere to walk. Standing the party on a tile with three clear tiles south
+// of it, twelve units from any doorway, makes the measurement mean what it says.
 const healed = await page.evaluate(async () => {
   const g = window.__game;
-  if (!g.state.player) return { skip: true };
-  // Open ground first: in a town the phantom's own auto-walk hits a wall and
-  // muddies the measurement.
-  await g.gotoMap('overworld', 'harrowmere', { viaExit: true });
+  if (!g.state.player) return { skip: true, why: 'no player' };
+  await g.gotoMap('overworld', 'default');
   await new Promise((r) => setTimeout(r, 900));
-  return { skip: false };
+  const st = g.state;
+  const T = 2;
+  const doors = st.map.grid.triggers.filter((t) => t.kind === 'exit');
+  // Where ArrowDown will send them, from the camera that will transform it. Pinned first, so
+  // the bearing cannot ease away mid-measurement.
+  st.camera.targetYaw = st.camera.yaw;
+  const raw = st.camera.transformInput(0, 1);
+  const span = Math.hypot(raw.x, raw.z) || 1;
+  const walk = { x: raw.x / span, z: raw.z / span };
+  let spot = null;
+  let tried = 0;
+  for (let tz = 2; tz < st.map.height - 8 && !spot; tz++) {
+    for (let tx = 2; tx < st.map.width - 2 && !spot; tx++) {
+      // Five tiles of clear south, because the heal is only visible if there is somewhere to
+      // walk once it lands, and four seconds of walking covers about four tiles.
+      // Clear along the direction the key will actually send them, tested against the
+      // *collider* set. Two assumptions were wrong before this line: that `isWalkTile` knows
+      // about the scenery standing on the tiles (it does not — it answers about the map's own
+      // walkability, and the first spot had a cliff a foot away), and that "down" means +Z (it
+      // means whatever the camera's yaw makes of it, which at the default bearing is north).
+      if (![0, 1.5, 3, 4.5, 6, 7.5, 9].every((d) => st.map.grid.clear(
+        tx * T + T / 2 + walk.x * d, tz * T + T / 2 + walk.z * d, 0.42))) continue;
+      tried++;
+      const wx = tx * T + T / 2, wz = tz * T + T / 2;
+      // No doorway *in the corridor they are about to walk down*. A blanket radius was the
+      // first attempt and there is nowhere on this map that satisfies it: forty-three named
+      // exits cover the overworld densely enough that all 995 candidate runs were within
+      // twelve units of one, so the check found no ground and silently did not run.
+      // And no doorway anywhere along that walk: a transition mid-measurement would move the
+      // party to another map and read as a heal.
+      const clear = doors.every((t) => [0, 2, 4, 6, 8, 10].every((step) => {
+        const px = wx + walk.x * step, pz = wz + walk.z * step;
+        const qx = Math.max(t.x, Math.min(px, t.x + t.w));
+        const qz = Math.max(t.z, Math.min(pz, t.z + t.d));
+        return Math.hypot(px - qx, pz - qz) > 1.5;
+      }));
+      if (clear) spot = { wx, wz };
+    }
+  }
+  // Never a silent skip: a check that quietly does nothing reports "131/131 passed" and
+  // means "130 ran". The first version of this search found nothing and vanished exactly
+  // that way, which is how the count went from 132 to 131 with every line still green.
+  if (!spot) return { skip: true, why: `no clear ground: ${tried} walkable runs, ${doors.length} doors` };
+  st.player.place(spot.wx, spot.wz, 0);
+  st.camera.snapTo(st.player.x, st.player.z);
+  // And no monsters for the four seconds this takes: the check is about input rotting, and a
+  // random encounter mid-walk would stop the party for reasons of its own.
+  const threshold = st.encounterThreshold;
+  st.encounterThreshold = 1e9;
+  await new Promise((r) => setTimeout(r, 400));
+  return { skip: false, at: spot, threshold };
 });
-if (!healed.skip) {
+if (healed.skip) {
+check('the stuck watchdog heals rotted input', false,
+    `check could not run — ${healed.why}`);
+} else {
   // Phantom and real key in the same breath, and the start position captured
   // only after both are down — the first version measured the phantom's
   // solo auto-walk during the gap and called it a heal.
@@ -1445,18 +1505,43 @@ if (!healed.skip) {
     const st = window.__game.state;
     return { x: st.player.x, z: st.player.z };
   });
-  await page.waitForTimeout(4600);           // watchdog: fire at 3s, resync
+  // Wait for the episode rather than for the clock. The watchdog's three seconds are three
+  // seconds of *simulation* time, and it accumulates at whatever fraction of wall-clock the
+  // frame rate manages — 0.83 on one run here and 0.64 on the next, less than that on a
+  // software rasteriser. A fixed 4.6s wait is why this check failed about one run in three.
+  await page.waitForFunction(() => (window.__game.state._wdEpisodes ?? 0) > 0,
+    null, { timeout: 25_000 }).catch(() => {});
+  // And then long enough to see them walk out of it.
+  await page.waitForTimeout(1500);
+  // Read before the key comes up: what the input state looks like *during* the heal is the
+  // thing under test, and after the release everything looks innocent.
+  const during = await page.evaluate(() => {
+    const st = window.__game.state;
+    return {
+      x: st.player.x, z: st.player.z,
+      down: [...window.__input.down].join(','),
+      busy: st.busy === true, menu: window.__game.menu?.open === true,
+      standing: st.map.grid.clear(st.player.x, st.player.z, 0.42),
+      map: st.mapDef?.id ?? null,
+      episodes: st._wdEpisodes ?? 0, resynced: st._wdResynced === true,
+      // How long the watchdog thinks it has been asking to move. Near zero means something
+      // resets it every frame — which is a different bug from a threshold that never trips.
+      waited: Number((st._wdFor ?? 0).toFixed(2)),
+      mv: (() => { const v = window.__input.moveVector(); return `${v.x.toFixed(2)},${v.y.toFixed(2)}`; })(),
+    };
+  });
   await page.keyboard.up('ArrowDown');
-  const after = await page.evaluate(() => ({
-    x: window.__game.state.player.x, z: window.__game.state.player.z,
-    down: [...window.__input.down].join(','),
-    episodes: window.__game.state._wdEpisodes ?? 0,
-  }));
-  const dist = Math.hypot(after.x - start.x, after.z - start.z);
-  await page.evaluate(() => window.__input.resync());
+  await page.evaluate((threshold) => {
+    window.__input.resync();
+    if (threshold != null) window.__game.state.encounterThreshold = threshold;
+  }, healed.threshold ?? null);
+  const dist = Math.hypot(during.x - start.x, during.z - start.z);
 check('the stuck watchdog heals rotted input', dist > 0.5,
     dist > 0.5 ? `phantom cleared, walked ${dist.toFixed(1)}u after the heal`
-      : `still pinned (down=${after.down}, episodes=${after.episodes})`);
+      : `still pinned at ${during.map} (${during.x.toFixed(1)},${during.z.toFixed(1)}): `
+        + `down=${during.down}, episodes=${during.episodes}, resynced=${during.resynced}, `
+        + `busy=${during.busy}, menu=${during.menu}, standing_clear=${during.standing}, `
+        + `waited=${during.waited}s, mv=${during.mv}`);
 }
 
 // --- escape actually escapes -------------------------------------------------
