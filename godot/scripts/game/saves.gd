@@ -27,6 +27,10 @@ const VERSION := 1
 ## `change_scene_to_file` tears the first one down, so the choice has to live somewhere
 ## that outlives both. Cleared by whoever consumes it.
 static var pending: Dictionary = {}
+## True when `pending` is a rollback after a defeat, in which case whoever loads it stands
+## the party up — the reference rests them, because arriving from a game over with a member
+## still at zero would send the player straight back into the fight that killed them.
+static var pending_after_defeat := false
 
 const DEFAULT_CONFIG := {
 	"atbMode": "wait", "battleSpeed": 3, "textSpeed": 4,

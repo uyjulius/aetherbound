@@ -16,7 +16,9 @@ extends Control
 ##
 ## `rows` are `{label, right, disabled, ...}` and carry whatever else the screen's own
 ## callbacks need. `rebuild` is for the screens that change as they are used — a bag
-## empties, gil runs out — and runs after every select.
+## empties, gil runs out — and runs after every select. `on_adjust` is for a screen where
+## left and right change the highlighted row rather than moving the cursor, which is what
+## a settings list wants.
 
 ## Rows shown at once before the list scrolls.
 const PAGE := 12
@@ -141,17 +143,34 @@ func _process(_delta: float) -> void:
 	var screen: Dictionary = _stack[_stack.size() - 1]
 	var rows: Array = screen["rows"]
 
-	if Actions.just_pressed("down"):
-		_move(1, rows.size())
-	if Actions.just_pressed("up"):
-		_move(-1, rows.size())
-	if Actions.just_pressed("pageRight"):
-		_move(PAGE, rows.size())
-	if Actions.just_pressed("pageLeft"):
-		_move(-PAGE, rows.size())
+	# Left and right belong to the row when a screen says so — a volume goes up and down in
+	# place rather than sending the cursor somewhere.
+	var on_adjust: Callable = screen.get("on_adjust", Callable())
+	if on_adjust.is_valid() and not rows.is_empty():
+		var dir := 0
+		if Actions.just_pressed("right"):
+			dir = 1
+		elif Actions.just_pressed("left"):
+			dir = -1
+		if dir != 0:
+			on_adjust.call(rows[_index], dir)
+			Sound.sfx("cursor")
+			_rebuild()
+
+	for action in ["down", "up", "pageRight", "pageLeft"]:
+		if Actions.just_pressed(action):
+			var by := 1 if action == "down" else (-1 if action == "up"
+				else (PAGE if action == "pageRight" else -PAGE))
+			var before := _index
+			_move(by, rows.size())
+			# Only when the cursor actually went somewhere: a list already at its end
+			# should not click for every press.
+			if _index != before:
+				Sound.sfx("cursor")
 
 	if _cancels > 0:
 		_cancels = 0
+		Sound.sfx("cancel")
 		_pop()
 		return
 	if _specials > 0:
@@ -162,9 +181,14 @@ func _process(_delta: float) -> void:
 			_rebuild()
 	if _confirms > 0:
 		_confirms = 0
-		if not rows.is_empty() and not bool(rows[_index].get("disabled", false)):
+		if rows.is_empty() or bool(rows[_index].get("disabled", false)):
+			# The reference makes a noise at a row that cannot be chosen rather than
+			# nothing, which is the difference between "not allowed" and "not listening".
+			Sound.sfx("error")
+		else:
 			var on_select: Callable = screen.get("on_select", Callable())
 			if on_select.is_valid():
+				Sound.sfx("confirm")
 				on_select.call(rows[_index])
 				_rebuild()
 	_paint()
@@ -184,6 +208,10 @@ func _push(screen: Dictionary) -> void:
 	_stack.append(screen)
 	_index = 0
 	_scroll = 0
+	# Past any opening heading: a cursor resting on a row nobody can choose looks broken.
+	var rows: Array = screen.get("rows", [])
+	while _index < rows.size() - 1 and bool(rows[_index].get("header", false)):
+		_index += 1
 	_paint()
 
 
@@ -227,10 +255,14 @@ func _paint() -> void:
 			row.text = ""
 			continue
 		var entry: Dictionary = rows[at]
-		row.text = "%s %-28s %s" % [">" if at == _index else " ",
-			String(entry.get("label", "")), String(entry.get("right", ""))]
+		var header := bool(entry.get("header", false))
+		row.text = ("%s" % String(entry.get("label", ""))) if header \
+			else "%s %-28s %s" % [">" if at == _index else " ",
+				String(entry.get("label", "")), String(entry.get("right", ""))]
 		var colour := Palette.ui_color("text")
-		if bool(entry.get("disabled", false)):
+		if header:
+			colour = Palette.ui_color("select")
+		elif bool(entry.get("disabled", false)):
 			colour = Palette.ui_color("textDisabled")
 		elif at == _index:
 			colour = Palette.ui_color("select")

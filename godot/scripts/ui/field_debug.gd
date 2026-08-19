@@ -72,10 +72,16 @@ func _ready() -> void:
 	# A party. Either the one a save was left with, or the opening three at the level the
 	# reference's New Game gives them.
 	var pending: Dictionary = Saves.pending
+	var after_defeat: bool = Saves.pending_after_defeat
 	Saves.pending = {}
+	Saves.pending_after_defeat = false
 	if not pending.is_empty():
 		_party = Saves.restore_party(pending.get("party", {}), _db)
 		_loaded_from = pending
+		if after_defeat:
+			# Standing the party up, as the reference does after a game over: arriving from
+			# one with somebody still at zero sends the player back into what killed them.
+			_party.rest_all()
 		print("LOADED map=%s gold=%d roster=%d" % [String(pending.get("mapId", "?")),
 			_party.gold, _party.roster.size()])
 	else:
@@ -99,6 +105,12 @@ func _ready() -> void:
 	add_child(_battle)
 
 	_menu = MenuScreen.new()
+	# Loading from inside the menu. The party and the map belong here, so the menu asks
+	# and this does it — the same path the title's Continue takes, so there is one way
+	# to open a save rather than two.
+	_menu.load_requested.connect(func(data: Dictionary):
+		Saves.pending = data
+		get_tree().reload_current_scene())
 	# Where the party is, when the save screen asks. Read at the moment of writing rather
 	# than handed over once, so a save carries the map the player is standing on.
 	_menu.where = func():
@@ -128,7 +140,8 @@ func _ready() -> void:
 	# The reference binds a debug encounter to B and a boss to N. Kept, because a
 	# diagnostic that can only reach a fight by walking until one happens is a
 	# diagnostic nobody uses.
-	for action in ["debug_battle", "debug_boss", "debug_map", "debug_shop", "debug_inn"]:
+	for action in ["debug_battle", "debug_boss", "debug_map", "debug_shop", "debug_inn",
+			"debug_lose"]:
 		if InputMap.has_action(action):
 			InputMap.erase_action(action)
 		InputMap.add_action(action)
@@ -151,6 +164,12 @@ func _ready() -> void:
 	var l := InputEventKey.new()
 	l.physical_keycode = KEY_L
 	InputMap.action_add_event("debug_inn", l)
+	# And the losing end. The rollback is the piece with the reasoning in it — a theme, a
+	# line saying where the player is being sent and how much time they lost, and a reload
+	# — and reaching it by actually being killed is not something a check can arrange.
+	var o := InputEventKey.new()
+	o.physical_keycode = KEY_P
+	InputMap.action_add_event("debug_lose", o)
 
 	_ctx = Ctx.new("first", false)
 	_ctx.database = _db
@@ -250,6 +269,9 @@ func _process(delta: float) -> void:
 	if Input.is_action_just_pressed("debug_boss"):
 		# One of the optional bosses, so a boss fight can be seen without finding it.
 		_start_battle({"enemies": ["weighmaster"], "boss": true})
+		return
+	if Input.is_action_just_pressed("debug_lose"):
+		_lose()
 		return
 	if Input.is_action_just_pressed("debug_shop"):
 		_talk_to_keeper("shop")
@@ -482,12 +504,41 @@ func _note_no_encounter() -> void:
 
 func _on_battle_finished(result: String) -> void:
 	_battle.visible = false
+	print("BATTLE_CLOSED result=%s" % result)
+	if result == "defeat":
+		_lose()
+		return
 	# The place gets its theme back. The victory cue is a track in the reference too, so
 	# something has to put the town back afterwards.
 	_play_map_music(1.4)
-	# Whatever the fight did to the party stays done. A defeat is not handled here —
-	# a game over belongs with the title screen, which is a later piece.
-	print("BATTLE_CLOSED result=%s" % result)
+
+
+## A wipe.
+##
+## Back to the last save, and *said* — which is the reference's hard-won point. Standing the
+## dead party up where they fell costs the defeat all its meaning and drops them in the
+## middle of whatever killed them; rolling them back without telling them where to or how
+## much they lost is indistinguishable from the game losing their progress by accident.
+func _lose() -> void:
+	_scene_running = true
+	Sound.play_music("gameover", 0.6)
+	print("PARTY_WIPED")
+	var last := Saves.latest()
+	if last.is_empty():
+		# Never saved. The run restarts rather than dead-ending.
+		await _dialogue.speak(null, ["The party falls.\n\nBeginning again at Harrowmere."])
+		_party.rest_all()
+		_open(0)
+		_scene_running = false
+		return
+	var where := String(last.get("locationName", "an earlier point"))
+	var when := Saves.format_time(float(last.get("party", {}).get("playTime", 0.0)))
+	await _dialogue.speak(null, ["The party falls.\n\nReturning to %s — %s played."
+		% [where, when]])
+	print("ROLLED_BACK to=%s" % where)
+	Saves.pending = last
+	Saves.pending_after_defeat = true
+	get_tree().reload_current_scene()
 
 
 ## Play a scene, then put the map's music back — a scene that changed the track owns it
@@ -533,7 +584,7 @@ func _update_label() -> void:
 	if _battle != null and _battle.visible:
 		lines.append("in battle")
 	lines.append("move / run · Q,E orbit · C menu · M next map · V scene · B fight · N boss"
-		+ " · K shop · L inn · Esc back")
+		+ " · K shop · L inn · P wipe · Esc back")
 	_label.text = "\n".join(lines)
 
 

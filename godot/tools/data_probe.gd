@@ -17,7 +17,7 @@ extends SceneTree
 const Database := preload("res://scripts/data/database.gd")
 
 const TABLES := ["enemies", "encounters", "items", "shops", "spells", "espers",
-	"quests", "tracks", "characters", "maps"]
+	"quests", "quest_kinds", "tracks", "characters", "maps"]
 
 
 func _initialize() -> void:

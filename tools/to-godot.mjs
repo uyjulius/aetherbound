@@ -36,7 +36,7 @@ import { ENEMIES, ENCOUNTERS } from '../src/data/enemies.js';
 import { ITEMS, SHOPS } from '../src/data/items.js';
 import { SPELLS } from '../src/data/spells.js';
 import { ESPERS } from '../src/data/espers.js';
-import { QUESTS } from '../src/data/quests.js';
+import { QUESTS, QUEST_KIND_ORDER, QUEST_KIND_LABEL } from '../src/data/quests.js';
 import { TRACKS } from '../src/data/music.js';
 import { CHARACTERS, CAST_ORDER } from '../src/data/characters.js';
 import { RAMPS, INK, PAPER, UI, ELEMENT_COLOR } from '../src/engine/palette.js';
@@ -122,6 +122,11 @@ const written = [
   write('spells', SPELLS),
   write('espers', ESPERS),
   write('quests', QUESTS),
+  // The order and the names the journal groups quests under. Authored rather than
+  // derivable — "Companions" before "Errands" is a judgement about what a returning
+  // player wants to see first — so it crosses as data instead of being retyped in
+  // GDScript where it would quietly drift.
+  write('quest_kinds', { order: QUEST_KIND_ORDER, label: QUEST_KIND_LABEL }),
   write('tracks', TRACKS),
   write('characters', CHARACTERS),
   write('cast_order', CAST_ORDER),

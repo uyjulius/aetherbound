@@ -845,6 +845,10 @@ func _apply_damage(target: Combatant, amount: int, crit := false) -> int:
 func _kill(target: Combatant) -> void:
 	target.add_status("ko")
 	target.atb = 0.0
+	# Recorded here, where the reference records it, so the bestiary fills in as the party
+	# actually fights rather than as a screen is opened.
+	if target is EnemyCombatant and _party_ref != null:
+		_party_ref.note_kill(String((target as EnemyCombatant).def.get("id", "")))
 
 
 ## Damage and healing over time, then status countdowns.

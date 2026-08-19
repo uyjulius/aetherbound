@@ -148,6 +148,10 @@ let innRest = null;
 let innWoke = null;
 let innDone = null;
 let compared = null;
+let wiped = null;
+let rolledBack = null;
+const configured = [];
+let journalOpen = null;
 let audioReady = null;
 const music = [];
 let titleReady = null;
@@ -188,6 +192,9 @@ page.on('console', (message) => {
   if (text.includes('INN_WOKE')) innWoke = text.trim();
   if (text.includes('INN_DONE')) innDone = text.trim();
   if (text.includes('SHOP_COMPARE')) compared = text.trim();
+  if (text.includes('PARTY_WIPED')) wiped = text.trim();
+  if (text.includes('ROLLED_BACK')) rolledBack = text.trim();
+  if (/^CONFIG /.test(text.trim())) configured.push(text.trim());
   if (text.includes('AUDIO_READY')) audioReady = text.trim();
   if (/^MUSIC /.test(text.trim())) music.push(text.trim());
   if (text.includes('TITLE_READY')) titleReady = text.trim();
@@ -583,6 +590,85 @@ if (field) {
         remote ? 'godot-web-ruin-live.png' : 'godot-web-ruin.png') });
     }
   }
+}
+
+// --- the rest of the menu, and losing ---------------------------------------
+//
+// The three screens that used to say "not built" — and the one path a player meets at the
+// worst possible moment.
+if (field) {
+  // Config: down to it, in, then left and right on the music volume.
+  await page.keyboard.press('KeyC');
+  await page.waitForTimeout(450);
+  for (let i = 0; i < 8; i++) {
+    await page.keyboard.press('ArrowDown');
+    await page.waitForTimeout(110);
+  }
+  await page.keyboard.press('Enter');
+  await page.waitForTimeout(400);
+  for (const key of ['ArrowLeft', 'ArrowLeft', 'ArrowRight']) {
+    await page.keyboard.press(key);
+    await page.waitForTimeout(220);
+  }
+  await page.screenshot({ path: path.join(root, '.renders',
+    remote ? 'godot-web-config-live.png' : 'godot-web-config.png') });
+  // Three presses, and the volume has to have actually moved and come back part way —
+  // a settings screen that draws a number without changing anything is the usual failure.
+  const volumes = configured.filter((line) => line.includes('musicVolume='))
+    .map((line) => Number(line.split('=')[1]));
+  check('config changes a setting and keeps it',
+    volumes.length === 3 && volumes[1] < volumes[0] && volumes[2] > volumes[1],
+    configured.join(' | ') || 'no CONFIG line');
+  // Out, and into the bestiary, which should know about whatever the fight above was.
+  await page.keyboard.press('Escape');
+  await page.waitForTimeout(300);
+  for (let i = 0; i < 6; i++) {
+    await page.keyboard.press('ArrowUp');
+    await page.waitForTimeout(100);
+  }
+  for (let i = 0; i < 6; i++) {
+    await page.keyboard.press('ArrowDown');
+    await page.waitForTimeout(100);
+  }
+  await page.keyboard.press('Enter');
+  await page.waitForTimeout(500);
+  await page.screenshot({ path: path.join(root, '.renders',
+    remote ? 'godot-web-bestiary-live.png' : 'godot-web-bestiary.png') });
+  // Backing out puts the cursor at the top of the root list, so each screen below is
+  // "N rows down": Items, Magic, Equip, Status, Espers, Formation, Bestiary, Journal.
+  await page.keyboard.press('Escape');
+  await page.waitForTimeout(250);
+  for (let i = 0; i < 7; i++) {
+    await page.keyboard.press('ArrowDown');
+    await page.waitForTimeout(100);
+  }
+  await page.keyboard.press('Enter');
+  await page.waitForTimeout(500);
+  await page.screenshot({ path: path.join(root, '.renders',
+    remote ? 'godot-web-journal-live.png' : 'godot-web-journal.png') });
+  // Cleared first: it is still set from the menu that was opened and closed further up,
+  // and a loop that trusts it would leave this menu standing open — which is exactly what
+  // swallowed the wipe below the first time.
+  menuClosed = null;
+  for (let i = 0; i < 5 && !menuClosed; i++) {
+    await page.keyboard.press('Escape');
+    await page.waitForTimeout(250);
+  }
+  check('the menu closes from a deep screen', Boolean(menuClosed),
+    menuClosed ?? 'no MENU_CLOSED after five cancels');
+
+  // And the losing end. Reached with a key because being killed on cue is not something a
+  // check can arrange, and the rollback is the part with the reasoning in it.
+  await page.keyboard.press('KeyP');
+  const loseFrom = Date.now();
+  for (let i = 0; i < 12 && !rolledBack; i++) {
+    await page.keyboard.press('Enter');
+    await page.waitForTimeout(450);
+  }
+  check('a wipe rolls back to the last save and says so',
+    Boolean(wiped) && Boolean(rolledBack),
+    rolledBack ?? (wiped ? 'wiped, but never rolled back' : 'no PARTY_WIPED'));
+  void loseFrom;
 }
 
 // --- the music --------------------------------------------------------------

@@ -21,8 +21,8 @@ const DATA_DIR := "res://data"
 ## being loaded stops being counted.
 const TABLES := [
 	"enemies", "encounters", "items", "shops", "spells", "espers", "quests",
-	"tracks", "characters", "maps", "cast_order", "palette", "input", "legend",
-	"footprints", "statuses", "commands", "boss_events",
+	"quest_kinds", "tracks", "characters", "maps", "cast_order", "palette", "input",
+	"legend", "footprints", "statuses", "commands", "boss_events",
 ]
 
 var enemies: Dictionary = {}
@@ -32,6 +32,7 @@ var shops: Dictionary = {}
 var spells: Dictionary = {}
 var espers: Dictionary = {}
 var quests: Dictionary = {}
+var quest_kinds: Dictionary = {}
 var tracks: Dictionary = {}
 var characters: Dictionary = {}
 var maps: Dictionary = {}
@@ -78,6 +79,7 @@ func load_all() -> bool:
 	spells = _read("spells")
 	espers = _read("espers")
 	quests = _read("quests")
+	quest_kinds = _read("quest_kinds")
 	tracks = _read("tracks")
 	characters = _read("characters")
 	maps = _read("maps")

@@ -6,6 +6,7 @@
  "spells": 58,
  "espers": 26,
  "quests": 81,
+ "quest_kinds": 2,
  "tracks": 36,
  "characters": 14,
  "cast_order": 14,

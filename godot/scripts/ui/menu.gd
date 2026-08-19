@@ -21,6 +21,9 @@ const SLOT_LABEL := {
 }
 const STATS := ["vig", "spd", "sta", "mag", "res", "lck"]
 
+## A save the player has chosen to load, for whoever owns the world.
+signal load_requested(data: Dictionary)
+
 ## Where the party is, for the save screen: `{map_id, spawn, position, location_name}`.
 ##
 ## Supplied by whatever owns the world rather than known here. A menu that guessed the
@@ -49,12 +52,11 @@ func _root() -> Dictionary:
 		{"label": "Status", "go": "pick_status"},
 		{"label": "Espers", "go": "pick_espers"},
 		{"label": "Formation", "go": "formation"},
-		# Named, and honest about it. A menu entry that opens an empty screen is worse
-		# than one that says where the work is.
-		{"label": "Bestiary", "right": "not built", "disabled": true},
-		{"label": "Quests", "right": "not built", "disabled": true},
-		{"label": "Config", "right": "not built", "disabled": true},
+		{"label": "Bestiary", "go": "bestiary"},
+		{"label": "Journal", "go": "journal"},
+		{"label": "Config", "go": "config"},
 		{"label": "Save", "go": "save"},
+		{"label": "Load", "go": "load"},
 	]
 	return {
 		"title": "Menu", "rows": rows,
@@ -72,6 +74,10 @@ func _open_named(name: String) -> void:
 		"pick_espers": _push(_character_pick("Espers", func(m): _push(_espers(m))))
 		"formation": _push(_formation())
 		"save": _push(_save_slots())
+		"load": _push(_load_slots())
+		"bestiary": _push(_bestiary())
+		"journal": _push(_journal())
+		"config": _push(_config())
 
 
 func _character_pick(title: String, then: Callable) -> Dictionary:
@@ -315,6 +321,213 @@ func _formation() -> Dictionary:
 	}
 
 
+## Every creature the party has actually fought, weakest first.
+##
+## Only what has been met: a bestiary that lists the whole book from the start is a
+## strategy guide, and the reference is careful about that. The panel is where the value
+## is — what a thing resists and what it is weak to, which is the difference between a
+## fight that takes three turns and one that takes twelve.
+func _bestiary() -> Dictionary:
+	var rows: Array = []
+	var ids: Array = party.bestiary.keys()
+	# By level, then by name, as the reference sorts it: the order a player met them in is
+	# not an order anybody wants to read.
+	ids.sort_custom(func(a, b):
+		var da: Dictionary = database.enemies.get(String(a), {})
+		var db_: Dictionary = database.enemies.get(String(b), {})
+		if int(da.get("level", 0)) != int(db_.get("level", 0)):
+			return int(da.get("level", 0)) < int(db_.get("level", 0))
+		return String(da.get("name", a)) < String(db_.get("name", b)))
+	for id in ids:
+		var def: Dictionary = database.enemies.get(String(id), {})
+		if def.is_empty():
+			continue
+		rows.append({"label": String(def.get("name", id)),
+			"right": "x%d" % int(party.bestiary[id]), "enemy": def,
+			"seen": int(party.bestiary[id])})
+	if rows.is_empty():
+		rows.append({"label": "(nothing recorded)", "disabled": true})
+	var total: int = database.enemies.size()
+	var recorded: int = party.bestiary.size()
+	return {
+		"title": "Bestiary", "rows": rows,
+		"footer": "%d of %d species recorded" % [recorded, total],
+		"detail": func(row): return _beast_card(row.get("enemy", {}), int(row.get("seen", 0))),
+	}
+
+
+func _beast_card(def: Dictionary, seen: int) -> String:
+	if def.is_empty():
+		return ""
+	var stats: Dictionary = def.get("stats", {})
+	var lines: Array = [
+		String(def.get("name", "?")),
+		"Level %d%s   HP %d   MP %d" % [int(def.get("level", 1)),
+			"  ·  Boss" if bool(def.get("boss", false)) else "",
+			int(stats.get("hp", 0)), int(stats.get("mp", 0))],
+		"Attack %d   Defence %d   Magic %d   Resist %d   Speed %d" % [
+			int(stats.get("atk", 0)), int(stats.get("def", 0)), int(stats.get("mag", 0)),
+			int(stats.get("mdef", 0)), int(stats.get("spd", 0))],
+		"",
+	]
+	var affinity: Dictionary = def.get("affinity", {})
+	for pair in [["weak", "Weak to"], ["resist", "Resists"], ["immune", "Immune to"],
+			["absorb", "Absorbs"]]:
+		var found: Array = []
+		for element in affinity:
+			if String(affinity[element]) == String(pair[0]):
+				found.append(String(element))
+		found.sort()
+		if not found.is_empty():
+			lines.append("%s: %s" % [String(pair[1]), ", ".join(found)])
+	var carries := _item_names(def.get("steal", []))
+	if not carries.is_empty():
+		lines.append("Carries: %s" % ", ".join(carries))
+	var drops := _item_names(def.get("drops", []))
+	if not drops.is_empty():
+		lines.append("Drops: %s" % ", ".join(drops))
+	lines.append("")
+	lines.append("%d exp   %d gil   defeated %d time%s" % [int(def.get("exp", 0)),
+		int(def.get("gold", 0)), seen, "" if seen == 1 else "s"])
+	return "\n".join(lines)
+
+
+func _item_names(entries: Array) -> Array:
+	var out: Array = []
+	for entry in entries:
+		var id := String(entry.get("id", "")) if entry is Dictionary else String(entry)
+		var item: Dictionary = database.items.get(id, {})
+		if not item.is_empty():
+			out.append(String(item.get("name", id)))
+	return out
+
+
+## The journal, grouped by what kind of job each quest is.
+##
+## The reference learned this one the hard way: it used to list the save's raw keys —
+## "postbag — Stage 0" — with no title and nothing to read, which in a forty-hour game is
+## the screen a returning player needs most. Each entry carries its written name, what the
+## job is, where, and which step it is on.
+func _journal() -> Dictionary:
+	var rows: Array = []
+	var open := 0
+	for kind in database.quest_kinds.get("order", []):
+		var in_kind: Array = []
+		for id in party.quests:
+			var quest: Dictionary = database.quests.get(String(id), {})
+			if String(quest.get("kind", "side")) == kind:
+				in_kind.append(String(id))
+		if in_kind.is_empty():
+			continue
+		# Open work above finished work: what is still owed is what is wanted.
+		in_kind.sort_custom(func(a, b):
+			var a_done := party.quest_done(a)
+			var b_done := party.quest_done(b)
+			if a_done != b_done:
+				return b_done
+			return String(database.quests.get(a, {}).get("name", a)) \
+				< String(database.quests.get(b, {}).get("name", b)))
+		rows.append({"label": String(database.quest_kinds.get("label", {}).get(kind, kind)),
+			"header": true, "disabled": true})
+		for id in in_kind:
+			var done := party.quest_done(id)
+			if not done:
+				open += 1
+			rows.append({
+				"label": String(database.quests.get(id, {}).get("name", id)),
+				"right": "Done" if done else "Open",
+				"quest": id,
+			})
+	if rows.is_empty():
+		rows.append({"label": "(nothing yet)", "disabled": true})
+	return {
+		"title": "Journal", "rows": rows,
+		"footer": "%d recorded, %d still open" % [party.quests.size(), open],
+		"detail": func(row): return _quest_card(String(row.get("quest", ""))),
+	}
+
+
+func _quest_card(id: String) -> String:
+	if id.is_empty():
+		return ""
+	var quest: Dictionary = database.quests.get(id, {})
+	if quest.is_empty():
+		return ""
+	var lines: Array = [String(quest.get("name", id)), "",
+		String(quest.get("what", "")), String(quest.get("where", ""))]
+	# Which step, where a quest has real ones. The events were advancing these numbers and
+	# nothing anywhere read them back, so the intermediate steps of the three longest
+	# sidequests had no effect on anything a player could see.
+	var stages: Array = quest.get("stages", [])
+	if party.quest_done(id):
+		lines.append("")
+		lines.append("Settled.")
+	elif not stages.is_empty():
+		lines.append("")
+		lines.append(String(stages[clampi(party.quest_stage(id), 0, stages.size() - 1)]))
+	return "\n".join(lines)
+
+
+## The settings, left and right to change them.
+##
+## Fewer rows than the reference's, and the missing ones are missing for a reason rather
+## than by oversight: its graphics setting drives a post-processing chain this port does
+## not have, and its window colour themes an HTML interface. Both are named in the footer
+## instead of pretending.
+func _config() -> Dictionary:
+	var config := Saves.load_config()
+	var build := func() -> Array:
+		return [
+			{"label": "Music Volume", "right": "%d%%" % int(round(
+				float(config.get("musicVolume", 0.65)) * 100.0)), "key": "musicVolume"},
+			{"label": "Sound Volume", "right": "%d%%" % int(round(
+				float(config.get("sfxVolume", 0.8)) * 100.0)), "key": "sfxVolume"},
+			{"label": "Text Speed", "right": str(int(config.get("textSpeed", 4))),
+				"key": "textSpeed"},
+			{"label": "Battle Speed", "right": str(int(config.get("battleSpeed", 3))),
+				"key": "battleSpeed"},
+			{"label": "ATB Mode", "right": "Active" if String(
+				config.get("atbMode", "wait")) == "active" else "Wait", "key": "atbMode"},
+		]
+	var on_adjust := func(row, dir: int):
+		var key := String(row.get("key", ""))
+		match key:
+			"musicVolume", "sfxVolume":
+				var value: float = clampf(snappedf(
+					float(config.get(key, 0.5)) + float(dir) * 0.1, 0.1), 0.0, 1.0)
+				config[key] = value
+				Sound.set_volume("music" if key == "musicVolume" else "sfx", value)
+			"textSpeed", "battleSpeed":
+				config[key] = clampi(int(config.get(key, 3)) + dir, 1, 6)
+			"atbMode":
+				config[key] = "wait" if String(config.get(key, "wait")) == "active" \
+					else "active"
+		# Written on every change rather than on the way out: a player who closes the tab
+		# after turning the music down should not find it loud again.
+		Saves.save_config(config)
+		print("CONFIG %s=%s" % [key, str(config.get(key, ""))])
+	return {
+		"title": "Config", "rows": build.call(), "rebuild": build,
+		"footer": "left and right adjust · graphics and window colour are the JS build's",
+		"on_adjust": on_adjust,
+		"detail": func(_row): return _config_notes(),
+	}
+
+
+func _config_notes() -> String:
+	return "\n".join([
+		"Left and right adjust the highlighted setting.",
+		"",
+		"Music and sound are applied as you turn them and written straight away.",
+		"",
+		"Text and battle speed are recorded and will be read by the",
+		"dialogue and battle screens; the reference's graphics quality and",
+		"window colour settings drive a post-processing chain and an HTML",
+		"interface that this port does not have, so they are not offered",
+		"rather than offered and ignored.",
+	])
+
+
 ## The three slots and the autosave beside them.
 ##
 ## Each row says what is in it, because a save screen whose rows are numbers is a screen
@@ -343,6 +556,40 @@ func _save_slots() -> Dictionary:
 		"footer": "confirm writes the slot · cancel back",
 		"on_select": on_select,
 		"detail": func(_row): return _party_overview(),
+	}
+
+
+## Loading from inside the game.
+##
+## Emitted rather than done: the party and the map belong to whatever is running the world,
+## and a menu that rebuilt them under itself would leave the field standing in a place that
+## no longer exists.
+func _load_slots() -> Dictionary:
+	var rows: Array = []
+	var slots: Array = range(Saves.SLOTS)
+	slots.append(Saves.AUTOSAVE_SLOT)
+	for slot in slots:
+		var peek := Saves.peek(slot)
+		rows.append({
+			"label": "Autosave" if slot is String else "Slot %d" % (int(slot) + 1),
+			"right": _slot_line(slot),
+			"slot": slot,
+			"disabled": peek.is_empty(),
+		})
+	var on_select := func(row):
+		var data := Saves.load_slot(row["slot"])
+		if data.is_empty():
+			return
+		print("LOAD_REQUESTED slot=%s" % str(row["slot"]))
+		load_requested.emit(data)
+		close()
+	var warning := "Loading replaces the party and the map you are standing in.\n" \
+		+ "Anything since the last save is lost."
+	return {
+		"title": "Load", "rows": rows,
+		"footer": "confirm loads · this abandons anything unsaved",
+		"on_select": on_select,
+		"detail": func(_row): return warning,
 	}
 
 
