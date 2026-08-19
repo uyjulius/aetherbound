@@ -37,6 +37,15 @@ import { ITEMS, SHOPS } from '../src/data/items.js';
 import { SPELLS } from '../src/data/spells.js';
 import { ESPERS } from '../src/data/espers.js';
 import { QUESTS, QUEST_KIND_ORDER, QUEST_KIND_LABEL } from '../src/data/quests.js';
+// The two model tables. Which mesh plays a character and which plays a creature is a set of
+// authored decisions — a hand-written cast list of fourteen, a body-plan roster of thirty-six
+// — plus one hash that has to agree exactly, or the port shows a different monster from the
+// one the reference shows for the same species. So they cross as data.
+import { CHARACTER_MODELS, CAST, CLIP_MAP, ONCE_CLIPS } from '../src/world/charmodels.js';
+import {
+  MONSTER_MODELS, CLIP_PATTERNS, FALLBACK,
+  ONCE_CLIPS as MONSTER_ONCE,
+} from '../src/battle/monstermodels.js';
 import { TRACKS } from '../src/data/music.js';
 import { CHARACTERS, CAST_ORDER } from '../src/data/characters.js';
 import { RAMPS, INK, PAPER, UI, ELEMENT_COLOR } from '../src/engine/palette.js';
@@ -127,6 +136,25 @@ const written = [
   // player wants to see first — so it crosses as data instead of being retyped in
   // GDScript where it would quietly drift.
   write('quest_kinds', { order: QUEST_KIND_ORDER, label: QUEST_KIND_LABEL }),
+
+  // The cast's meshes and the clips that drive them. `clips` maps a game clip to the name
+  // the artist gave it; `once` is the ones that play and hold rather than looping.
+  write('char_models', {
+    models: CHARACTER_MODELS,
+    cast: CAST,
+    clips: CLIP_MAP,
+    once: [...ONCE_CLIPS],
+  }),
+  // The bestiary's meshes. `clips` is a list of patterns per game clip rather than a name,
+  // because the roster comes from eight packs and no two agree on what an attack is called —
+  // they cross as regular-expression *sources*, which GDScript's `RegEx` reads unchanged.
+  write('monster_models', {
+    plans: MONSTER_MODELS,
+    clips: Object.fromEntries(Object.entries(CLIP_PATTERNS)
+      .map(([clip, patterns]) => [clip, patterns.map((r) => r.source)])),
+    fallback: FALLBACK,
+    once: [...MONSTER_ONCE],
+  }),
   write('tracks', TRACKS),
   write('characters', CHARACTERS),
   write('cast_order', CAST_ORDER),

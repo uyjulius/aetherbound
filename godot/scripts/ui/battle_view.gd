@@ -10,11 +10,22 @@ extends Control
 ##
 ## Two persistent panels, as in the reference: the party's status on the right and the
 ## active character's commands on the left, with the enemy line above and floating
-## numbers over whatever was hit. No scenery — a fight against the creatures in
-## `assets/monsters` is an asset job, and the reference draws its combatants from
-## geometry computed in code, which this project does not ship.
+## numbers over whatever was hit.
+##
+## And the combatants themselves, on a stage of their own. Which mesh plays which creature is
+## the reference's decision — a hash of the species' look over a roster of thirty-six, checked
+## for all two hundred by `tools/models-parity.mjs` — and so is which authored clip counts as
+## an attack. The floor is the ground the party was standing on when the fight started, which
+## is the reference's habit too: a fight on the Silt Road happens on the Silt Road.
 
 const BattleModel := preload("res://scripts/battle/battle.gd")
+const CastBuilder := preload("res://scripts/world/cast_models.gd")
+
+## Where the two lines stand, and how far apart. A JRPG fight is read left to right and the
+## party is nearer the camera.
+const PARTY_Z := 2.4
+const ENEMY_Z := -4.2
+const SPACING := 2.4
 
 ## Emitted with "victory", "defeat" or "flee" when the fight is over.
 signal finished(result: String)
@@ -37,6 +48,15 @@ var _confirms := 0
 var _cancels := 0
 var _lines: Array[String] = []
 
+## The stage: a camera, a light, a floor and the combatants standing on it.
+var _stage: Node3D
+var _cast: CastModels
+var _bodies: Dictionary = {}
+var _clips: Dictionary = {}
+var _ground := "grass.png"
+## The map the fight started on, for its sky and its haze.
+var _map_def: Dictionary = {}
+
 const COMMANDS := ["Attack", "Defend", "Magic", "Item"]
 
 
@@ -57,14 +77,6 @@ func _input(event: InputEvent) -> void:
 
 
 func _build() -> void:
-	var ground := ColorRect.new()
-	ground.color = Color(Palette.ink)
-	# Opaque. A translucent battle over a debug grid reads as a rendering bug rather than
-	# as a fight.
-	ground.color.a = 1.0
-	ground.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
-	ground.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	add_child(ground)
 
 	_banner = Label.new()
 	_banner.add_theme_font_size_override("font_size", 44)
@@ -113,19 +125,173 @@ func _build() -> void:
 
 
 ## Start a fight. The engine decides everything; this only presents it.
-func begin(party: Party, encounter: Dictionary, database) -> void:
+func begin(party: Party, encounter: Dictionary, database, ground := "grass.png",
+		map_def: Dictionary = {}) -> void:
+	_ground = ground
+	_map_def = map_def
+	if _cast == null:
+		_cast = CastBuilder.new(database)
 	battle = BattleModel.new(party, encounter, database)
 	# No policy: a player turn opens a menu and waits for `commit_action`, which is what
 	# the harness's scripted policies stand in for.
 	battle.command_policy = Callable()
 	_lines.clear()
 	_note("A fight begins: %s" % ", ".join(_enemy_names()))
+	_raise_stage(database)
 	print("BATTLE_START enemies=%d party=%d" % [battle.enemies.size(), battle.party.size()])
 	# The reference's own choice of track and fade: a boss gets its own theme, and 0.6
 	# seconds is short enough that the fight starts on the downbeat rather than after it.
 	Sound.play_music("boss" if battle.is_boss else "battle", 0.6)
 	visible = true
 	_refresh()
+
+
+## Build the stage: everybody on it, facing each other.
+func _raise_stage(database) -> void:
+	_tear_down_stage()
+	_stage = Node3D.new()
+	add_child(_stage)
+
+	var camera := Camera3D.new()
+	camera.fov = 48.0
+	# Off to one side and low, which is how this kind of fight has always been framed: both
+	# lines visible, the party nearer, nobody in anybody's way.
+	camera.position = Vector3(2.6, 5.8, 11.4)
+	_stage.add_child(camera)
+	camera.look_at(Vector3(0.0, 1.0, -1.2), Vector3.UP)
+	camera.make_current()
+
+	var sun := DirectionalLight3D.new()
+	sun.rotation = Vector3(deg_to_rad(-46.0), deg_to_rad(-30.0), 0.0)
+	sun.light_energy = 1.4
+	sun.shadow_enabled = true
+	_stage.add_child(sun)
+
+	var environment := Environment.new()
+	environment.background_mode = Environment.BG_COLOR
+	environment.background_color = Color(Palette.ink)
+	environment.ambient_light_source = Environment.AMBIENT_SOURCE_COLOR
+	environment.ambient_light_color = Palette.ramp_at("stone", 0.7)
+	environment.ambient_light_energy = 0.6
+	# Under the sky of wherever this fight started. The reference keeps the field's atmosphere
+	# through a battle for the same reason: a fight in a marsh should not look like a fight on
+	# a plain.
+	Atmosphere.apply(environment, sun, _map_def)
+	var holder := WorldEnvironment.new()
+	holder.environment = environment
+	_stage.add_child(holder)
+
+	_lay_floor()
+
+	# The party, nearest the camera and facing away from it; the creatures opposite, facing
+	# back. Both lines are centred, so a fight against one is not a fight in a corner.
+	for i in battle.party.size():
+		var combatant: Combatant = battle.party[i]
+		var def: Dictionary = combatant.member.def
+		var look: Dictionary = Dictionary(def.get("look", {})).duplicate()
+		look["id"] = def.get("id", "")
+		var body := _cast.character(look, float(look.get("height", 1.7)))
+		if body == null:
+			continue
+		body.position = _slot(i, battle.party.size(), PARTY_Z)
+		body.rotation.y = PI
+		_stage.add_child(body)
+		_bodies[combatant.id] = body
+		_clips[combatant.id] = ""
+		_play_clip(combatant, "battleIdle")
+
+	for i in battle.enemies.size():
+		var combatant: Combatant = battle.enemies[i]
+		var look: Dictionary = (combatant as EnemyCombatant).def.get("look", {})
+		# Their own scale, as the bestiary declares it: a slug is not a dragon.
+		var height := 1.7 * float(look.get("scale", 1.0))
+		var body := _cast.monster(look, height)
+		if body == null:
+			continue
+		body.position = _slot(i, battle.enemies.size(), ENEMY_Z)
+		_stage.add_child(body)
+		_bodies[combatant.id] = body
+		_clips[combatant.id] = ""
+		_play_clip(combatant, "idle")
+	print("STAGE party=%d enemies=%d" % [battle.party.size(), battle.enemies.size()])
+
+
+## A slab of the ground the party was standing on. Scaled from the same block the world is
+## paved with, so a battle floor is the same asset and the same plate as a street.
+func _lay_floor() -> void:
+	if not ResourceLoader.exists("res://assets/props/block.glb"):
+		return
+	var scene: PackedScene = load("res://assets/props/block.glb")
+	var slab: Node3D = scene.instantiate()
+	# Measured through the whole hierarchy: this model's mesh is two nodes down and two
+	# centimetres across, and a loop over the root's own children finds neither.
+	var box := _cast.bounds(slab)
+	if box.size.x <= 0.0001:
+		return
+	slab.scale = Vector3(44.0 / box.size.x, 0.6 / box.size.y, 34.0 / box.size.z)
+	# The slab's *top* at zero, which is where everybody's feet are. Putting its centre there
+	# instead buried the party to the knee, and a fight in a lawn is worse than no lawn.
+	slab.position.y = -(box.position.y + box.size.y) * slab.scale.y
+	var material := StandardMaterial3D.new()
+	var path := "res://assets/textures/%s" % _ground
+	if ResourceLoader.exists(path):
+		material.albedo_texture = load(path)
+		material.uv1_triplanar = true
+		material.uv1_scale = Vector3.ONE * 0.5
+	else:
+		material.albedo_color = Palette.ramp_at("stone", 0.4)
+	_paint(slab, material)
+	_stage.add_child(slab)
+
+
+## Put one material on every surface under a node.
+func _paint(node: Node, material: Material) -> void:
+	var stack: Array = [node]
+	while not stack.is_empty():
+		var current: Node = stack.pop_back()
+		if current is GeometryInstance3D:
+			(current as GeometryInstance3D).material_override = material
+		for child in current.get_children():
+			stack.append(child)
+
+
+func _slot(index: int, total: int, z: float) -> Vector3:
+	var offset := (float(index) - float(total - 1) / 2.0) * SPACING
+	return Vector3(offset, 0.0, z)
+
+
+func _tear_down_stage() -> void:
+	if _stage != null:
+		_stage.queue_free()
+		_stage = null
+	_bodies.clear()
+	_clips.clear()
+
+
+## Play a clip on a combatant, if it is not already playing.
+func _play_clip(combatant: Combatant, clip: String) -> void:
+	var body: Node3D = _bodies.get(combatant.id, null)
+	if body == null or String(_clips.get(combatant.id, "")) == clip:
+		return
+	_clips[combatant.id] = clip
+	if combatant.kind == "party":
+		_cast.play_character_clip(body, clip)
+	else:
+		_cast.play_monster_clip(body, clip)
+
+
+## What everybody should be doing, from the state the engine is in. Read rather than
+## commanded: the engine decides the fight and this only looks at it.
+func _sync_clips() -> void:
+	if battle == null:
+		return
+	for combatant in battle.party + battle.enemies:
+		var wanted := "battleIdle" if combatant.kind == "party" else "idle"
+		if combatant.is_ko():
+			wanted = "dead"
+		elif combatant == battle.active_actor and battle.phase == BattleModel.Phase.MENU:
+			wanted = "battleIdle" if combatant.kind == "party" else "idle"
+		_play_clip(combatant, wanted)
 
 
 func _enemy_names() -> Array:
@@ -143,6 +309,7 @@ func _process(delta: float) -> void:
 
 	battle.update(delta)
 	battle.hold_escape(delta, Actions.is_down("pageLeft") and Actions.is_down("pageRight"))
+	_sync_clips()
 
 	if battle.phase == BattleModel.Phase.MENU and battle.active_actor != null:
 		_drive_menu()
@@ -219,6 +386,12 @@ func _drive_menu() -> void:
 				else "%s misses %s." % [actor.name, target.name])
 			_popup(target, dealt)
 			Sound.sfx("hit" if dealt > 0 else "cancel")
+			# The swing and the flinch, on the two who are in it.
+			_clips[actor.id] = ""
+			_play_clip(actor, "attack")
+			if dealt > 0:
+				_clips[target.id] = ""
+				_play_clip(target, "hurt")
 		_choosing_target = false
 
 
@@ -349,5 +522,6 @@ func _end() -> void:
 	print("BATTLE_END result=%s exp=%d gold=%d" % [battle.result,
 		int(rewards.get("exp_each", 0)), int(rewards.get("gold", 0))])
 	_refresh()
+	_tear_down_stage()
 	finished.emit(battle.result)
 	battle = null

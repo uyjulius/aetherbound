@@ -32,7 +32,8 @@ const DATA = path.join(root, 'godot', 'data');
 const say = (s = '') => console.log(s);
 
 const TABLES = ['enemies', 'encounters', 'items', 'shops', 'spells', 'espers',
-  'quests', 'quest_kinds', 'tracks', 'characters', 'maps'];
+  'quests', 'quest_kinds', 'tracks', 'characters', 'maps', 'char_models',
+  'monster_models'];
 
 /** Total and count of every number reachable inside a value, booleans excluded. */
 function numbers(value) {

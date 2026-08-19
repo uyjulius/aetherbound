@@ -25,6 +25,7 @@ const MenuScreen := preload("res://scripts/ui/menu.gd")
 const ShopScreen := preload("res://scripts/ui/shop.gd")
 const MapBuilder := preload("res://scripts/world/map_build.gd")
 const SceneryBuilder := preload("res://scripts/world/scenery.gd")
+const CastBuilder := preload("res://scripts/world/cast_models.gd")
 
 ## Maps worth opening on first, in this order: a town, an interior, a continent,
 ## a dungeon. `M` walks the whole world from there.
@@ -57,6 +58,13 @@ var _world: Node3D
 var _scenery: Scenery
 var _camera: Camera3D
 var _walker: Node3D
+var _cast: CastModels
+## One model per villager on this map, in the field's own npc order.
+var _crowd: Array[Node3D] = []
+## What the walker is doing, so a clip is only restarted when it changes.
+var _walker_clip := ""
+var _sun: DirectionalLight3D
+var _environment: Environment
 ## The top-down grid, which is what this screen used to be. Kept behind a key: it is the
 ## only view that shows collision and walkability at once, and that is worth having when the
 ## scenery starts disagreeing with the simulation.
@@ -230,6 +238,10 @@ func _open(index: int, spawn := "default") -> void:
 	_last_event = ""
 	if _scenery != null:
 		_scenery.build(def, _field.built, _db.legend.get("glyphs", {}))
+	# The map's own sky, sun and haze. It is the difference between a village at noon and a
+	# marsh under cloud, and it is authored in the map table rather than anywhere here.
+	Atmosphere.apply(_environment, _sun, def)
+	_spawn_crowd()
 	_follow_camera()
 	# The map's own theme, from the resolved definition — so a ruined town plays what the
 	# ruin says and not what the town used to.
@@ -261,34 +273,82 @@ func _build_world() -> void:
 	_world.add_child(_camera)
 	_camera.make_current()
 
-	var sun := DirectionalLight3D.new()
-	sun.rotation = Vector3(deg_to_rad(-52.0), deg_to_rad(-38.0), 0.0)
-	sun.light_energy = 1.35
-	sun.shadow_enabled = true
-	_world.add_child(sun)
+	_sun = DirectionalLight3D.new()
+	_sun.rotation = Vector3(deg_to_rad(-52.0), deg_to_rad(-38.0), 0.0)
+	_sun.light_energy = 1.35
+	_sun.shadow_enabled = true
+	_world.add_child(_sun)
 
-	var environment := Environment.new()
-	environment.background_mode = Environment.BG_COLOR
-	environment.background_color = Palette.ramp_at("water", 0.15)
-	environment.ambient_light_source = Environment.AMBIENT_SOURCE_COLOR
-	environment.ambient_light_color = Palette.ramp_at("stone", 0.75)
-	environment.ambient_light_energy = 0.55
-	environment.fog_enabled = true
-	environment.fog_light_color = Palette.ramp_at("stone", 0.6)
-	environment.fog_density = 0.004
+	_environment = Environment.new()
+	_environment.background_mode = Environment.BG_COLOR
+	_environment.background_color = Palette.ramp_at("water", 0.15)
+	_environment.ambient_light_source = Environment.AMBIENT_SOURCE_COLOR
+	_environment.ambient_light_color = Palette.ramp_at("stone", 0.75)
+	_environment.ambient_light_energy = 0.55
 	var holder := WorldEnvironment.new()
-	holder.environment = environment
+	holder.environment = _environment
 	_world.add_child(holder)
 
-	# Somebody to be. The rigged model from the asset pipeline; if it is missing the world
-	# still builds and the camera still follows the simulation, which is the thing under
-	# test.
-	if ResourceLoader.exists("res://assets/models/vesna.glb"):
-		var scene: PackedScene = load("res://assets/models/vesna.glb")
-		_walker = scene.instantiate()
-		_world.add_child(_walker)
-	else:
-		push_warning("no walker model — the party is invisible")
+	# Somebody to be, and it has to be the right somebody: `CastModels` picks the mesh the
+	# reference picks for whoever is leading the party, from the same table and the same hash.
+	_cast = CastBuilder.new(_db)
+	_spawn_walker()
+
+
+## The party's leader, as a model.
+##
+## Rebuilt rather than retinted when the lead changes, because a different character is a
+## different mesh: nine models across fourteen people, by the reference's own cast list.
+func _spawn_walker() -> void:
+	if _walker != null:
+		_walker.queue_free()
+		_walker = null
+	_walker_clip = ""
+	var lead: Array = _party.active_members()
+	if lead.is_empty():
+		return
+	var def: Dictionary = lead[0].def
+	var look: Dictionary = Dictionary(def.get("look", {})).duplicate()
+	look["id"] = def.get("id", "")
+	# At the height the character sheet gives them, so Bastian looms over Tam by the ten
+	# centimetres the writing says he does.
+	_walker = _cast.character(look, float(look.get("height", 1.7)))
+	if _walker == null:
+		push_warning("no model for the party leader — the field is empty")
+		return
+	_world.add_child(_walker)
+	_cast.play_character_clip(_walker, "idle")
+
+
+## Everybody who lives here.
+##
+## Placed once per map with the clip the map gives them — a keeper works, a guest sits, a
+## villager loiters — and left alone after that. They are already colliders: the field adds one
+## per NPC and `field-parity.mjs` checks them, so these models are only the part you can see.
+func _spawn_crowd() -> void:
+	for node in _crowd:
+		if node != null:
+			node.queue_free()
+	_crowd.clear()
+	if _cast == null or _field == null:
+		return
+	for npc in _field.npcs:
+		var def: Dictionary = npc.get("def", {})
+		var look: Variant = def.get("look", null)
+		if not (look is Dictionary):
+			continue
+		var with_id: Dictionary = Dictionary(look).duplicate()
+		with_id["id"] = def.get("id", "")
+		var node := _cast.character(with_id, float(Dictionary(look).get("height", 1.7)))
+		if node == null:
+			continue
+		node.position = Vector3(float(npc["x"]), 0.0, float(npc["z"]))
+		node.rotation.y = float(npc["facing"])
+		_world.add_child(node)
+		_crowd.append(node)
+		# `clip` is the map's own word for what this person is doing.
+		_cast.play_character_clip(node, String(def.get("clip", "loiter")))
+	print("CROWD map=%s people=%d" % [_ids[_index], _crowd.size()])
 
 
 ## Point the camera where the simulation says it is.
@@ -304,7 +364,22 @@ func _follow_camera() -> void:
 	_camera.look_at(_field.camera.look, Vector3.UP)
 	if _walker != null:
 		_walker.position = Vector3(_field.player.x, 0.0, _field.player.z)
-		_walker.rotation.y = _field.player.facing
+		# Turned to face the way they are walking, plus half a turn: these models face -Z and
+		# the field's `facing` is measured from +Z, which is the same convention the camera
+		# rig uses.
+		_walker.rotation.y = _field.player.facing + PI
+		# Walking, running or standing — the reference's own three, chosen by how fast the
+		# simulation says the party is moving rather than by which key is down, so a party
+		# pushed along by anything else animates too.
+		var speed: float = _field.player.speed
+		var wanted := "idle"
+		if speed > 4.5:
+			wanted = "run"
+		elif speed > 0.2:
+			wanted = "walk"
+		if wanted != _walker_clip:
+			_walker_clip = wanted
+			_cast.play_character_clip(_walker, wanted)
 
 
 ## Whatever this map plays. Held in one place because five callers need to put it back:
@@ -586,7 +661,16 @@ func _start_battle(table: Dictionary) -> void:
 		_note_no_encounter()
 		return
 	_encounters += 1
-	_battle.begin(_party, group, _db)
+	# The world stays where it is and stops being drawn: the fight has its own camera and its
+	# own floor, and both live in the same 3D world as the field.
+	if _world != null:
+		_world.visible = false
+	# The ground the party was standing on, so a fight on the Silt Road happens on the Silt
+	# Road rather than on a default green.
+	var def := MapBuilder.resolve(_db.maps[_ids[_index]], _party.world_state)
+	var ground := String(_scenery.plan.get("ground", {}).get(
+		String(def.get("base", "grass")), {}).get("texture", "grass.png"))
+	_battle.begin(_party, group, _db, ground, def)
 
 
 func _note_no_encounter() -> void:
@@ -595,6 +679,9 @@ func _note_no_encounter() -> void:
 
 func _on_battle_finished(result: String) -> void:
 	_battle.visible = false
+	if _world != null:
+		_world.visible = true
+	_follow_camera()
 	print("BATTLE_CLOSED result=%s" % result)
 	if result == "defeat":
 		_lose()

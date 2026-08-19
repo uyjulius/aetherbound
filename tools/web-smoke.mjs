@@ -149,6 +149,8 @@ let innWoke = null;
 let innDone = null;
 let compared = null;
 const scenery = [];
+const crowd = [];
+let stage = null;
 let wiped = null;
 let rolledBack = null;
 const configured = [];
@@ -194,6 +196,8 @@ page.on('console', (message) => {
   if (text.includes('INN_DONE')) innDone = text.trim();
   if (text.includes('SHOP_COMPARE')) compared = text.trim();
   if (/^SCENERY /.test(text.trim())) scenery.push(text.trim());
+  if (/^CROWD /.test(text.trim())) crowd.push(text.trim());
+  if (/^STAGE /.test(text.trim())) stage = text.trim();
   if (text.includes('PARTY_WIPED')) wiped = text.trim();
   if (text.includes('ROLLED_BACK')) rolledBack = text.trim();
   if (/^CONFIG /.test(text.trim())) configured.push(text.trim());
@@ -691,6 +695,17 @@ check('the world builds its scenery', built.length > 0 && built.every((b) => b.t
 const village = built.find((b) => b.map === 'harrowmere');
 check('the opening village is furnished', Boolean(village) && village.props > 20,
   village ? `${village.props} props, ${village.tiles} tiles` : 'harrowmere never built');
+// And the people in it. Nine live in Harrowmere; a world with scenery and nobody in it is a
+// world whose cast models did not survive the export.
+const villagers = crowd.find((line) => line.includes('map=harrowmere'));
+check('the village has people in it',
+  Boolean(villagers) && Number(villagers.match(/people=(\d+)/)?.[1] ?? 0) > 0,
+  villagers ?? 'no CROWD line for harrowmere');
+// The fight, too: both lines standing on a floor rather than a screen of text.
+check('a fight puts everybody on a stage',
+  Boolean(stage) && Number(stage.match(/party=(\d+)/)?.[1] ?? 0) === 3
+    && Number(stage.match(/enemies=(\d+)/)?.[1] ?? 0) > 0,
+  stage ?? 'no STAGE line');
 
 // --- the music --------------------------------------------------------------
 //

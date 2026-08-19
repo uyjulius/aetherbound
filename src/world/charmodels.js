@@ -69,7 +69,7 @@ export const ONCE_CLIPS = new Set(['attack', 'cast', 'hurt', 'victory', 'dead'])
  * from a hash of their appearance, so a given villager is always the same
  * villager without anyone having to author a table of them.
  */
-const CAST = {
+export const CAST = {
   vesna: 'cubewoman', corvin: 'cubeguy', wick: 'rabbitgrey',
   aurelian: 'cubeguy', bastian: 'panda', idris: 'rabbit',
   osric: 'rabbitblond', maret: 'cubewoman', tam: 'rabbitpig',

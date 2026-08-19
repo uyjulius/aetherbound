@@ -22,7 +22,8 @@ const DATA_DIR := "res://data"
 const TABLES := [
 	"enemies", "encounters", "items", "shops", "spells", "espers", "quests",
 	"quest_kinds", "tracks", "characters", "maps", "cast_order", "palette", "input",
-	"legend", "footprints", "statuses", "commands", "boss_events",
+	"legend", "footprints", "statuses", "commands", "boss_events", "char_models",
+	"monster_models",
 ]
 
 var enemies: Dictionary = {}
@@ -33,6 +34,9 @@ var spells: Dictionary = {}
 var espers: Dictionary = {}
 var quests: Dictionary = {}
 var quest_kinds: Dictionary = {}
+## Which mesh plays which character, and which plays which creature.
+var char_models: Dictionary = {}
+var monster_models: Dictionary = {}
 var tracks: Dictionary = {}
 var characters: Dictionary = {}
 var maps: Dictionary = {}
@@ -80,6 +84,8 @@ func load_all() -> bool:
 	espers = _read("espers")
 	quests = _read("quests")
 	quest_kinds = _read("quest_kinds")
+	char_models = _read("char_models")
+	monster_models = _read("monster_models")
 	tracks = _read("tracks")
 	characters = _read("characters")
 	maps = _read("maps")

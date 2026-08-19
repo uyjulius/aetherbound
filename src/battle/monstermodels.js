@@ -75,7 +75,7 @@ export const MONSTER_MODELS = {
  * takes the first authored clip that matches — so a new model usually needs
  * no mapping at all.
  */
-const CLIP_PATTERNS = {
+export const CLIP_PATTERNS = {
   idle: [/^idle$/i, /flying_idle/i, /_idle$/i, /^idle/i, /idle/i, /swimming_normal/i, /^swim$/i],
   attack: [/^attack$/i, /_attack$/i, /attack(?!_ranged)/i, /bite_front/i, /bite/i,
     /punch/i, /headbutt/i, /^kick$/i, /_kick$/i, /shoot/i],
@@ -91,7 +91,7 @@ const CLIP_PATTERNS = {
 export const ONCE_CLIPS = new Set(['attack', 'cast', 'hurt', 'dead']);
 
 /** Where each game clip falls back to when a model has nothing matching. */
-const FALLBACK = { cast: 'attack', run: 'walk', walk: 'idle', hurt: 'idle', attack: 'idle', dead: 'idle' };
+export const FALLBACK = { cast: 'attack', run: 'walk', walk: 'idle', hurt: 'idle', attack: 'idle', dead: 'idle' };
 
 const loaded = new Map();
 
