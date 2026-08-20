@@ -46,7 +46,8 @@ const say = (s = '') => console.log(s);
  *   height  scale to an authored height, for the kits whose collider is only their base
  *   box     scale each axis to the placement's own `w`, `d` and `h` — buildings
  *
- * `yaw` turns a model whose author faced it a different way. `sink` pushes a model into
+ * `yaw` turns a model whose author faced it a different way, in degrees here and radians in
+ * the plan the port reads. `sink` pushes a model into
  * the ground by a fraction of its height, for the things that should look bedded in
  * rather than balanced on the surface.
  */
@@ -169,23 +170,59 @@ const median = (values) => {
 const plan = { tile: TILE, kits: {}, buildings: {}, glyphs: {}, ground: {}, walls: {} };
 const notes = [];
 
+/**
+ * Which way round a model has to stand to fill its collider.
+ *
+ * A width fit divides the collider's width by the model's own width, and that is only the
+ * right sum if the model's long side runs the same way the collider's does. The generated
+ * fence's does not — it came off the reconstruction with its panel along Z — so the fit
+ * divided 6.12 metres of wall by 0.80 metres of *thickness* and scaled the fence by seven and
+ * a half, lying across the wall it was supposed to be.
+ *
+ * Decided by comparing shapes rather than by a table of which asset faces where: the model is
+ * turned when a quarter turn brings its footprint's proportions *materially* closer to the
+ * collider's. Ratios are compared as logs so that "twice as wide" and "half as wide" are the
+ * same distance from square, which they are.
+ *
+ * The margin is why this is not simply "whichever is closer". A barrel is 1.46 by 1.42 and a
+ * well 1.83 by 1.81; without it, both get spun a quarter turn to chase four centimetres, and a
+ * rule that turns almost everything is impossible to read in a diff. A sixth of a log unit is
+ * about a sixth wider — big enough to be a decision, small enough to catch the fence, which is
+ * out by a factor of nine.
+ */
+const TURN_MARGIN = 0.16;
+
+function turnedToFit(footprint, sx, sz) {
+  if (!footprint || !footprint.d || !sx || !sz) return false;
+  const collider = footprint.w / footprint.d;
+  const off = (aspect) => Math.abs(Math.log(aspect / collider));
+  return off(sx / sz) - off(sz / sx) > TURN_MARGIN;
+}
+
 for (const [kit, rule] of Object.entries(RULES)) {
   if (kit === 'building') continue;
   const asset = manifest[kit];
   if (!asset) { notes.push(`${kit}: no model downloaded`); continue; }
-  const [sx, sy] = asset.size;
+  const [sx, sy, sz] = asset.size;
   const footprint = measured[kit] ? {
     w: Number(median(measured[kit].map(([w]) => w)).toFixed(3)),
     d: Number(median(measured[kit].map(([, d]) => d)).toFixed(3)),
   } : null;
+  // A quarter turn, when the model's own proportions ask for it — and only when nobody has
+  // said which way this kit faces, because an explicit yaw is a decision and this is a guess
+  // that happens to be measured.
+  const turn = rule.yaw === undefined && rule.fit !== 'height' && rule.fit !== 'longest'
+    && turnedToFit(footprint, sx, sz);
+  const across = turn ? sz : sx;
+  if (turn) notes.push(`${kit}: turned a quarter turn — ${sz.toFixed(2)} across, not ${sx.toFixed(2)}`);
 
   let scale;
   if (rule.fit === 'longest') {
-    scale = rule.length / Math.max(sx, sy, asset.size[2] ?? 0, 1);
+    scale = rule.length / Math.max(sx, sy, sz ?? 0, 1);
   } else if (rule.fit === 'height') {
     scale = rule.height / (sy || 1);
   } else if (footprint) {
-    scale = footprint.w / (sx || 1);
+    scale = footprint.w / (across || 1);
   } else {
     // No collider anywhere for this kit — `savepoint` is walked onto, `fence` is nearly
     // all one placement — so the model keeps its own size and says so.
@@ -201,7 +238,10 @@ for (const [kit, rule] of Object.entries(RULES)) {
     y: Number((rule.hang !== undefined
       ? rule.hang - (asset.base + sy) * scale
       : -asset.base * scale - (rule.sink ?? 0) * sy * scale).toFixed(4)),
-    yaw: rule.yaw ?? 0,
+    // Radians on the way out, because the port adds this to the rotation the map gives a prop
+    // and that one is radians — `rot` runs to 1.5708 and 3.1416. Rules are written in degrees
+    // above, where a person is reading them.
+    yaw: Number(((rule.yaw ?? (turn ? 90 : 0)) * Math.PI / 180).toFixed(4)),
     fit: rule.fit,
     footprint,
     model: asset.size,

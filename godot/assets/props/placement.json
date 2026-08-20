@@ -67,9 +67,9 @@
   },
   "cart": {
    "file": "cart.glb",
-   "scale": 4.8016,
-   "y": 1.2758,
-   "yaw": 0,
+   "scale": 2.173,
+   "y": 0.5774,
+   "yaw": 1.5708,
    "fit": "width",
    "footprint": {
     "w": 3.268,
@@ -83,9 +83,9 @@
   },
   "stall": {
    "file": "stall.glb",
-   "scale": 2.016,
-   "y": 0.8491,
-   "yaw": 0,
+   "scale": 1.6592,
+   "y": 0.6988,
+   "yaw": 1.5708,
    "fit": "width",
    "footprint": {
     "w": 2.4,
@@ -115,9 +115,9 @@
   },
   "fence": {
    "file": "fence.glb",
-   "scale": 7.6138,
-   "y": 3.4978,
-   "yaw": 0,
+   "scale": 3.0754,
+   "y": 1.4128,
+   "yaw": 1.5708,
    "fit": "width",
    "footprint": {
     "w": 6.12,
