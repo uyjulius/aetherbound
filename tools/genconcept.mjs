@@ -176,7 +176,12 @@ const WORLD = {
   // could not read them as supports. Timber legs it can — one material, one structure.
   bench: 'a simple wooden bench, a thick plank seat on four square timber legs, no back',
   cart: 'a small two-wheeled wooden handcart, empty bed, iron-rimmed wheels, shafts down',
-  stall: 'a market stall: a wooden trestle table under a striped canvas awning on four poles',
+  // The canvas awning came back as a crumpled white sheet with the stripes gone: a thin
+  // draped surface is the hardest thing to reconstruct from one view. A plank roof is the
+  // same silhouette made of geometry, and the stripes move to a banner where losing them
+  // costs a detail rather than the shape of the stall.
+  stall: 'a market stall: a wooden trestle table under a shallow pitched plank roof on '
+    + 'four posts, a striped cloth banner along the front edge',
   fence: 'a straight run of rustic wooden post-and-rail fence, three rails, weathered timber',
   flowerbox: 'a low wooden planter box full of flowering herbs, soil visible, small flowers',
   bush: 'a rounded garden shrub with dense green foliage',
