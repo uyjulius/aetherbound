@@ -62,10 +62,14 @@ QUADRUPED = {
     ]),
     "dead": (False, [
         (0, {"root": (0, 0, 0)}),
-        (18, {"root": (0, 74, 0), "chest": (-20, 0, 0), "head": (-24, 0, 0),
+        # Z, not Y. Y is a yaw: the first version of this clip turned a dying wolf on the spot,
+        # eighty degrees, still standing on all four legs, and the movement check was perfectly
+        # happy because something had moved. Rendered against X and Z, X pitches it onto its
+        # nose and stands it on its head. Z lays it on its side, which is what dying looks like.
+        (18, {"root": (0, 0, 74), "chest": (-20, 0, 0), "head": (-24, 0, 0),
               "leg_front.L": (-40, 0, 0), "leg_front.R": (-40, 0, 0),
               "leg_back.L": (36, 0, 0), "leg_back.R": (36, 0, 0)}),
-        (40, {"root": (0, 82, 0), "chest": (-20, 0, 0), "head": (-30, 0, 0),
+        (40, {"root": (0, 0, 82), "chest": (-20, 0, 0), "head": (-30, 0, 0),
               "leg_front.L": (-40, 0, 0), "leg_front.R": (-40, 0, 0),
               "leg_back.L": (36, 0, 0), "leg_back.R": (36, 0, 0)}),
     ]),
@@ -101,12 +105,18 @@ WINGED = {
              "wing.R": (0, 0, 26)}),
         (24, {"spine": (0, 0, 0), "head": (0, 0, 0)}),
     ]),
+    # Down and over, not back. The first version rotated the root about X, which on this rig
+    # rears the creature *upright* — rendered, it sits up and lifts its head, which is the
+    # opposite of dying. Z is the axis that lays a body on its side, the same as the quadruped,
+    # and the wings fold in on the way down rather than staying spread.
     "dead": (False, [
         (0, {"root": (0, 0, 0)}),
-        (20, {"root": (-30, 0, 0), "spine": (-28, 0, 0), "head": (-20, 0, 0),
-              "wing.L": (0, 0, -48), "wing.R": (0, 0, 48)}),
-        (40, {"root": (-38, 0, 0), "spine": (-30, 0, 0), "head": (-24, 0, 0),
-              "wing.L": (0, 0, -54), "wing.R": (0, 0, 54)}),
+        (20, {"root": (0, 0, 52), "spine": (-16, 0, 0), "head": (-14, 0, 0),
+              "wing.L": (0, 0, -30), "wing.R": (0, 0, 30),
+              "wingtip.L": (0, 0, -40), "wingtip.R": (0, 0, 40)}),
+        (40, {"root": (0, 0, 84), "spine": (-22, 0, 0), "head": (-24, 0, 0),
+              "wing.L": (0, 0, -18), "wing.R": (0, 0, 18),
+              "wingtip.L": (0, 0, -52), "wingtip.R": (0, 0, 52)}),
     ]),
 }
 

@@ -251,6 +251,18 @@ for (const [kit, rule] of Object.entries(RULES)) {
 for (const style of ['plaster', 'stone', 'wood', 'marble', 'magitek', 'brick']) {
   const asset = manifest[`building_${style}`];
   if (!asset) { notes.push(`building_${style}: no model downloaded`); continue; }
+  // Buildings are scaled per axis, not uniformly, so one facing the wrong way is not merely
+  // mis-sized — it is squashed, and the squashing lands on the doors and windows. The maps ask
+  // for a wider-than-deep footprint 257 times out of 270, median 1.41, so a model that is
+  // deeper than it is wide will be stretched across its facade in almost every placement.
+  // Said out loud rather than corrected: the port scales buildings from `model` and has no
+  // rotation for them, so turning one is a change on both sides and wants a real model to test
+  // against.
+  const [bx, , bz] = asset.size;
+  if (bz > bx * 1.15) {
+    notes.push(`building_${style}: ${bz.toFixed(2)} deep against ${bx.toFixed(2)} wide — the `
+      + 'maps are wider than deep, so this one will be stretched across its front');
+  }
   plan.buildings[style] = {
     file: asset.file,
     // Scaled per placement from the map's own `w`, `d` and `h`, so what is recorded here is
