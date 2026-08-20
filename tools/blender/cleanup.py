@@ -13,6 +13,39 @@ from __future__ import annotations
 import bpy
 
 
+def _box(part):
+    """A part's bounding box, as two corners."""
+    xs = [v.co.x for v in part.data.vertices]
+    ys = [v.co.y for v in part.data.vertices]
+    zs = [v.co.z for v in part.data.vertices]
+    return (min(xs), min(ys), min(zs)), (max(xs), max(ys), max(zs))
+
+
+def _bounds(parts, spans, biggest):
+    """The box around everything solid — the subject, once the sheets are gone.
+
+    Solid meaning not itself a thin fragment: a part that is a tenth of the object across in its
+    smallest axis is geometry, and what is left after taking those is what a stray rail has to be
+    near in order to belong to it.
+    """
+    solid = [p for p in parts if min(spans[p.name]) > 0.02 * biggest]
+    if not solid:
+        return None
+    boxes = [_box(p) for p in solid]
+    return (tuple(min(b[0][i] for b in boxes) for i in range(3)),
+            tuple(max(b[1][i] for b in boxes) for i in range(3)))
+
+
+def _gap(part, core):
+    """How far a part sits from a box. Zero when they touch or overlap."""
+    low, high = _box(part)
+    total = 0.0
+    for i in range(3):
+        distance = max(core[0][i] - high[i], low[i] - core[1][i], 0.0)
+        total += distance * distance
+    return total ** 0.5
+
+
 def cut_backdrop(obj):
     """Delete the studio the character was photographed in.
 
@@ -68,23 +101,34 @@ def cut_backdrop(obj):
             values = [getattr(v.co, axis) for v in part.data.vertices]
             planes.append((flat, (max(values) + min(values)) / 2))
             drop(part, "sheet")
-        # A strip: long in one axis and nothing in the other two. These are the *edges* of the
-        # backdrop, and dropping the sheet without them leaves a two-metre wire frame around the
-        # character — which is why Corvin still measured seven metres across after the first
-        # version of this cut removed both walls.
-        elif span[2] > 0.35 * biggest and span[1] < 0.03 * biggest:
-            drop(part, "strip")
+        # There used to be a second rule here, for *strips*: long in one axis and nothing in the
+        # other two, which is the shape a backdrop's edges come back as. It was removed, because
+        # it is also the shape of a fence rail. The generated fence shipped as four disconnected
+        # posts — the reconstruction had produced perfectly good rails and this cut ate all
+        # seven of them — and a rule that cannot tell the edge of a wall from the rail of a
+        # fence is a rule that decides by luck which props survive.
+        #
+        # Nothing was lost by removing it. A backdrop edge lies *in* the backdrop, so the plane
+        # test below already takes it; a fence rail lies in mid-air, so it does not.
 
     # Then everything else lying in that plane. A matted-out backdrop leaves a dust of fragments
-    # behind: twelve hundred of them on Corvin, each too small to be a sheet or a strip, none of
-    # them anywhere near the figure, and together they made the bounding box seven metres across
-    # — which the rig then scaled the whole character against.
+    # behind: twelve hundred of them on Corvin, each too small to be a sheet, none of them
+    # anywhere near the figure, and together they made the bounding box seven metres across —
+    # which the rig then scaled the whole character against.
     #
-    # What they share is the plane. A part flat enough to lie *in* the floor is not part of a
-    # person: a boot rests on the floor but stands up out of it, and a cape is thin in one axis
-    # and long in another. So the test is thinness *and* proximity to a plane a sheet was found
-    # in, which is why nothing is dropped at all when there was no backdrop to begin with.
-    kept = [o for o in bpy.context.scene.objects if o.type == "MESH"]
+    # Lying in the plane is *not* enough on its own, and the fence is why. A flat subject and the
+    # backdrop invented behind it occupy the same plane, so a rule that drops everything thin and
+    # coplanar drops the fence's rails along with the slabs between them: the prop shipped as four
+    # disconnected posts, twice, once with a rule about strips and once without.
+    #
+    # What separates them is where the rest of the object is. Backdrop debris sits away from the
+    # subject — the studio floor extends a metre past the figure standing on it, and its edges
+    # bound the sheet rather than the figure. A rail runs between two posts and touches both. So
+    # a thin coplanar part is dropped when it is *small* (dust is dust wherever it lies) or when
+    # it is adrift from the solid core, and kept when it is joined to it.
+    solid = [o for o in bpy.context.scene.objects if o.type == "MESH"]
+    core = _bounds(solid, spans, biggest)
+    kept = list(solid)
     for flat, coordinate in planes:
         axis = "xyz"[flat]
         for part in list(kept):
@@ -93,8 +137,12 @@ def cut_backdrop(obj):
             values = [getattr(v.co, axis) for v in part.data.vertices]
             thickness = max(values) - min(values)
             middle = (max(values) + min(values)) / 2
-            if thickness < 0.04 * biggest and abs(middle - coordinate) < 0.08 * biggest:
+            if thickness >= 0.04 * biggest or abs(middle - coordinate) >= 0.08 * biggest:
+                continue
+            if max(spans[part.name]) < 0.12 * biggest:
                 drop(part, "speck")
+            elif core is not None and _gap(part, core) > 0.02 * biggest:
+                drop(part, "debris")
         kept = [o for o in bpy.context.scene.objects if o.type == "MESH"]
     kept = [o for o in bpy.context.scene.objects if o.type == "MESH"]
     if not kept:

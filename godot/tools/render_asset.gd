@@ -22,7 +22,12 @@ const FRAMES_BEFORE_CAPTURE := 12
 func _initialize() -> void:
 	var args := OS.get_cmdline_user_args()
 	var subject: String = args[0] if args.size() > 0 else "well"
-	var glb_path := "res://assets/models/%s.glb" % subject
+	# A bare name means `assets/models`, where the generated spikes land. Anything with a slash
+	# is taken as written, so a shipped prop or creature can be looked at where it actually
+	# lives — which is the only way to judge the thing the game loads rather than its ancestor.
+	var glb_path := subject if subject.contains("/") else "res://assets/models/%s.glb" % subject
+	if subject.contains("/"):
+		subject = glb_path.get_file().get_basename()
 
 	if not ResourceLoader.exists(glb_path):
 		push_error("no such asset: %s" % glb_path)
