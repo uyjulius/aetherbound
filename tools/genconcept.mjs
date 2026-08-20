@@ -195,6 +195,10 @@ const WORLD = {
   airship: 'a small wooden airship with a canvas envelope above the hull, rigging lines, '
     + 'a rudder at the stern',
   // --- the ground and the walls -------------------------------------------
+  // The last bought kit in the world. It is a modular run, so both ends are square and the
+  // capping is continuous — a wall that tapers or finishes in a post cannot be repeated
+  // along a boundary, and the maps repeat it hundreds of times.
+  wall: 'a modular stone wall segment, a straight run of dressed blocks with a flat capping stone, square at both ends, weathered mortar',
   block: 'a single square block of dressed grey stone masonry, mortar lines, weathered face',
   floor: 'a single square paving slab of worn grey stone, chipped edges',
   // --- buildings, by the material the map asks for -------------------------
