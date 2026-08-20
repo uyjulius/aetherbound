@@ -84,6 +84,20 @@ for (const spec of Object.values(legend.glyphs ?? {})) {
   compared++;
   if (!plan.glyphs?.[spec.prop]) fail(`glyph prop "${spec.prop}": no model`);
 }
+// And the rotations are in the units the port adds them to. The plan's `yaw` is summed with
+// the rotation the map gives a prop, which is radians — `rot` runs to 1.5708 and 3.1416 — and
+// the rules that produce it are written in degrees, where a person is reading them. Nothing
+// carried a yaw at all until the generated fence needed a quarter turn, so the mismatch had
+// never fired; the first one would have spun a fence ninety radians and looked like a bug in
+// the placement data.
+for (const [kit, spec] of Object.entries(plan.kits ?? {})) {
+  compared++;
+  const yaw = Number(spec.yaw ?? 0);
+  if (!Number.isFinite(yaw) || Math.abs(yaw) > Math.PI * 2) {
+    fail(`kit "${kit}": a yaw of ${yaw} — the port reads radians, so this is degrees`);
+  }
+}
+
 // Every file the plan names, on disk.
 const named = [
   ...Object.values(plan.kits ?? {}).map((k) => k.file),
