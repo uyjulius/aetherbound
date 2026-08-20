@@ -123,6 +123,52 @@ function write(name, data) {
   return { name, rows, bytes: json.length };
 }
 
+/**
+ * Every model the port ships, with its author and licence.
+ *
+ * Three sources, because three tools fetched them: the props keep a JSON manifest, and the cast
+ * and the bestiary keep the markdown their fetchers write. Parsing generated markdown is only
+ * safe because the generator is in this repository — so the patterns are strict and a line that
+ * stops matching is an error rather than a missing credit.
+ */
+function readCredits() {
+  const entries = [];
+
+  const props = JSON.parse(fs.readFileSync(
+    path.join(root, 'godot', 'assets', 'props', 'manifest.json'), 'utf8'));
+  for (const [kit, model] of Object.entries(props)) {
+    entries.push({
+      kind: 'scenery', what: kit, title: model.title, author: model.author,
+      licence: model.licence, source: model.source,
+    });
+  }
+
+  const cast = fs.readFileSync(path.join(root, 'assets', 'models', 'CREDITS.md'), 'utf8');
+  const castRows = [...cast.matchAll(/^\| (?!Character model|---)(.+?) \| (https:\/\/\S+) \|$/gm)];
+  if (!castRows.length) throw new Error('assets/models/CREDITS.md: no rows matched');
+  for (const [, title, source] of castRows) {
+    entries.push({
+      kind: 'cast', what: '', title: title.trim(), author: 'Quaternius',
+      licence: 'CC0 1.0', source,
+    });
+  }
+
+  const monsters = fs.readFileSync(path.join(root, 'assets', 'monsters', 'CREDITS.md'), 'utf8');
+  const monsterRows = [...monsters.matchAll(
+    /^- \*\*(.+?)\*\* \((.+?)\) — (.+?) — "(?:.+?)" by (.+?), (https:\/\/\S+?)\./gm)];
+  if (!monsterRows.length) throw new Error('assets/monsters/CREDITS.md: no rows matched');
+  for (const [, title, species, licence, author, source] of monsterRows) {
+    entries.push({ kind: 'bestiary', what: species, title, author, licence, source });
+  }
+
+  // Sorted so the list reads the same way every time, and the ones that *require* attribution
+  // first: a credits screen that buries them under two hundred CC0 lines is a credits screen
+  // nobody reads to the end of.
+  entries.sort((a, b) => Number(a.licence.startsWith('CC0')) - Number(b.licence.startsWith('CC0'))
+    || a.kind.localeCompare(b.kind) || a.title.localeCompare(b.title));
+  return { entries };
+}
+
 fs.mkdirSync(OUT, { recursive: true });
 say('\x1b[1mExporting data tables to the Godot port\x1b[0m');
 say('─'.repeat(48));
@@ -203,6 +249,12 @@ const written = [
   // happened, twice, in the reference — so it crosses as data rather than being
   // retyped in GDScript.
   write('statuses', { statuses: STATUSES, tick_rates: TICK_RATES, display: STATUS_DISPLAY }),
+  // Who made the models. Every prop, character and creature in this port is somebody's work
+  // obtained through poly.pizza, and several are CC-BY, where saying so *is* the licence — so it
+  // has to be in the game rather than only in a markdown file in the repository. Read from the
+  // three files the fetch tools write rather than kept by hand, and it throws rather than
+  // shipping a short list if any of them stops matching the shape it is parsed with.
+  write('credits', readCredits()),
   // The instrumentation, so the port sends to the same project under the same event
   // names rather than a second taxonomy that drifts. The token is a client token and is
   // already in the JS bundle served from this origin; it is not a secret.

@@ -143,6 +143,7 @@ const chatter = [];
 let sceneBattle = null;
 let sceneBattleEnd = null;
 let sceneChest = null;
+let creditsLine = null;
 const taps = [];
 let sceneStarted = null;
 let sceneEnded = null;
@@ -233,6 +234,7 @@ page.on('console', (message) => {
   if (/^SCENE_BATTLE /.test(text.trim())) sceneBattle = text.trim();
   if (/^SCENE_BATTLE_END /.test(text.trim())) sceneBattleEnd = text.trim();
   if (/^SCENE_CHEST /.test(text.trim())) sceneChest = text.trim();
+  if (/^CREDITS /.test(text.trim())) creditsLine = text.trim();
   if (/^DOORS /.test(text.trim())) doors.push(text.trim());
   if (/^CROWD /.test(text.trim())) crowd.push(text.trim());
   if (/^STAGE /.test(text.trim())) stage = text.trim();
@@ -291,6 +293,24 @@ const closeMenu = async () => {
     await page.waitForTimeout(280);
   }
   return menuOpens === menuCloses;
+};
+
+/**
+ * Move the cursor to a named row on whatever list screen is open.
+ *
+ * From the `rows=` the screen prints when it opens, rather than by counting presses: adding
+ * Credits to the menu moved Save down a row and the save checks started saving from the wrong
+ * screen. A name is a contract; a position is a coincidence.
+ */
+const toRow = async (label) => {
+  const rows = (menuOpened?.match(/rows=(.*)$/)?.[1] ?? '').split('|');
+  const at = rows.indexOf(label);
+  if (at < 0) return false;
+  for (let i = 0; i < at; i++) {
+    await page.keyboard.press('ArrowDown');
+    await page.waitForTimeout(110);
+  }
+  return true;
 };
 
 const clearField = async () => {
@@ -709,13 +729,11 @@ if (ready) {
 // it back through the browser's own store, and that it can read a save the *reference*
 // wrote — which is what somebody who has been playing at this address actually has.
 if (field) {
-  // Written from the menu: Save is the last row on the root screen.
+  // Written from the menu, found by name.
   await page.keyboard.press('KeyC');
-  await page.waitForTimeout(500);
-  for (let i = 0; i < 9; i++) {
-    await page.keyboard.press('ArrowDown');
-    await page.waitForTimeout(110);
-  }
+  await page.waitForTimeout(700);
+  const foundSave = await toRow('Save');
+  check('the menu offers a Save row', foundSave, menuOpened ?? 'no MENU_OPEN line');
   await page.keyboard.press('Enter');   // into the slot list
   await page.waitForTimeout(400);
   await page.screenshot({ path: path.join(root, '.renders',
@@ -1142,6 +1160,25 @@ if (field) {
 // three of the module: sixty checks a night must not write sixty sessions into the project.
 // Checked from the build's own report rather than by watching the network, because an event
 // that is queued and never sent is still an event that should never have been recorded.
+// The credits screen. Six of the models this port ships are CC-BY, where naming the author *is*
+// the licence — and a markdown file in the repository does not reach anybody playing the game.
+if (field) {
+  await closeMenu();
+  await page.keyboard.press('Escape');
+  await page.waitForTimeout(700);
+  await toRow('Credits');
+  await page.keyboard.press('Enter');
+  for (let i = 0; i < 12 && !creditsLine; i++) await page.waitForTimeout(300);
+  check('the credits name who made the models',
+    Boolean(creditsLine) && Number(creditsLine.match(/models=(\d+)/)?.[1] ?? 0) > 40
+      && Number(creditsLine.match(/ccby=(\d+)/)?.[1] ?? 0) > 0,
+    creditsLine ?? 'no CREDITS line');
+  const creditsShot = path.join(root, '.renders',
+    remote ? 'godot-web-credits-live.png' : 'godot-web-credits.png');
+  await page.screenshot({ path: creditsShot });
+  await closeMenu();
+}
+
 check('the analytics stay out of the test suite',
   Boolean(analytics) && /enabled=false/.test(analytics)
     && /reason=automated browser/.test(analytics),
@@ -1159,6 +1196,11 @@ check('the analytics stay out of the test suite',
 {
   const posted = [];
   const probe = await browser.newPage({ viewport: { width: 900, height: 600 } });
+  // In front, because a background tab in Chromium gets no animation frames — and a Godot build
+  // runs its whole main loop on them. On CI the probe booted far enough to print its readiness
+  // line and then froze, so the batch that flushes six seconds later never flushed and the check
+  // reported "nothing posted" for instrumentation that was working perfectly.
+  await probe.bringToFront();
   await probe.addInitScript(() => {
     Object.defineProperty(navigator, 'webdriver', { get: () => false });
   });

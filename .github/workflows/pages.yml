@@ -37,13 +37,20 @@ env:
 
 jobs:
   # ---------------------------------------------------------------------------
-  # The Godot port: export for the browser, then prove the export boots. Neither
-  # step is optional — a Godot export succeeds and exits zero while producing a
-  # pack with no resources in it, and that failure only shows up as a black
-  # canvas in a browser.
+  # Two jobs, side by side, because they are two questions and they used to be
+  # asked one after the other. The parity suite asks whether the port agrees with
+  # the reference; the export asks whether the thing that agrees actually boots in
+  # a browser. Neither needs the other's answer, and run in sequence they took an
+  # hour of wall clock — twenty minutes of formulas and forty of a software
+  # rasteriser walking ninety-five maps. The deploy waits for both.
+  #
+  # Neither step is optional. A Godot export succeeds and exits zero while
+  # producing a pack with no resources in it, and that failure only shows up as a
+  # black canvas in a browser; and a build that boots beautifully while disagreeing
+  # with the game it is porting is not the game.
   # ---------------------------------------------------------------------------
-  godot:
-    name: Export and check the Godot build
+  check:
+    name: Check the port against the reference
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -100,9 +107,96 @@ jobs:
       - name: Import the project
         run: ~/godot/godot --headless --path godot --import
 
-      # Before the parity suite, not after: audio parity re-renders part of the
-      # score through the reference's own Web Audio engine to prove the shipped
-      # files are still that score, and it needs a page to do it in.
+      # A browser in both jobs: audio parity re-renders part of the score through the
+      # reference's own Web Audio engine to prove the shipped files are still that score, and the
+      # export's check plays the exported build in one.
+      # Cached, and deliberately without `--with-deps`. The apt half of that flag sat
+      # for half an hour on two runners in a row while finding every library already
+      # installed — the ubuntu-latest image ships them — so it buys nothing here and
+      # costs the whole job when a mirror stops answering. If a future image drops a
+      # library, the browser check below fails loudly at launch rather than silently.
+      - name: Cache the browser
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/ms-playwright
+          key: playwright-${{ runner.os }}-${{ hashFiles('package-lock.json') }}
+
+      - name: Install the browser
+        timeout-minutes: 8
+        # `--with-deps` is deliberately absent — see the cache step above. No ffmpeg
+        # either: the audio checks decode through this browser, because the runner image
+        # stopped shipping ffmpeg and Playwright's own build cannot read an ogg.
+        run: npx playwright install chromium
+
+      # The parity suite is the port's entire guarantee — every formula value, every table
+      # number, every AI decision, every RNG draw, the growth curves, the commands, the world's
+      # collision, the fights and what they pay out, the scenes and what their calls *do*, five
+      # save files, the whole rendered score, and the instrumentation's taxonomy. Seventeen
+      # harnesses; the deploy is gated on all of them.
+      - name: Check the port against the reference
+        run: GODOT=~/godot/godot npm run port
+
+  export:
+    name: Export the Godot build and prove it boots
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: Install
+        run: npm ci
+
+      # The editor is 144MB and the official template bundle is 1.2GB, for a
+      # version that changes a few times a year. The cache holds the editor and
+      # only the web template extracted from that bundle — about 155MB — so a
+      # normal run downloads nothing.
+      - name: Cache Godot ${{ env.GODOT_VERSION }}
+        id: godot-cache
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/godot
+            ~/.local/share/godot/export_templates
+          key: godot-web-${{ env.GODOT_VERSION }}
+
+      - name: Fetch Godot and the web export template
+        if: steps.godot-cache.outputs.cache-hit != 'true'
+        run: |
+          set -euo pipefail
+          base="https://github.com/godotengine/godot/releases/download/${GODOT_VERSION}"
+          templates="$HOME/.local/share/godot/export_templates/${GODOT_TEMPLATES}"
+          mkdir -p ~/godot "$templates"
+
+          curl -fsSL -o /tmp/godot.zip "$base/Godot_v${GODOT_VERSION}_linux.x86_64.zip"
+          unzip -q -o /tmp/godot.zip -d ~/godot
+          mv ~/godot/Godot_v${GODOT_VERSION}_linux.x86_64 ~/godot/godot
+          chmod +x ~/godot/godot
+
+          # `.tpz` carries every platform — Android alone is 450MB — and the web
+          # export needs one 10MB file out of it. Only that and `version.txt`
+          # (which is how Godot recognises the directory as a template set) are
+          # kept, which is what keeps the cache small. A `--export-debug` run
+          # would want `web_nothreads_debug.zip` as well and will say so plainly.
+          curl -fsSL -o /tmp/templates.tpz "$base/Godot_v${GODOT_VERSION}_export_templates.tpz"
+          unzip -q -o /tmp/templates.tpz \
+            'templates/web_nothreads_release.zip' 'templates/version.txt' -d /tmp/templates
+          mv /tmp/templates/templates/* "$templates/"
+          rm -rf /tmp/templates.tpz /tmp/templates /tmp/godot.zip
+          du -sh ~/godot "$templates"
+
+      # Importing first, explicitly. The export triggers an import when the cache
+      # is missing — which it always is on a fresh checkout, since godot/.godot is
+      # not committed — and doing it in its own step means an import failure is
+      # reported as an import failure.
+      - name: Import the project
+        run: ~/godot/godot --headless --path godot --import
+
+      # A browser in both jobs: audio parity re-renders part of the score through the
+      # reference's own Web Audio engine to prove the shipped files are still that score, and the
+      # export's check plays the exported build in one.
       # Cached, and deliberately without `--with-deps`. The apt half of that flag sat
       # for half an hour on two runners in a row while finding every library already
       # installed — the ubuntu-latest image ships them — so it buys nothing here and
@@ -127,9 +221,6 @@ jobs:
       # reference build. It runs before the export, because a build that
       # disagrees with the game it is porting should not be published however
       # well it boots.
-      - name: Check the port against the reference
-        run: GODOT=~/godot/godot npm run port
-
       - name: Export for the browser
         run: GODOT=~/godot/godot npm run export:web
 
@@ -153,7 +244,7 @@ jobs:
           retention-days: 7
 
   build:
-    needs: [godot]
+    needs: [check, export]
     # The port must not be able to take the live game down with it.
     if: always()
     runs-on: ubuntu-latest
@@ -216,7 +307,9 @@ jobs:
           exit $missing
 
       - name: Add the Godot build
-        if: needs.godot.result == 'success'
+        # Both answers, not one: a build that boots and disagrees with the reference is not the
+        # game, and a build that agrees and does not boot is a black canvas.
+        if: needs.check.result == 'success' && needs.export.result == 'success'
         uses: actions/download-artifact@v4
         with:
           name: godot-web
@@ -231,7 +324,7 @@ jobs:
           if [ -f _site/index.html ]; then
             echo "Godot build: $(du -sh _site/index.pck 2>/dev/null | cut -f1) of pack at /"
           else
-            echo "::error::the Godot export or its browser check failed (job result: ${{ needs.godot.result }}) — falling back to the web build at the root"
+            echo "::error::the port did not ship (parity: ${{ needs.check.result }}, export: ${{ needs.export.result }}) — falling back to the web build at the root"
             cp -r _site/js/. _site/
           fi
           echo "web build: $(du -sh _site/js | cut -f1) at /js/"

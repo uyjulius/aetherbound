@@ -139,7 +139,14 @@ func _begin(for_party: Party, db) -> void:
 	_specials = 0
 	visible = true
 	_push(_root())
-	print("%s_OPEN gold=%d items=%d" % [_tag(), party.gold, party.inventory.size()])
+	# The rows, by name, so anything driving this screen can find one instead of counting to it.
+	# A row added to the root list used to move every row under it, and the browser check that
+	# counted nine downs to reach Save started saving from Credits instead.
+	var labels: Array = []
+	for entry in _stack[_stack.size() - 1].get("rows", []):
+		labels.append(String(entry.get("label", "")))
+	print("%s_OPEN gold=%d items=%d rows=%s" % [_tag(), party.gold, party.inventory.size(),
+		"|".join(labels)])
 	# Both screens that inherit this are worth an event and the reference has one for each, so
 	# the tag chooses. A screen added later with a new tag reports as a menu rather than as
 	# nothing, which is the safer of the two ways to be wrong.

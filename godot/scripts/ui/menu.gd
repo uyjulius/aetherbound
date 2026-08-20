@@ -65,6 +65,7 @@ func _root() -> Dictionary:
 		{"label": "Bestiary", "go": "bestiary"},
 		{"label": "Journal", "go": "journal"},
 		{"label": "Config", "go": "config"},
+		{"label": "Credits", "go": "credits"},
 		{"label": "Save", "go": "save"},
 		{"label": "Load", "go": "load"},
 	]
@@ -88,6 +89,7 @@ func _open_named(name: String) -> void:
 		"bestiary": _push(_bestiary())
 		"journal": _push(_journal())
 		"config": _push(_config())
+		"credits": _push(_credits())
 
 
 func _character_pick(title: String, then: Callable) -> Dictionary:
@@ -549,6 +551,55 @@ func _config_notes() -> String:
 		"post-processing chain and an HTML interface this port does not have,",
 		"so they are not offered rather than offered and ignored.",
 	])
+
+
+## Who made the models.
+##
+## Every prop, character and creature in this port is somebody's work, obtained through
+## poly.pizza; six of them are CC-BY, where saying so is not merely good manners but the licence.
+## A markdown file in the repository does not reach a player, so the list is in the game, those
+## six first, with the engine's own notice under them.
+func _credits() -> Dictionary:
+	var entries: Array = database.credits.get("entries", [])
+	# A header row, which the cursor skips: the point of the screen is on the screen rather than
+	# in a footer nobody reads.
+	var rows: Array = [{"label": "Six of these are CC-BY. Naming them is the licence.",
+		"header": true}]
+	for entry in entries:
+		var licence := String(entry.get("licence", "?"))
+		rows.append({
+			"label": String(entry.get("title", "?")),
+			"right": licence,
+			"entry": entry,
+		})
+	var ccby := 0
+	for entry in entries:
+		if not String(entry.get("licence", "")).begins_with("CC0"):
+			ccby += 1
+	print("CREDITS models=%d ccby=%d" % [entries.size(), ccby])
+	return {
+		"title": "Credits", "rows": rows,
+		"footer": "%d models, all from poly.pizza · made with Godot Engine (MIT)" % entries.size(),
+		"detail": func(row): return _credit_card(row.get("entry", {})),
+	}
+
+
+func _credit_card(entry: Dictionary) -> String:
+	if entry.is_empty():
+		return ""
+	var lines: Array = [
+		String(entry.get("title", "?")),
+		"",
+		"by %s" % String(entry.get("author", "?")),
+		"under %s" % String(entry.get("licence", "?")),
+		"",
+		"used as %s%s" % [String(entry.get("kind", "?")),
+			"" if String(entry.get("what", "")).is_empty()
+			else " — %s" % String(entry.get("what", ""))],
+		"",
+		String(entry.get("source", "")),
+	]
+	return "\n".join(lines)
 
 
 ## The three slots and the autosave beside them.

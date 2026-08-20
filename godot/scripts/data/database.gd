@@ -23,7 +23,7 @@ const TABLES := [
 	"enemies", "encounters", "items", "shops", "spells", "espers", "quests",
 	"quest_kinds", "tracks", "characters", "maps", "cast_order", "palette", "input",
 	"legend", "footprints", "statuses", "commands", "boss_events", "char_models",
-	"monster_models", "controls", "analytics",
+	"monster_models", "controls", "analytics", "credits",
 ]
 
 var enemies: Dictionary = {}
@@ -42,6 +42,9 @@ var controls: Dictionary = {}
 ## The Mixpanel token, endpoint and event taxonomy, exported from the reference's own table
 ## so the port reports under the same event names rather than a second set that drifts.
 var analytics: Dictionary = {}
+## Who made every model this port ships, and under what licence. Several are CC-BY, where
+## saying so *is* the licence, so it has to be reachable from inside the game.
+var credits: Dictionary = {}
 var tracks: Dictionary = {}
 var characters: Dictionary = {}
 var maps: Dictionary = {}
@@ -93,6 +96,7 @@ func load_all() -> bool:
 	monster_models = _read("monster_models")
 	controls = _read("controls")
 	analytics = _read("analytics")
+	credits = _read("credits")
 	tracks = _read("tracks")
 	characters = _read("characters")
 	maps = _read("maps")
