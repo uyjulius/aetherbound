@@ -55,6 +55,24 @@ say(`\x1b[1mExporting the Godot web build\x1b[0m`);
 say(`  preset    Web (${debug ? 'debug' : 'release'}, single-threaded, Compatibility)`);
 say(`  out       ${path.relative(root, outDir)}`);
 
+// Import first, explicitly, the way CI does. An export uses whatever is in `godot/.godot`,
+// and that cache does not notice a file replaced underneath it by a build script: the first
+// renders of the generated props in this project were the *bought* models, because the meshes
+// had been overwritten and nothing had re-imported them. CI is safe by accident — it checks out
+// a tree with no cache at all — and a local export is not.
+const imported = spawnSync(godot, ['--headless', '--path', path.join(root, 'godot'), '--import'],
+  { encoding: 'utf8' });
+if (imported.error) {
+  say(`\x1b[31mFAIL\x1b[0m — could not run ${godot}: ${imported.error.message}`);
+  say('Set GODOT to the binary if it is not on PATH.');
+  process.exit(1);
+}
+if (imported.status !== 0) {
+  say(`\x1b[31mFAIL\x1b[0m — the import pass exited ${imported.status}.`);
+  say(`  ${String(imported.stderr ?? '').split('\n').slice(-6).join('\n  ')}`);
+  process.exit(1);
+}
+
 const target = path.join(outDir, 'index.html');
 const run = spawnSync(godot, [
   '--headless', '--path', path.join(root, 'godot'),
