@@ -117,6 +117,46 @@ function isolate({ width, height, data }) {
   return { png: out, share: filled / (width * height) };
 }
 
+/**
+ * A dark band across an edge — a letterbox strip or a fake watermark.
+ *
+ * The image model adds them unasked: four of the thirty-six bestiary views came back with a
+ * black bar along the bottom, one of them carrying invented studio text. They matter because
+ * the flood fill cannot remove them — it takes pixels that are bright *and* neutral, and a
+ * black bar is neither — so the bar survives into the mesh as a slab, and finding that out
+ * costs 270 seconds of GPU and a rig fitted to a signboard.
+ *
+ * Measured as rows (or columns) that are mostly dark, counted inwards from each edge. A dark
+ * subject touching the frame is not a band: it does not run the whole width.
+ */
+function darkBand({ width, height, data }) {
+  const luminance = (x, y) => {
+    const at = (y * width + x) * 4;
+    return 0.299 * data[at] + 0.587 * data[at + 1] + 0.114 * data[at + 2];
+  };
+  const rowIsDark = (y) => {
+    let dark = 0;
+    for (let x = 0; x < width; x++) if (luminance(x, y) < 60) dark++;
+    return dark > width * 0.75;
+  };
+  const columnIsDark = (x) => {
+    let dark = 0;
+    for (let y = 0; y < height; y++) if (luminance(x, y) < 60) dark++;
+    return dark > height * 0.75;
+  };
+  const runs = {
+    top: 0, bottom: 0, left: 0, right: 0,
+  };
+  while (runs.top < height * 0.2 && rowIsDark(runs.top)) runs.top++;
+  while (runs.bottom < height * 0.2 && rowIsDark(height - 1 - runs.bottom)) runs.bottom++;
+  while (runs.left < width * 0.2 && columnIsDark(runs.left)) runs.left++;
+  while (runs.right < width * 0.2 && columnIsDark(width - 1 - runs.right)) runs.right++;
+  // Six rows, because a single dark row is a compression edge and six is a decision.
+  const found = Object.entries(runs).filter(([, run]) => run >= 6);
+  return found.map(([edge, run]) => `${run}px along the ${edge}`);
+}
+
+
 const subject = process.argv.slice(2).find((a) => !a.startsWith('--')) ?? 'vesna';
 const concepts = path.join(root, 'assets', 'concepts');
 const find = (stem) => ['.png', '.jpg', '.jpeg']
@@ -133,22 +173,35 @@ if (!views.length) {
 
 say(`\x1b[1mIsolating ${subject}\x1b[0m`);
 let suspect = false;
+const bands = [];
 for (const [view, file] of views) {
-  const { png, share } = isolate(readImage(file));
+  const image = readImage(file);
+  const found = darkBand(image);
+  if (found.length) bands.push(`${view}: ${found.join(', ')}`);
+  const { png, share } = isolate(image);
   const out = path.join(concepts, `${subject}-${view}-clean.png`);
   fs.writeFileSync(out, PNG.sync.write(png));
   const percent = (share * 100).toFixed(1);
 
-  // A plausible full-body view is mostly background but not entirely. Outside
-  // this band the thresholds have either leaked through the silhouette or
-  // failed to reach the backdrop at all, and the result is not worth spending
-  // GPU minutes on — so it is called out rather than quietly written.
-  const plausible = share > 0.3 && share < 0.9;
+  // Judged on what is *left*, not on what was taken. The old test called anything above 90%
+  // background suspect, which is true of a character and false of a bench: a small prop on a
+  // full-height canvas is legitimately 95% background, and the warning fired on every one of
+  // them until it meant nothing. What actually goes wrong is the fill leaking through the
+  // silhouette and eating the subject, or never reaching the backdrop at all.
+  const kept = 1 - share;
+  const plausible = kept > 0.005 && share > 0.2;
   if (!plausible) suspect = true;
   say(`  ${view.padEnd(6)} ${percent.padStart(5)}% to white  ${plausible ? '' : '\x1b[33msuspect\x1b[0m  '}${path.basename(out)}`);
 }
 
 say();
+if (bands.length) {
+  say('\x1b[31mFAIL\x1b[0m — a dark band runs across an edge of this view:');
+  for (const line of bands) say(`  ${line}`);
+  say('The fill cannot take it — it removes what is bright and neutral, and a black bar is');
+  say('neither — so it would be reconstructed as a slab. Generate the view again.');
+  process.exit(1);
+}
 if (suspect) {
   say('\x1b[33mLook at the marked views before generating.\x1b[0m A fill that took almost');
   say('everything has leaked through the silhouette; one that took almost nothing');

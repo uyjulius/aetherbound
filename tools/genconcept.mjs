@@ -248,7 +248,13 @@ const CREATURE_POSE = {
     + 'three-quarter front view',
   avian: 'wings spread wide, level and symmetrical, feet down, seen from the front',
   plant: 'upright and symmetrical, seen from the front, roots or stem visible',
-  blob: 'a rounded symmetrical body, seen from the front',
+  // Spelled out to the point of tedium because it has to be. Four blob concepts were asked
+  // for as "a single slime" and four salamanders came back — the word reads as an animal
+  // that is slimy, not as a mass of jelly, and the roster means the second. The plan is
+  // rigged with a stalk skeleton, which a lizard with arms has no use for.
+  blob: 'a gelatinous blob of translucent jelly, no limbs, no arms, no legs, no tail, '
+    + 'a rounded dome of wobbling slime sitting on its own mass, simple eyes set in the '
+    + 'jelly, symmetrical, seen from the front',
   floater: 'hovering with nothing underneath it, symmetrical, seen from the front',
 };
 
