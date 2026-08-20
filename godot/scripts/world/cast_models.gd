@@ -59,7 +59,12 @@ func model_for_character(def: Dictionary) -> String:
 	var id := String(def.get("id", ""))
 	if cast.has(id):
 		return String(cast[id])
-	var keys: Array = models.keys()
+	# From the crowd rather than from every model in the table: the party's fourteen are in
+	# `models` too now, and a villager who is Vesna in a different coat is worse than a villager
+	# who is one of nine. Falls back to the whole table for an export that predates the split.
+	var keys: Array = _db.char_models.get("crowd", [])
+	if keys.is_empty():
+		keys = models.keys()
 	if keys.is_empty():
 		return ""
 	# The seed is the reference's: `JSON.stringify([def.id, def.build, def.hair, def.colors])`.
@@ -245,15 +250,20 @@ func _player_in(node: Node) -> AnimationPlayer:
 ## The cast's clip names are a fixed map because the whole pack shares one skeleton. Returns
 ## the authored clip name that was played, or "" when the model has nothing for it.
 func play_character_clip(node: Node3D, clip: String) -> String:
-	var wanted := String(_db.char_models.get("clips", {}).get(clip, clip))
 	# Through the model's own list, because the name the artist gave a clip and the name the
 	# file carries are not the same string: glTF arrives as
 	# `CharacterArmature|CharacterArmature|Idle`, and asking an AnimationPlayer for "Idle"
 	# gets nothing at all.
 	var available := clips_of(node)
-	if not available.has(wanted):
-		return ""
-	return _play(node, String(available[wanted]), _db.char_models.get("once", []).has(clip))
+	# The party's models were animated for this game and name their clips the way the game asks
+	# for them; the crowd's came from a pack and need the table. The game's own name first, then
+	# the mapped one, then idle — so a generated character with no `run` walks instead of
+	# freezing, and a villager still does everything they always did.
+	for name in [clip, String(_db.char_models.get("clips", {}).get(clip, clip)),
+			"idle", String(_db.char_models.get("clips", {}).get("idle", "idle"))]:
+		if available.has(name):
+			return _play(node, String(available[name]), _db.char_models.get("once", []).has(clip))
+	return ""
 
 
 ## Play a game clip on a creature.

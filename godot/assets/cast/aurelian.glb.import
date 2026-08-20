@@ -3,13 +3,13 @@
 importer="scene"
 importer_version=1
 type="PackedScene"
-uid="uid://crl536narsmmr"
-path="res://.godot/imported/vesna.glb-2c75cac6458d5d24c56f48d6db3147d4.scn"
+uid="uid://d1otm86oha0mq"
+path="res://.godot/imported/aurelian.glb-07a2df2a98b054a01108123724b35f1b.scn"
 
 [deps]
 
-source_file="res://assets/models/vesna.glb"
-dest_files=["res://.godot/imported/vesna.glb-2c75cac6458d5d24c56f48d6db3147d4.scn"]
+source_file="res://assets/cast/aurelian.glb"
+dest_files=["res://.godot/imported/aurelian.glb-07a2df2a98b054a01108123724b35f1b.scn"]
 
 [params]
 

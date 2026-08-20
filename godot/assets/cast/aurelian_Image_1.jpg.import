@@ -2,19 +2,19 @@
 
 importer="texture"
 type="CompressedTexture2D"
-uid="uid://ryq0fl3gkrob"
-path="res://.godot/imported/vesna_Image_1.png-48358fc70d6a5592893d31e1b160e4c0.ctex"
+uid="uid://bli8xoo8sfrq2"
+path="res://.godot/imported/aurelian_Image_1.jpg-52542d9dff275197adc0ff26d4aa0a63.ctex"
 metadata={
 "vram_texture": false
 }
 generator_parameters={
-"md5": "b7241a781bceca117ac08381bd3e87d0"
+"md5": "ba423f38dcf7bf875f52cdd5e64eb517"
 }
 
 [deps]
 
-source_file="res://assets/models/vesna_Image_1.png"
-dest_files=["res://.godot/imported/vesna_Image_1.png-48358fc70d6a5592893d31e1b160e4c0.ctex"]
+source_file="res://assets/cast/aurelian_Image_1.jpg"
+dest_files=["res://.godot/imported/aurelian_Image_1.jpg-52542d9dff275197adc0ff26d4aa0a63.ctex"]
 
 [params]
 

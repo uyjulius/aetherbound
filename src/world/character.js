@@ -78,8 +78,13 @@ export class CharacterAnimator {
 
   _action(name) {
     if (this.actions.has(name)) return this.actions.get(name);
-    const clipName = CLIP_MAP[name] ?? CLIP_MAP.idle;
-    const clip = this.c.clips.get(clipName)
+    // The party's models were animated for this game and name their clips the way the game
+    // asks for them; the crowd's came from a pack and need the map. Try the game's own name
+    // first, then the mapped one, and only then fall back — so neither family needs a table of
+    // its own and a character with no `run` still walks instead of freezing.
+    const clip = this.c.clips.get(name)
+      ?? this.c.clips.get(CLIP_MAP[name] ?? CLIP_MAP.idle)
+      ?? this.c.clips.get('idle')
       ?? this.c.clips.get(CLIP_MAP.idle)
       ?? this.c.clips.values().next().value;
     if (!clip) return null;

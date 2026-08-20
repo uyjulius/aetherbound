@@ -2,19 +2,19 @@
 
 importer="texture"
 type="CompressedTexture2D"
-uid="uid://ddi604y66a5gt"
-path="res://.godot/imported/vesna_Image_0.jpg-c226bc470475a5bf89a1c6e99a01e965.ctex"
+uid="uid://bx1x225c14c3a"
+path="res://.godot/imported/idris_Image_0.jpg-f3981a1d00489d8a68598e06d3e5f8a4.ctex"
 metadata={
 "vram_texture": false
 }
 generator_parameters={
-"md5": "1b70a97016b02a4707f20543552b90e2"
+"md5": "9e3ad4c3d974c51d0a12573be2cc9640"
 }
 
 [deps]
 
-source_file="res://assets/models/vesna_Image_0.jpg"
-dest_files=["res://.godot/imported/vesna_Image_0.jpg-c226bc470475a5bf89a1c6e99a01e965.ctex"]
+source_file="res://assets/cast/idris_Image_0.jpg"
+dest_files=["res://.godot/imported/idris_Image_0.jpg-f3981a1d00489d8a68598e06d3e5f8a4.ctex"]
 
 [params]
 

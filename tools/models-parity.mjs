@@ -62,7 +62,9 @@ const fnv1a = (text) => {
 // `JSON.stringify([def.id, def.build, def.hair, def.colors])`
 const characterModel = (def) => {
   if (def.id && charModels.cast[def.id]) return charModels.cast[def.id];
-  const keys = Object.keys(charModels.models);
+  // The crowd, not every model in the table: the party's own fourteen are in there too and an
+  // NPC is never one of them.
+  const keys = charModels.crowd ?? Object.keys(charModels.models);
   const seed = JSON.stringify([def.id, def.build, def.hair, def.colors]);
   return keys[fnv1a(seed) % keys.length];
 };

@@ -41,7 +41,7 @@ import { QUESTS, QUEST_KIND_ORDER, QUEST_KIND_LABEL } from '../src/data/quests.j
 // authored decisions — a hand-written cast list of fourteen, a body-plan roster of thirty-six
 // — plus one hash that has to agree exactly, or the port shows a different monster from the
 // one the reference shows for the same species. So they cross as data.
-import { CHARACTER_MODELS, CAST, CLIP_MAP, ONCE_CLIPS } from '../src/world/charmodels.js';
+import { CHARACTER_MODELS, CAST, CROWD, CLIP_MAP, ONCE_CLIPS } from '../src/world/charmodels.js';
 // The control bar's own words. "Talk" for confirm and "Enter" rather than "Z" are authored
 // choices about how to explain the game to somebody who has just arrived, and a port that
 // derived them from the key table instead would tell them to press Z.
@@ -213,6 +213,9 @@ const written = [
   write('char_models', {
     models: CHARACTER_MODELS,
     cast: CAST,
+    // Who an NPC may be drawn as. The party's own models are not in it, so a villager is never
+    // one of the party in a different coat.
+    crowd: CROWD,
     clips: CLIP_MAP,
     once: [...ONCE_CLIPS],
   }),

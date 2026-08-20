@@ -50,17 +50,22 @@ func _initialize() -> void:
 	for id in db.enemies:
 		enemies[id] = cast.model_for_look(Dictionary(db.enemies[id]).get("look", {}))
 
-	# And what the clips resolve to inside the models themselves. One character model and one
-	# creature per body plan is enough to prove the tables reach real keyframes without loading
-	# thirty-six meshes.
+	# And what the clips resolve to inside the models themselves. One creature per body plan is
+	# enough for the bestiary — thirty-six meshes to prove a pattern list — but the *cast* is
+	# checked in full: the fourteen party models are this game's own, one file each, and a clip
+	# that failed to resolve on one of them would be one character freezing at the moment the
+	# game told them to act.
 	var resolved := {}
-	var sample_character: Dictionary = db.characters.get("vesna", {}).get("look", {}).duplicate()
-	sample_character["id"] = "vesna"
-	var body := cast.character(sample_character, 1.7)
-	if body != null:
+	for id in db.characters:
+		var look: Dictionary = Dictionary(db.characters[id]).get("look", {}).duplicate()
+		look["id"] = id
+		var body := cast.character(look, 1.7)
+		if body == null:
+			continue
 		get_root().add_child(body)
 		for clip in db.char_models.get("clips", {}):
-			resolved["vesna/%s" % clip] = cast.play_character_clip(body, String(clip))
+			resolved["%s/%s" % [id, clip]] = cast.play_character_clip(body, String(clip))
+		body.queue_free()
 		body.queue_free()
 	for plan in db.monster_models.get("plans", {}):
 		var creature := cast.monster({"plan": plan}, 1.7)

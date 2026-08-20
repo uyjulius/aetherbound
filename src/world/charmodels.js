@@ -18,11 +18,35 @@ import { toonMaterial } from '../fx/materials.js';
 /**
  * The cast, mapped to models.
  *
- * The pack shares one skeleton across every character, which is the reason
- * this works at all — one set of animation clips drives the whole roster, and
- * a new party member is a line in this table rather than a rigging job.
+ * The fourteen playable characters are *this game's* models: generated from their own entries
+ * in the character table — build, height, hair and every garment colour — reconstructed into a
+ * mesh, rigged, and animated with the eight clips the game asks for by name. See
+ * `tools/genconcept.mjs`, `tools/genmesh.mjs` and `tools/blender/rig_character.py`; the concept
+ * views they were made from are in `assets/concepts/`.
+ *
+ * Under them is the crowd: nine models from poly.pizza that every NPC in the world is picked
+ * from by a hash of their appearance. They stay because a villager should not be one of the
+ * party wearing a different hat, and because a table of two hundred named villagers is not a
+ * thing anybody should author.
  */
 export const CHARACTER_MODELS = {
+  // --- the party, generated for this game ---------------------------------
+  vesna:     { file: 'vesna.glb', title: 'Vesna' },
+  corvin:    { file: 'corvin.glb', title: 'Corvin' },
+  aurelian:  { file: 'aurelian.glb', title: 'Aurelian' },
+  bastian:   { file: 'bastian.glb', title: 'Bastian' },
+  idris:     { file: 'idris.glb', title: 'Idris' },
+  maret:     { file: 'maret.glb', title: 'Maret' },
+  osric:     { file: 'osric.glb', title: 'Osric' },
+  tam:       { file: 'tam.glb', title: 'Tam' },
+  ilsabet:   { file: 'ilsabet.glb', title: 'Ilsabet' },
+  oda:       { file: 'oda.glb', title: 'Oda' },
+  kestrel:   { file: 'kestrel.glb', title: 'Kestrel' },
+  rusk:      { file: 'rusk.glb', title: 'Rusk' },
+  wick:      { file: 'wick.glb', title: 'Wick' },
+  themask:   { file: 'themask.glb', title: 'The Mask' },
+
+  // --- the crowd, from poly.pizza under CC-BY -----------------------------
   cubeguy:   { file: 'K1IczhnvQ5.glb', title: 'Cube Guy Character' },
   cubewoman: { file: '75ikp7NEDx.glb', title: 'Cube Woman Character' },
   panda:     { file: 'q1uJ28Hs8T.glb', title: 'Panda' },
@@ -33,6 +57,12 @@ export const CHARACTER_MODELS = {
   rabbitpig:   { file: 'SwKX8OIlw8.glb', title: 'Rabbit With pigtails' },
   rabbitgrey:  { file: 'KRnXIKJbqp.glb', title: 'Rabbit Grey' },
 };
+
+/**
+ * Who an NPC may be drawn as. The party is deliberately not in here.
+ */
+export const CROWD = ['cubeguy', 'cubewoman', 'panda', 'mako', 'rabbit',
+  'rabbitblond', 'rabbitcyan', 'rabbitpig', 'rabbitgrey'];
 
 /**
  * Game clip → the animation the artist actually authored.
@@ -61,25 +91,40 @@ export const CLIP_MAP = {
 export const ONCE_CLIPS = new Set(['attack', 'cast', 'hurt', 'victory', 'dead']);
 
 /**
- * Which model plays which character.
+ * Which model plays which character: their own.
  *
- * Chosen so the party reads as an ensemble rather than a line-up of the same
- * doll: two cube people, a panda, a robot, and the rabbits spread across the
- * rest. Anyone not named here — every NPC in the game — gets a model picked
- * from a hash of their appearance, so a given villager is always the same
- * villager without anyone having to author a table of them.
+ * This used to spread the party across nine stock models — two cube people, a panda, a robot
+ * and the rabbits — so that the line-up read as an ensemble rather than as the same doll five
+ * times. That was the right answer while the models were somebody else's. Now each of the
+ * fourteen has a mesh made from their own entry in the character table, so the mapping is an
+ * identity and the interesting part moved into the generator.
+ *
+ * Anyone not named here — every NPC in the game — is still picked from `CROWD` by a hash of
+ * their appearance, so a given villager is always the same villager without anyone authoring
+ * a table of two hundred of them.
  */
 export const CAST = {
-  vesna: 'cubewoman', corvin: 'cubeguy', wick: 'rabbitgrey',
-  aurelian: 'cubeguy', bastian: 'panda', idris: 'rabbit',
-  osric: 'rabbitblond', maret: 'cubewoman', tam: 'rabbitpig',
-  ilsabet: 'rabbitcyan', kestrel: 'rabbitblond', oda: 'rabbit',
-  rusk: 'panda', themask: 'mako',
+  vesna: 'vesna',
+  corvin: 'corvin',
+  aurelian: 'aurelian',
+  bastian: 'bastian',
+  idris: 'idris',
+  maret: 'maret',
+  osric: 'osric',
+  tam: 'tam',
+  ilsabet: 'ilsabet',
+  oda: 'oda',
+  kestrel: 'kestrel',
+  rusk: 'rusk',
+  wick: 'wick',
+  themask: 'themask',
 };
 
 export function modelFor(def = {}) {
   if (def.id && CAST[def.id]) return CAST[def.id];
-  const ids = [...loaded.keys()];
+  // From the crowd only: an NPC who is Vesna in a different coat is worse than an NPC who is
+  // one of nine villagers.
+  const ids = CROWD.filter((id) => loaded.has(id));
   if (!ids.length) return null;
   // Stable pick from whatever identifies this character's look.
   const seed = JSON.stringify([def.id, def.build, def.hair, def.colors]);
