@@ -362,6 +362,7 @@ say(`  size      ${WIDTH}×${HEIGHT}, ${STEPS} steps`);
 say();
 
 let made = 0;
+let failed = 0;
 for (const id of wanted) {
   const out = path.join(conceptDir, `${id}-front.png`);
   if (fs.existsSync(out) && !force) {
@@ -386,10 +387,19 @@ for (const id of wanted) {
     say(`  ${id.padEnd(10)} \x1b[32mmade\x1b[0m ${(bytes.length / 1024).toFixed(0)}KB  `
       + `${path.relative(root, out)}`);
   } catch (err) {
+    failed++;
     say(`  ${id.padEnd(10)} \x1b[31mfailed\x1b[0m ${err.message}`);
   }
 }
 
 say();
+// A run where nothing was drawn is not an OK run. It reported one — "0 view(s) generated",
+// in green, exit zero — for every attempt during a spent GPU allowance, which is precisely
+// when a caller is watching an exit code rather than a screen.
+if (failed) {
+  say(`\x1b[31mFAIL\x1b[0m — ${failed} view(s) could not be drawn`
+    + `${made ? `, though ${made} were` : ''}.`);
+  process.exit(1);
+}
 say(`\x1b[32mOK\x1b[0m — ${made} view(s) generated. Next: `
   + 'node tools/isolate.mjs <id>-front && node tools/genmesh.mjs <id> --textured --front-only');
