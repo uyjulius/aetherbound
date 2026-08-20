@@ -755,14 +755,20 @@ if (field) {
   menuOpens = 0;
   menuCloses = 0;
   await page.goto(target, { waitUntil: 'domcontentloaded' });
-  for (let i = 0; i < 60 && !titleReady; i++) await page.waitForTimeout(500);
+  // The boot budget, not a flat thirty seconds: this is a full reload, and against the
+  // deployed site that is fifty megabytes over the wire before the title can speak.
+  for (let i = 0; i < READY_TIMEOUT_MS / 500 && !titleReady; i++) {
+    await page.waitForTimeout(500);
+  }
   check('the title screen finds the save', Boolean(titleReady) && /continue=yes/.test(titleReady),
     titleReady ?? 'no TITLE_READY in 30s');
   if (titleReady && /continue=yes/.test(titleReady)) {
     await page.keyboard.press('ArrowDown');
     await page.waitForTimeout(300);
     await page.keyboard.press('Enter');
-    for (let i = 0; i < 60 && !resumed; i++) await page.waitForTimeout(500);
+    for (let i = 0; i < READY_TIMEOUT_MS / 500 && !resumed; i++) {
+      await page.waitForTimeout(500);
+    }
     check('Continue opens the party that was saved',
       Boolean(loaded) && Number(loaded.match(/gold=(\d+)/)?.[1] ?? NaN) === carriedGold,
       loaded ? `${loaded}, saved with ${carriedGold} gil` : 'no LOADED line in 30s');
@@ -793,12 +799,18 @@ if (field) {
   menuOpens = 0;
   menuCloses = 0;
   await page.goto(target, { waitUntil: 'domcontentloaded' });
-    for (let i = 0; i < 60 && !titleReady; i++) await page.waitForTimeout(500);
+    // The boot budget, not a flat thirty seconds: this is a full reload, and against the
+    // deployed site that is fifty megabytes over the wire before the title can speak.
+    for (let i = 0; i < READY_TIMEOUT_MS / 500 && !titleReady; i++) {
+      await page.waitForTimeout(500);
+    }
     if (titleReady && /continue=yes/.test(titleReady)) {
       await page.keyboard.press('ArrowDown');
       await page.waitForTimeout(300);
       await page.keyboard.press('Enter');
-      for (let i = 0; i < 60 && !resumed; i++) await page.waitForTimeout(500);
+      for (let i = 0; i < READY_TIMEOUT_MS / 500 && !resumed; i++) {
+        await page.waitForTimeout(500);
+      }
     }
     check('a save from the JS build loads in the port',
       Boolean(loaded)
