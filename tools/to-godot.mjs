@@ -165,14 +165,29 @@ function readCredits() {
     });
   }
 
+  // The bestiary is read in whichever of two shapes its credits file is in, because the roster
+  // is being replaced one creature at a time. Bought, it is a list — `- **Title** (species) —
+  // CC0 — "…" by Author, https://…`. Generated, it is a table of plan, creature, model and the
+  // concept view it was reconstructed from. The first shape goes away with the last bought
+  // model, and so does half of this.
   const monsters = fs.readFileSync(path.join(root, 'assets', 'monsters', 'CREDITS.md'), 'utf8');
   // Up to the period *before* "Licence at", not the first period in the URL — which is inside
   // `poly.pizza` and cut every source down to `https://poly`.
-  const monsterRows = [...monsters.matchAll(
+  const boughtRows = [...monsters.matchAll(
     /^- \*\*(.+?)\*\* \((.+?)\) — (.+?) — "(?:.+?)" by (.+?), (https:\/\/\S+?)\. Licence/gm)];
-  if (!monsterRows.length) throw new Error('assets/monsters/CREDITS.md: no rows matched');
-  for (const [, title, species, licence, author, source] of monsterRows) {
+  for (const [, title, species, licence, author, source] of boughtRows) {
     entries.push({ kind: 'bestiary', what: species, title, author, licence, source });
+  }
+  const grownRows = [...monsters.matchAll(
+    /^\| (\w+) \| (.+?) \| `(\S+\.glb)` \| (\S+) \|$/gm)];
+  for (const [, plan, title, , view] of grownRows) {
+    entries.push({
+      kind: 'bestiary', what: plan, title: title.trim(), author: 'generated for this game',
+      licence: 'generated', source: view,
+    });
+  }
+  if (!boughtRows.length && !grownRows.length) {
+    throw new Error('assets/monsters/CREDITS.md: no rows matched, in either shape');
   }
 
   // Every source has to point somewhere real: a model page for anything downloaded, and the
