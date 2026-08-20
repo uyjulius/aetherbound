@@ -154,11 +154,22 @@ function readCredits() {
   }
 
   const monsters = fs.readFileSync(path.join(root, 'assets', 'monsters', 'CREDITS.md'), 'utf8');
+  // Up to the period *before* "Licence at", not the first period in the URL — which is inside
+  // `poly.pizza` and cut every source down to `https://poly`.
   const monsterRows = [...monsters.matchAll(
-    /^- \*\*(.+?)\*\* \((.+?)\) — (.+?) — "(?:.+?)" by (.+?), (https:\/\/\S+?)\./gm)];
+    /^- \*\*(.+?)\*\* \((.+?)\) — (.+?) — "(?:.+?)" by (.+?), (https:\/\/\S+?)\. Licence/gm)];
   if (!monsterRows.length) throw new Error('assets/monsters/CREDITS.md: no rows matched');
   for (const [, title, species, licence, author, source] of monsterRows) {
     entries.push({ kind: 'bestiary', what: species, title, author, licence, source });
+  }
+
+  // Every source has to be a model page. The first version of the monster pattern stopped at the
+  // first period, which is inside `poly.pizza`, so seventy-two credits shipped pointing at
+  // `https://poly` — a check here rather than an eye on a screenshot.
+  for (const entry of entries) {
+    if (!/^https:\/\/poly\.pizza\/m\/[A-Za-z0-9_-]+$/.test(entry.source ?? '')) {
+      throw new Error(`credit for "${entry.title}" has a source of "${entry.source}"`);
+    }
   }
 
   // Sorted so the list reads the same way every time, and the ones that *require* attribution
