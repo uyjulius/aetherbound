@@ -1205,7 +1205,11 @@ check('the analytics stay out of the test suite',
     Object.defineProperty(navigator, 'webdriver', { get: () => false });
   });
   await probe.route('**/api-js.mixpanel.com/**', async (route) => {
-    posted.push(route.request().postData() ?? '');
+    // `postData()` returns null for some request shapes — a keepalive fetch among them, which is
+    // exactly what this sends — and the buffer is there when the string is not. Reading only the
+    // string reported "nothing posted" for a batch that had arrived and been recorded.
+    const request = route.request();
+    posted.push(request.postData() ?? request.postDataBuffer()?.toString('utf8') ?? '');
     await route.fulfill({ status: 200, contentType: 'text/plain', body: '1' });
   });
   let line = null;
@@ -1231,7 +1235,9 @@ check('the analytics stay out of the test suite',
     events.length > 0 && names.has('App Loaded')
       && events.every((e) => e.properties?.token && e.properties?.distinct_id),
     events.length ? `${events.length} event(s): ${[...names].slice(0, 5).join(', ')}`
-      : 'nothing posted in 120s');
+      // Three different failures used to read the same way. Say which: nothing sent at all, or
+      // something sent whose body could not be read back here.
+      : `${posted.length} request(s), ${posted.reduce((n, b) => n + b.length, 0)} bytes of body`);
   await probe.close();
 }
 
