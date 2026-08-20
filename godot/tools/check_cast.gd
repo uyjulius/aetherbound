@@ -68,6 +68,7 @@ func _initialize() -> void:
 		var still: Array = []
 		var scarecrow: Array = []
 		var smallest := 1e9
+		var lowest_drop := 1e9
 		for clip in CLIPS:
 			if not player.has_animation(clip):
 				missing.append(clip)
@@ -96,10 +97,17 @@ func _initialize() -> void:
 			#
 			# Not every clip: casting raises both arms and dying puts the character on the floor.
 			if shoulder >= 0 and elbow >= 0 and HANGING.has(clip):
-				var drop := skeleton.get_bone_global_pose(shoulder).origin.y \
-					- skeleton.get_bone_global_pose(elbow).origin.y
-				if drop < 0.05:
-					scarecrow.append(clip)
+				var from := skeleton.get_bone_global_pose(shoulder).origin
+				var to := skeleton.get_bone_global_pose(elbow).origin
+				# As an angle, not a distance. How far the elbow sits below the shoulder depends
+				# on how long the character's arm is — a foot on Rusk, a hand's breadth on
+				# Kestrel — and the thing under test is the *pose*: the clips author the upper
+				# arm at 72° below horizontal, and a scarecrow is at zero. Half way is the line.
+				var reach := maxf(0.01, from.distance_to(to))
+				var lean := (from.y - to.y) / reach
+				lowest_drop = minf(lowest_drop, lean)
+				if lean < 0.5:
+					scarecrow.append("%s (%.2f)" % [clip, lean])
 		if not missing.is_empty():
 			trouble.append("%s: missing %s" % [id, ", ".join(missing)])
 		if not still.is_empty():
@@ -120,6 +128,7 @@ func _initialize() -> void:
 			"bones": skeleton.get_bone_count(),
 			"clips": player.get_animation_list().size(),
 			"least_movement": snappedf(smallest, 0.00001),
+			"arm_angle": snappedf(lowest_drop, 0.001),
 			"size": [snappedf(box.size.x, 0.01), snappedf(height, 0.01),
 				snappedf(box.size.z, 0.01)],
 		}

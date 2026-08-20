@@ -62,7 +62,7 @@ for (const name of names) {
   const [w, h, d] = who.size ?? [0, 0, 0];
   say(`  ${name.padEnd(10)} ${w.toFixed(2)} × ${h.toFixed(2)} × ${d.toFixed(2)}  `
     + `${String(who.bones).padStart(2)} bones  ${who.clips} clips  `
-    + `least movement ${who.least_movement}`);
+    + `least movement ${who.least_movement}  arms at ${who.arm_angle}`);
 }
 say();
 const trouble = report.trouble ?? [];
