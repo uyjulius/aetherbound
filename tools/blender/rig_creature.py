@@ -16,6 +16,13 @@ figure and wrong for a wolf — the tallest axis of a wolf is its length, and th
 back fitted to an animal lying on its nose. What comes off the Space is Z-up; the exporter
 turns it Y-up on the way out. So this scales and stands the creature on the floor, and leaves
 the axes alone.
+
+Which way it then faces was checked rather than assumed, because a creature that walks into
+every fight tail-first is the kind of thing nobody notices until it is everywhere. Re-importing
+the shipped wolf puts its head bone at Blender +Y against hips at -Y; the importer maps glTF
+(x, y, z) to Blender (x, -z, y), so head-at-+Y is head-at-glTF-minus-Z, and minus Z is the
+direction Godot calls forward. The concept views are drawn front-on and the reconstruction
+keeps that, so this holds for the roster rather than for one wolf.
 """
 
 from __future__ import annotations
