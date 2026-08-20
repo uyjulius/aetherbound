@@ -172,7 +172,9 @@ const WORLD = {
     + 'dark oak with visible grain, blackened hinges',
   barrel: 'a wooden barrel standing upright, oak staves with three iron hoops, weathered',
   crate: 'a square wooden shipping crate, rough planks nailed at the corners, worn edges',
-  bench: 'a simple wooden bench, two thick planks on stone blocks, no back',
+  // Stone blocks under a plank came back as a plank and some grass: the reconstruction
+  // could not read them as supports. Timber legs it can — one material, one structure.
+  bench: 'a simple wooden bench, a thick plank seat on four square timber legs, no back',
   cart: 'a small two-wheeled wooden handcart, empty bed, iron-rimmed wheels, shafts down',
   stall: 'a market stall: a wooden trestle table under a striped canvas awning on four poles',
   fence: 'a straight run of rustic wooden post-and-rail fence, three rails, weathered timber',
