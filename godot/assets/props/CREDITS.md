@@ -1,6 +1,6 @@
 # Scenery
 
-Every prop, wall and floor tile in the Godot port is a model made by a person and
+Most props, walls and floor tiles in the Godot port are models made by people and
 obtained through [poly.pizza](https://poly.pizza). The reference build assembles its
 scenery in code; this does not, which is why these exist.
 
@@ -29,11 +29,20 @@ a model is CC-BY, saying so is also the licence.
 | fence | Fence | Quaternius | CC0 1.0 | https://poly.pizza/m/e02PFKKhbr |
 | floor | Floor Tile | Quaternius | CC0 1.0 | https://poly.pizza/m/6baBuVGcyD |
 | flowerbox | Bush | Quaternius | CC0 1.0 | https://poly.pizza/m/ZYHKojmtPW |
-| lamppost | Light Stand | Quaternius | CC0 1.0 | https://poly.pizza/m/9L6lLUl9sD |
 | rock | Rock | Quaternius | CC0 1.0 | https://poly.pizza/m/34W5ymEePk |
 | savepoint | Big Crystal | Quaternius | CC0 1.0 | https://poly.pizza/m/pf5lzmgr2J |
 | signpost | Sign | Quaternius | CC0 1.0 | https://poly.pizza/m/4MSsNFk5fc |
 | stall | Market Stand | Quaternius | CC0 1.0 | https://poly.pizza/m/DGIM5HGISb |
 | tree | Tree | Quaternius | CC0 1.0 | https://poly.pizza/m/2paAm1ja4w |
 | wall | Wall Modular | Quaternius | CC0 1.0 | https://poly.pizza/m/itasw0GWNf |
-| well | Well | Quaternius | CC0 1.0 | https://poly.pizza/m/QlqncKYxXb |
+
+## Generated for this game
+
+These were made here rather than downloaded: a concept view from FLUX.1-schnell,
+reconstructed by Hunyuan3D-2.1, then cleaned, decimated and shrunk by the scripts in
+`tools/`. The concept views are in `assets/concepts/`.
+
+| Kit | Model | Made by | Provenance | From |
+|---|---|---|---|---|
+| lamppost | Hanging Lantern | generated for this game | generated | assets/concepts/lantern-front.jpg |
+| well | Village Well | generated for this game | generated | assets/concepts/well-front.png |

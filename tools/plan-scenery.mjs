@@ -69,7 +69,11 @@ const RULES = {
   // these are placed by how tall the thing should be in a world where a tile is two units
   // and a person is about 1.8 — a street lamp reads at three, a tree at six, a signpost at
   // eye level, a save crystal a little over head height so it can be seen across a room.
-  lamppost: { fit: 'height', height: 3.4 },
+  // A lamppost that is a *lantern*: the model generated for this game is the lamp and its
+  // chain, not a post, so fitting it to a post's height would put a two-metre lantern in the
+  // street. Sized by the collider it stands in and hung so the top of its chain is where a
+  // bracket would be.
+  lamppost: { fit: 'width', hang: 3.2 },
   tree: { fit: 'height', height: 6.0 },
   signpost: { fit: 'height', height: 1.9 },
   savepoint: { fit: 'height', height: 2.2 },
@@ -192,7 +196,11 @@ for (const [kit, rule] of Object.entries(RULES)) {
     file: asset.file,
     scale: Number(scale.toFixed(4)),
     // Lift so the model's own base sits on the floor, then bed it in if asked.
-    y: Number((-asset.base * scale - (rule.sink ?? 0) * sy * scale).toFixed(4)),
+    // Standing on the floor, unless it hangs — in which case the *top* is what is placed, and
+    // the model dangles from there.
+    y: Number((rule.hang !== undefined
+      ? rule.hang - (asset.base + sy) * scale
+      : -asset.base * scale - (rule.sink ?? 0) * sy * scale).toFixed(4)),
     yaw: rule.yaw ?? 0,
     fit: rule.fit,
     footprint,

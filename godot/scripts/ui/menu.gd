@@ -563,7 +563,17 @@ func _credits() -> Dictionary:
 	var entries: Array = database.credits.get("entries", [])
 	# A header row, which the cursor skips: the point of the screen is on the screen rather than
 	# in a footer nobody reads.
-	var rows: Array = [{"label": "Six of these are CC-BY. Naming them is the licence.",
+	var ccby := 0
+	var made := 0
+	for entry in entries:
+		var licence := String(entry.get("licence", ""))
+		if licence == "generated":
+			made += 1
+		elif not licence.begins_with("CC0"):
+			ccby += 1
+	var rows: Array = [{
+		"label": "%d made for this game. %d are CC-BY, and naming those is the licence."
+			% [made, ccby],
 		"header": true}]
 	for entry in entries:
 		var licence := String(entry.get("licence", "?"))
@@ -572,14 +582,11 @@ func _credits() -> Dictionary:
 			"right": licence,
 			"entry": entry,
 		})
-	var ccby := 0
-	for entry in entries:
-		if not String(entry.get("licence", "")).begins_with("CC0"):
-			ccby += 1
-	print("CREDITS models=%d ccby=%d" % [entries.size(), ccby])
+	print("CREDITS models=%d ccby=%d made=%d" % [entries.size(), ccby, made])
 	return {
 		"title": "Credits", "rows": rows,
-		"footer": "%d models, all from poly.pizza · made with Godot Engine (MIT)" % entries.size(),
+		"footer": "%d models · %d made here, the rest from poly.pizza · made with Godot Engine (MIT)"
+			% [entries.size(), made],
 		"detail": func(row): return _credit_card(row.get("entry", {})),
 	}
 

@@ -1183,7 +1183,10 @@ if (field) {
   for (let i = 0; i < 12 && !creditsLine; i++) await page.waitForTimeout(300);
   check('the credits name who made the models',
     Boolean(creditsLine) && Number(creditsLine.match(/models=(\d+)/)?.[1] ?? 0) > 40
-      && Number(creditsLine.match(/ccby=(\d+)/)?.[1] ?? 0) > 0,
+      && Number(creditsLine.match(/ccby=(\d+)/)?.[1] ?? 0) > 0
+      // And say which are this project's own. Sixteen of them are, and a credits screen that
+      // called them somebody else's would be worse than no credits screen.
+      && Number(creditsLine.match(/made=(\d+)/)?.[1] ?? 0) > 0,
     creditsLine ?? 'no CREDITS line');
   const creditsShot = path.join(root, '.renders',
     remote ? 'godot-web-credits-live.png' : 'godot-web-credits.png');

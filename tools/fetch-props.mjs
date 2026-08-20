@@ -352,13 +352,18 @@ if (gets.length) {
   fs.writeFileSync(MANIFEST, `${JSON.stringify(manifest, null, 1)}\n`);
   // The credits file is written from the manifest rather than kept by hand: a licence note
   // that has to be remembered is a licence note that goes out of date.
-  const rows = Object.entries(manifest)
-    .sort(([a], [b]) => (a < b ? -1 : 1))
-    .map(([kit, m]) => `| ${kit} | ${m.title} | ${m.author} | ${m.licence} | ${m.source} |`);
+  const entries = Object.entries(manifest).sort(([a], [b]) => (a < b ? -1 : 1));
+  const line = ([kit, m]) => `| ${kit} | ${m.title} | ${m.author} | ${m.licence} | ${m.source} |`;
+  // Two provenances, and they are not the same claim. A downloaded model is somebody's work
+  // and the row is an attribution; a generated one is this project's own output and the row is
+  // a record of how it was made. Mixing them in one table reads as if a person called
+  // "generated for this game" had made a well.
+  const bought = entries.filter(([, m]) => m.licence !== 'generated');
+  const grown = entries.filter(([, m]) => m.licence === 'generated');
   fs.writeFileSync(path.join(OUT, 'CREDITS.md'), [
     '# Scenery',
     '',
-    'Every prop, wall and floor tile in the Godot port is a model made by a person and',
+    'Most props, walls and floor tiles in the Godot port are models made by people and',
     'obtained through [poly.pizza](https://poly.pizza). The reference build assembles its',
     'scenery in code; this does not, which is why these exist.',
     '',
@@ -368,8 +373,20 @@ if (gets.length) {
     '',
     '| Kit | Model | Author | Licence | Source |',
     '|---|---|---|---|---|',
-    ...rows,
+    ...bought.map(line),
     '',
+    ...(grown.length ? [
+      '## Generated for this game',
+      '',
+      'These were made here rather than downloaded: a concept view from FLUX.1-schnell,',
+      'reconstructed by Hunyuan3D-2.1, then cleaned, decimated and shrunk by the scripts in',
+      '`tools/`. The concept views are in `assets/concepts/`.',
+      '',
+      '| Kit | Model | Made by | Provenance | From |',
+      '|---|---|---|---|---|',
+      ...grown.map(line),
+      '',
+    ] : []),
   ].join('\n'));
   say();
   say(`\x1b[32mOK\x1b[0m — ${gets.length} downloaded, manifest and CREDITS.md rewritten.`);

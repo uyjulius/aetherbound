@@ -143,12 +143,24 @@ function readCredits() {
     });
   }
 
+  // The cast file carries two tables now, and they are two different claims: the party's
+  // fourteen were made here from their own concept views, and the crowd's nine are Quaternius's
+  // CC0 models. Read separately, because collapsing them would credit a person for work this
+  // project did and take credit for work it did not.
   const cast = fs.readFileSync(path.join(root, 'assets', 'models', 'CREDITS.md'), 'utf8');
-  const castRows = [...cast.matchAll(/^\| (?!Character model|---)(.+?) \| (https:\/\/\S+) \|$/gm)];
-  if (!castRows.length) throw new Error('assets/models/CREDITS.md: no rows matched');
-  for (const [, title, source] of castRows) {
+  const partyRows = [...cast.matchAll(/^\| (.+?) \| `(\S+\.glb)` \| (\S+) \|$/gm)];
+  if (!partyRows.length) throw new Error('assets/models/CREDITS.md: no party rows matched');
+  for (const [, name, , view] of partyRows) {
     entries.push({
-      kind: 'cast', what: '', title: title.trim(), author: 'Quaternius',
+      kind: 'party', what: '', title: name.trim(), author: 'generated for this game',
+      licence: 'generated', source: view,
+    });
+  }
+  const crowdRows = [...cast.matchAll(/^\| (?!Character model|---)(.+?) \| (https:\/\/\S+) \|$/gm)];
+  if (!crowdRows.length) throw new Error('assets/models/CREDITS.md: no crowd rows matched');
+  for (const [, title, source] of crowdRows) {
+    entries.push({
+      kind: 'crowd', what: '', title: title.trim(), author: 'Quaternius',
       licence: 'CC0 1.0', source,
     });
   }
@@ -163,19 +175,27 @@ function readCredits() {
     entries.push({ kind: 'bestiary', what: species, title, author, licence, source });
   }
 
-  // Every source has to be a model page. The first version of the monster pattern stopped at the
-  // first period, which is inside `poly.pizza`, so seventy-two credits shipped pointing at
-  // `https://poly` — a check here rather than an eye on a screenshot.
+  // Every source has to point somewhere real: a model page for anything downloaded, and the
+  // concept view it was made from for anything generated here. The first version of the monster
+  // pattern stopped at the first period, which is inside `poly.pizza`, so seventy-two credits
+  // shipped pointing at `https://poly` — a check here rather than an eye on a screenshot.
   for (const entry of entries) {
-    if (!/^https:\/\/poly\.pizza\/m\/[A-Za-z0-9_-]+$/.test(entry.source ?? '')) {
-      throw new Error(`credit for "${entry.title}" has a source of "${entry.source}"`);
+    const source = entry.source ?? '';
+    const bought = /^https:\/\/poly\.pizza\/m\/[A-Za-z0-9_-]+$/.test(source);
+    const grown = entry.licence === 'generated'
+      && fs.existsSync(path.join(root, source));
+    if (!bought && !grown) {
+      throw new Error(`credit for "${entry.title}" has a source of "${source}"`);
     }
   }
 
   // Sorted so the list reads the same way every time, and the ones that *require* attribution
   // first: a credits screen that buries them under two hundred CC0 lines is a credits screen
   // nobody reads to the end of.
-  entries.sort((a, b) => Number(a.licence.startsWith('CC0')) - Number(b.licence.startsWith('CC0'))
+  // Attribution-required first, because that is a licence obligation rather than a courtesy;
+  // then CC0; then the models this project made itself, which owe nobody anything.
+  const rank = (licence) => (licence === 'generated' ? 2 : licence.startsWith('CC0') ? 1 : 0);
+  entries.sort((a, b) => rank(a.licence) - rank(b.licence)
     || a.kind.localeCompare(b.kind) || a.title.localeCompare(b.title));
   return { entries };
 }
