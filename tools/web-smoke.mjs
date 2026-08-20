@@ -1213,9 +1213,13 @@ check('the analytics stay out of the test suite',
     await route.fulfill({ status: 200, contentType: 'text/plain', body: '1' });
   });
   let line = null;
+  const probeSaid = [];
   probe.on('console', (message) => {
-    const text = message.text();
-    if (/^ANALYTICS /.test(text.trim())) line = text.trim();
+    const text = message.text().trim();
+    if (!text) return;
+    probeSaid.push(text.split('\n')[0].slice(0, 100));
+    if (probeSaid.length > 60) probeSaid.shift();
+    if (/^ANALYTICS /.test(text)) line = text;
   });
   await probe.goto(target, { waitUntil: 'domcontentloaded' });
   // This is a second full Godot boot — 40MB of wasm compiled again — so it gets the same budget
@@ -1223,7 +1227,10 @@ check('the analytics stay out of the test suite',
   // still starting when the check gave up, and both halves of it failed for want of a boot.
   const ready = Date.now() + READY_TIMEOUT_MS;
   while (!line && Date.now() < ready) await probe.waitForTimeout(1000);
-  for (let i = 0; i < 90 && !posted.length; i++) await probe.waitForTimeout(1000);
+  // Three minutes for a batch that flushes after six seconds of *simulation* time: on a shared
+  // runner with two cores and two Godot instances in one browser, six seconds of frames is not
+  // six seconds of clock.
+  for (let i = 0; i < 180 && !posted.length; i++) await probe.waitForTimeout(1000);
   check('the instrumentation reports when it is not being tested',
     Boolean(line) && /enabled=true/.test(line), line ?? 'no ANALYTICS line');
   const events = posted.flatMap((body) => {
@@ -1237,7 +1244,8 @@ check('the analytics stay out of the test suite',
     events.length ? `${events.length} event(s): ${[...names].slice(0, 5).join(', ')}`
       // Three different failures used to read the same way. Say which: nothing sent at all, or
       // something sent whose body could not be read back here.
-      : `${posted.length} request(s), ${posted.reduce((n, b) => n + b.length, 0)} bytes of body`);
+      : `${posted.length} request(s), ${posted.reduce((n, b) => n + b.length, 0)} bytes of body`
+        + ` — the page said: ${probeSaid.slice(-4).join(' / ') || 'nothing'}`);
   await probe.close();
 }
 

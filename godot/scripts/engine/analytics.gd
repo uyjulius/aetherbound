@@ -344,6 +344,10 @@ func _flush() -> void:
 		sent += batch.size()
 	else:
 		failed += batch.size()
+	# Said out loud, because "the port never flushed" and "the port flushed and the request did
+	# not arrive" are the same silence from outside, and the browser check has now spent three CI
+	# runs unable to tell them apart.
+	print("ANALYTICS_FLUSH events=%d sent=%d failed=%d" % [batch.size(), sent, failed])
 
 
 ## The last thing a session says.

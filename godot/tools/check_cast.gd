@@ -23,6 +23,12 @@ const CLIPS := ["idle", "walk", "battleIdle", "attack", "cast", "hurt", "dead", 
 ## `tools/sync-models.mjs`, which is the copy the game loads.
 const MODELS := "res://assets/cast"
 
+## The clips a person stands in with their arms at their sides. Casting raises both arms,
+## attacking swings one, victory holds one up and dying is on the floor — none of those is a
+## scarecrow, and testing them as if they were would be testing the animation rather than the
+## export.
+const HANGING := ["idle", "walk", "battleIdle", "hurt"]
+
 
 func _initialize() -> void:
 	var characters: Dictionary = _read("res://data/characters.json")
@@ -56,14 +62,21 @@ func _initialize() -> void:
 		var probe := skeleton.find_bone("forearm.R")
 		if probe < 0:
 			probe = mini(3, skeleton.get_bone_count() - 1)
+		var shoulder := skeleton.find_bone("upper_arm.L")
+		var elbow := skeleton.find_bone("forearm.L")
 		var missing: Array = []
 		var still: Array = []
+		var scarecrow: Array = []
 		var smallest := 1e9
 		for clip in CLIPS:
 			if not player.has_animation(clip):
 				missing.append(clip)
 				continue
 			var length: float = player.get_animation(clip).length
+			# Back to the bound pose first. A bone with no track in this clip keeps whatever the
+			# *last* clip left it at, so without this a missing arm track is masked by the clip
+			# that ran before it — and the check would pass or fail depending on the order.
+			skeleton.reset_bone_poses()
 			player.play(clip)
 			player.seek(0.0, true)
 			await process_frame
@@ -76,10 +89,24 @@ func _initialize() -> void:
 			smallest = minf(smallest, moved)
 			if moved < 0.0005:
 				still.append(clip)
+			# And the arms have to be down in the clips where a person's arms are down. Every one
+			# of these meshes is bound in a T-pose, so a character whose rig was fitted to the
+			# wrong geometry — a slab of studio floor puts the shoulder line metres out — stands
+			# with both arms straight out and animates perfectly while doing it.
+			#
+			# Not every clip: casting raises both arms and dying puts the character on the floor.
+			if shoulder >= 0 and elbow >= 0 and HANGING.has(clip):
+				var drop := skeleton.get_bone_global_pose(shoulder).origin.y \
+					- skeleton.get_bone_global_pose(elbow).origin.y
+				if drop < 0.05:
+					scarecrow.append(clip)
 		if not missing.is_empty():
 			trouble.append("%s: missing %s" % [id, ", ".join(missing)])
 		if not still.is_empty():
 			trouble.append("%s: nothing moves during %s" % [id, ", ".join(still)])
+		if not scarecrow.is_empty():
+			trouble.append("%s: arms still out in %s — the bound T-pose is showing"
+				% [id, ", ".join(scarecrow)])
 		# And the shape of them. Ten of the first fourteen came off the reconstruction standing on
 		# a two-metre slab of studio floor — invisible to every check that only asks whether the
 		# rig deforms, and unmissable the moment the party walked into a fight. A person is

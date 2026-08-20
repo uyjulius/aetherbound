@@ -296,6 +296,14 @@ def main() -> int:
         export_animations=True,
         export_animation_mode="ACTIONS",
         export_bake_animation=True,
+        # Keep tracks whose value never changes.
+        #
+        # Blender's exporter drops a channel that holds one value for the whole clip, on the
+        # reasonable-sounding grounds that it carries no animation. What such a channel carries
+        # is a *pose*, and a bone with no track sits wherever the rest pose put it — which for
+        # these meshes is a T-pose. None of the eight clips here holds a bone perfectly still,
+        # so nothing is lost today; this is a guard against the clip that eventually does.
+        export_optimize_animation_size=False,
         export_skins=True,
         export_yup=True,
         use_selection=True,
