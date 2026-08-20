@@ -12,12 +12,42 @@
  * `/upload`, `/call/<api_name>` — not under `/gradio_api`. Current Gradio docs
  * describe the other arrangement, and following them produces a 404 that reads
  * like the Space being down.
+ *
+ * There are two Spaces here, and the second one is not a preference — it is what
+ * you reach for when the first one's texture path stops working, which it does.
+ * On 2026-08-20 `/generation_all` on 2.1 began refusing every call in four
+ * seconds with no message while `/shape_generation` on the same Space, the same
+ * token and the same image was served four times in three minutes. That rules
+ * out the account's allowance and the argument array both, and leaves the
+ * Space. `HY_SPACE=2.0` swaps in `tencent/Hunyuan3D-2`, whose first argument is
+ * a text prompt where 2.1 has a hidden state — read `/config` and count, never
+ * `/info`.
  */
 
 import fs from 'node:fs';
 import path from 'node:path';
 
-export const SPACE = 'tencent-hunyuan3d-2-1.hf.space';
+/**
+ * The two Spaces, and the shape of the argument array each one wants.
+ *
+ * `lead` is what goes in front of the images: 2.1's dependency carries a hidden `state`
+ * component that `/info` does not document, and 2.0 opens with a text prompt. Sending the wrong
+ * one shifts every argument by one place — the image arrives as state, the steps as an image —
+ * and the answer is `event: error / data: null` with nothing else, which is indistinguishable
+ * from every other way this can fail.
+ */
+const SPACES = {
+  '2.1': { host: 'tencent-hunyuan3d-2-1.hf.space', lead: null },
+  '2.0': { host: 'tencent-hunyuan3d-2.hf.space', lead: '' },
+  turbo: { host: 'tencent-hunyuan3d-2mini-turbo.hf.space', lead: '' },
+  mv: { host: 'tencent-hunyuan3d-2mv.hf.space', lead: '' },
+};
+
+const chosen = SPACES[process.env.HY_SPACE ?? '2.1'];
+if (!chosen) {
+  throw new Error(`HY_SPACE must be one of ${Object.keys(SPACES).join(', ')}`);
+}
+export const SPACE = chosen.host;
 const BASE = `https://${SPACE}`;
 
 export class QuotaError extends Error {}
@@ -95,7 +125,7 @@ async function readStream(res) {
 function buildArguments({ front, back, left, right, steps, guidanceScale, seed,
   octree, removeBackground, numChunks }) {
   return [
-    null,                       // hidden state component
+    chosen.lead,                // 2.1: a hidden state component. 2.0: the text prompt.
     front,                      // Image
     front, back, left, right,   // Front / Back / Left / Right multiview
     steps, guidanceScale, seed, octree,
