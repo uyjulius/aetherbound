@@ -43,3 +43,4 @@ build/
 # and it is reproducible — `npm run props -- --survey` writes it again — so the choices are
 # committed and the working notes are not.
 godot/assets/props/survey.json
+.generation/
