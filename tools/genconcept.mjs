@@ -157,6 +157,129 @@ function promptFor(character) {
   ].join(' ').replace(/\s+/g, ' ').trim();
 }
 
+/**
+ * The world's own props, described the way the world describes itself.
+ *
+ * The cast's prompts are built from the character table because the table is the description.
+ * A barrel has no table, so the description lives here — and it is written against the place
+ * these things stand in: a silt-road village on the edge of an empire that runs on magitek,
+ * where the wood is weathered and the iron is old. The point is that fifty objects generated
+ * from fifty separate prompts should still look like they come from one town.
+ */
+const WORLD = {
+  // --- village furniture ---------------------------------------------------
+  chest: 'a wooden treasure chest with iron bands and a heavy iron lock, lid closed, '
+    + 'dark oak with visible grain, blackened hinges',
+  barrel: 'a wooden barrel standing upright, oak staves with three iron hoops, weathered',
+  crate: 'a square wooden shipping crate, rough planks nailed at the corners, worn edges',
+  bench: 'a simple wooden bench, two thick planks on stone blocks, no back',
+  cart: 'a small two-wheeled wooden handcart, empty bed, iron-rimmed wheels, shafts down',
+  stall: 'a market stall: a wooden trestle table under a striped canvas awning on four poles',
+  fence: 'a straight run of rustic wooden post-and-rail fence, three rails, weathered timber',
+  flowerbox: 'a low wooden planter box full of flowering herbs, soil visible, small flowers',
+  bush: 'a rounded garden shrub with dense green foliage',
+  rock: 'a single weathered granite boulder, lichen in the cracks',
+  bridge: 'a small arched wooden footbridge with plank decking and a simple handrail',
+  tree: 'a broadleaf tree with a thick trunk and a full rounded canopy, summer foliage',
+  signpost: 'a wooden signpost: one squared post with two blank pointing boards',
+  savepoint: 'a floating crystal shard, translucent violet, glowing softly from within, '
+    + 'faceted like quartz',
+  airshipmast: 'a tall wooden mooring mast for an airship, iron banding and rope cleats',
+  airship: 'a small wooden airship with a canvas envelope above the hull, rigging lines, '
+    + 'a rudder at the stern',
+  // --- the ground and the walls -------------------------------------------
+  block: 'a single square block of dressed grey stone masonry, mortar lines, weathered face',
+  floor: 'a single square paving slab of worn grey stone, chipped edges',
+  // --- buildings, by the material the map asks for -------------------------
+  building_plaster: 'a small village house: white lime-plastered walls, dark timber framing, '
+    + 'a steep red clay tile roof, shuttered windows, a plank door',
+  building_stone: 'a two-storey stone house with a slate roof, dressed grey blocks, '
+    + 'small deep-set windows',
+  building_wood: 'a timber workshop with plank walls and a shingled roof, a wide barn door',
+  building_marble: 'a small marble temple with fluted columns and a shallow pediment, '
+    + 'pale stone, worn steps',
+  building_magitek: 'a squat industrial building of riveted iron plate and dark brick, '
+    + 'copper pipework up one wall, narrow barred windows',
+  building_brick: 'a brick blacksmith\'s forge with a stone chimney and an open front, '
+    + 'soot-stained brickwork',
+};
+
+/**
+ * How an object is shot, as opposed to a person. No pose to insist on, but the same two
+ * things matter: the whole object in frame, and nothing under it. A prop generated with a
+ * shadow on a floor comes back with the floor.
+ */
+const OBJECT_FRAMING = 'the whole object in frame and complete, three-quarter view from '
+  + 'slightly above, centred';
+
+function promptForWorld(id) {
+  const subject = WORLD[id];
+  if (!subject) return null;
+  return [
+    'stylised 3D game asset,', subject + ';',
+    'believable materials with visible weave, grain and wear, physically based materials,',
+    'clean readable silhouette, even soft studio lighting, sharp focus,',
+    OBJECT_FRAMING + ';',
+    GROUND,
+  ].join(' ').replace(/\s+/g, ' ').trim();
+}
+
+/**
+ * The bestiary, from the table that says who plays whom.
+ *
+ * `monster_models.json` lists thirty-six creatures grouped by body plan, and two hundred
+ * species are hashed onto them — so what is generated here is the *creature*, not the species:
+ * a wolf, a slime, a skeleton. The plan decides how it has to stand, for the same reason the
+ * cast has to arrive in a T-pose: the rig is fitted by measuring the mesh, and a quadruped
+ * curled up or a bird with folded wings gives it nothing to measure.
+ */
+const CREATURE_POSE = {
+  quadruped: 'standing square on all four legs, legs straight and separated, head level, '
+    + 'seen from a three-quarter front view',
+  humanoid: 'standing upright in a symmetrical T-pose, both arms straight out to the sides at '
+    + 'shoulder height, legs straight and slightly apart, facing the camera',
+  undead: 'standing upright in a symmetrical T-pose, both arms straight out to the sides at '
+    + 'shoulder height, legs straight and slightly apart, facing the camera',
+  construct: 'standing upright in a symmetrical T-pose, both arms straight out to the sides, '
+    + 'legs straight and slightly apart, facing the camera',
+  insect: 'standing symmetrically with every leg visible and separated, seen from a '
+    + 'three-quarter front view',
+  avian: 'wings spread wide, level and symmetrical, feet down, seen from the front',
+  plant: 'upright and symmetrical, seen from the front, roots or stem visible',
+  blob: 'a rounded symmetrical body, seen from the front',
+  floater: 'hovering with nothing underneath it, symmetrical, seen from the front',
+};
+
+function promptForCreature(id, entry) {
+  const pose = CREATURE_POSE[entry.plan] ?? CREATURE_POSE.blob;
+  return [
+    'stylised 3D game creature reference, a single', entry.title.toLowerCase() + ',',
+    'a fantasy monster in a worn medieval world;',
+    'believable materials — fur, scale, chitin, bark or wet skin as the creature calls for —',
+    'physically based materials, clean readable silhouette, even soft studio lighting,',
+    'sharp focus, the whole creature in frame and complete,',
+    pose + ';',
+    GROUND,
+  ].join(' ').replace(/\s+/g, ' ').trim();
+}
+
+/** The catalogue, built from the table rather than typed out. */
+function bestiary() {
+  const table = JSON.parse(fs.readFileSync(
+    path.join(root, 'godot', 'data', 'monster_models.json'), 'utf8'));
+  const out = {};
+  const seen = {};
+  for (const [plan, entries] of Object.entries(table.plans ?? {})) {
+    for (const entry of entries) {
+      const slug = entry.title.toLowerCase().replace(/[^a-z0-9]/g, '');
+      const key = `${plan}_${slug}`;
+      seen[key] = (seen[key] ?? 0) + 1;
+      out[seen[key] === 1 ? key : `${key}${seen[key]}`] = { plan, title: entry.title, was: entry.id };
+    }
+  }
+  return out;
+}
+
 // --- the Space ---------------------------------------------------------------
 
 async function generate(prompt, seed) {
@@ -204,14 +327,17 @@ const force = args.includes('--force');
 const all = args.includes('--all');
 const named = args.filter((a) => !a.startsWith('--'));
 
+const world = args.includes('--world');
+const creatures = args.includes('--bestiary');
 const characters = JSON.parse(fs.readFileSync(
   path.join(root, 'godot', 'data', 'characters.json'), 'utf8'));
+const subjects = creatures ? bestiary() : world ? WORLD : characters;
 const conceptDir = path.join(root, 'assets', 'concepts');
 fs.mkdirSync(conceptDir, { recursive: true });
 
-const wanted = (all ? Object.keys(characters) : named).filter((id) => {
-  if (!characters[id]) {
-    say(`\x1b[31mFAIL\x1b[0m — no character called "${id}"`);
+const wanted = (all ? Object.keys(subjects) : named).filter((id) => {
+  if (!subjects[id]) {
+    say(`\x1b[31mFAIL\x1b[0m — nothing called "${id}"${world ? ' in the world catalogue' : ''}`);
     process.exit(1);
   }
   return true;
@@ -234,7 +360,8 @@ for (const id of wanted) {
     say(`  ${id.padEnd(10)} \x1b[2mkept\x1b[0m ${path.relative(root, out)}`);
     continue;
   }
-  const prompt = promptFor(characters[id]);
+  const prompt = creatures ? promptForCreature(id, subjects[id])
+    : world ? promptForWorld(id) : promptFor(characters[id]);
   // Seeded from the name, so a regeneration of one character is the same character.
   const seed = [...id].reduce((n, c) => (n * 31 + c.charCodeAt(0)) >>> 0, 7);
   try {

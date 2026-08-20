@@ -106,8 +106,9 @@ try {
     say('\x1b[33mGPU quota exhausted.\x1b[0m The Space said:');
     say(`  ${String(err.message).replace(/\s+/g, ' ').slice(0, 240)}`);
     say();
-    say('The anonymous pool is metered separately — try --anon, and drop');
-    say('--textured to ask for 90s instead of 270s.');
+    say('--anon does not help: the anonymous pool refuses the same call just as');
+    say('fast, so this is the Space\u2019s reservation and not the account\u2019s. Drop');
+    say('--textured to ask for 90s instead of 270s, or wait and ask again.');
     process.exit(2);
   }
   say(`\x1b[31mFAIL\x1b[0m — ${err.message}`);

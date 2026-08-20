@@ -1,0 +1,58 @@
+[
+ {
+  "value": {
+   "path": "/tmp/gradio/6eed947168d92edc2391be3430e100bd5322faad0a0ce8fbf401627818555a82/white_mesh.obj",
+   "url": "https://tencent-hunyuan3d-2-1.hf.space/call/gen/file=/tmp/gradio/6eed947168d92edc2391be3430e100bd5322faad0a0ce8fbf401627818555a82/white_mesh.obj",
+   "size": 1461751,
+   "orig_name": "white_mesh.obj",
+   "mime_type": null,
+   "is_stream": false,
+   "meta": {
+    "_type": "gradio.FileData"
+   }
+  },
+  "__type__": "update"
+ },
+ {
+  "value": {
+   "path": "/tmp/gradio/bdcca39d762aee16daac2b86bffd0a48f36c62a74a74ab23d1b52f09e2cc8354/textured_mesh.glb",
+   "url": "https://tencent-hunyuan3d-2-1.hf.space/call/gen/file=/tmp/gradio/bdcca39d762aee16daac2b86bffd0a48f36c62a74a74ab23d1b52f09e2cc8354/textured_mesh.glb",
+   "size": 5136100,
+   "orig_name": "textured_mesh.glb",
+   "mime_type": null,
+   "is_stream": false,
+   "meta": {
+    "_type": "gradio.FileData"
+   }
+  },
+  "__type__": "update"
+ },
+ "\n        <div style='height: 650; width: 100%;'>\n        <iframe src=\"/static/158e9d4b-6491-4bfb-906e-700277b068e9/textured_mesh.html\" height=\"650\" width=\"100%\" frameborder=\"0\"></iframe>\n        </div>\n    ",
+ {
+  "model": {
+   "shapegen": "tencent/Hunyuan3D-2.1/hunyuan3d-dit-v2-1",
+   "texgen": "tencent/Hunyuan3D-2.1"
+  },
+  "params": {
+   "caption": null,
+   "steps": 30,
+   "guidance_scale": 5,
+   "seed": 1234,
+   "octree_resolution": 256,
+   "check_box_rembg": true,
+   "num_chunks": 8000
+  },
+  "number_of_faces": 434720,
+  "number_of_vertices": 217296,
+  "time": {
+   "remove background": 0.959712028503418,
+   "shape generation": 16.529212713241577,
+   "export to trimesh": 0.08965158462524414,
+   "face reduction": 6.125947952270508,
+   "texture generation": 96.05548930168152,
+   "convert textured OBJ to GLB": 1.208425760269165,
+   "total": 120.98713684082031
+  }
+ },
+ 1234
+]

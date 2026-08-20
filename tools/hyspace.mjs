@@ -43,6 +43,8 @@ async function upload(file) {
  * as an HTTP status, so they have to be parsed out or a run treats "no GPU
  * left" as "no result".
  */
+const NO_DETAIL = 'the Space reported an error with no detail';
+
 async function readStream(res) {
   if (!res.ok || !res.body) throw new SpaceError(`stream failed: HTTP ${res.status}`);
   const reader = res.body.getReader();
@@ -64,11 +66,10 @@ async function readStream(res) {
         try { return JSON.parse(payload); } catch { return payload; }
       }
       if (event === 'error') {
-        // `data: null` here is almost always a malformed argument array rather
-        // than a real refusal — see `buildArguments`.
-        const text = payload && payload !== 'null' ? payload
-          : 'the Space reported an error with no detail, which usually means the '
-            + 'argument array was the wrong length';
+        // `data: null` means one of two things, and the two are told apart by the
+        // clock rather than by the payload — see `generateMesh`, which times the
+        // call and rewrites this message when the refusal was instant.
+        const text = payload && payload !== 'null' ? payload : NO_DETAIL;
         if (/quota/i.test(text)) throw new QuotaError(text);
         throw new SpaceError(text);
       }
@@ -136,9 +137,35 @@ export async function generateMesh({
   const { event_id: eventId } = await post.json();
   if (!eventId) throw new SpaceError('no event id returned');
 
-  const result = await readStream(
-    await fetch(`${BASE}/call${endpoint}/${eventId}`, { headers: authHeaders() }));
-  return result;
+  const started = Date.now();
+  try {
+    return await readStream(
+      await fetch(`${BASE}/call${endpoint}/${eventId}`, { headers: authHeaders() }));
+  } catch (err) {
+    // A detail-free refusal has two causes and they need different answers, so it is
+    // worth saying which one this was. Both were diagnosed the hard way.
+    //
+    // A wrong-length argument array (see `buildArguments`) fails instantly, and so does
+    // ZeroGPU declining to reserve GPU time. What separates them is that the second is
+    // specific to the size of the reservation: with the same arguments and the same
+    // token, `/shape_generation` asks for 90 seconds and is served while
+    // `/generation_all` asks for 270 and is refused in four. So the endpoint that was
+    // refused is part of the message, and the cheaper one is named as the next thing to
+    // try — the alternative is a run that reports "malformed arguments" for a wall the
+    // caller only has to wait out.
+    if (err instanceof SpaceError && err.message === NO_DETAIL) {
+      const seconds = (Date.now() - started) / 1000;
+      throw seconds < 30 && textured
+        ? new QuotaError(`${endpoint} was refused in ${seconds.toFixed(0)}s without a reason. `
+          + 'An instant refusal of the 270-second endpoint is ZeroGPU declining the '
+          + 'reservation, not a bad argument array: the same call to /shape_generation '
+          + '(90s) is still served. Wait for the allowance to refill, or generate '
+          + 'geometry now and texture later.')
+        : new SpaceError(`${err.message} (after ${seconds.toFixed(0)}s on ${endpoint}) — `
+          + 'if this was instant, count the arguments in /config; see buildArguments.');
+    }
+    throw err;
+  }
 }
 
 /**
