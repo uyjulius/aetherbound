@@ -6,7 +6,7 @@
 # came back with the identical band, three times, until the seed was allowed to move.
 cd /Users/juliusuy/Documents/ff
 G=$HOME/Documents/ff/.generation
-QUEUE=(blob_slime2)
+QUEUE=(construct_robot)
 # The stall's canvas awning reconstructs as a crumpled sheet; its prompt now asks for a plank
 # roof, so the view has to be drawn again — and it is a prop, so it is drawn with --world.
 WORLD_QUEUE=()

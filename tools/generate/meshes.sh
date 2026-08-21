@@ -39,7 +39,7 @@ while true; do
     # band across an edge — the image model adds them unasked — because the fill cannot remove
     # one and the reconstruction would spend 270 seconds of GPU turning it into a slab.
     if ! node tools/isolate.mjs $id > $G/iso-$id.log 2>&1; then
-      echo "  $id  bad view: $(grep -E 'along the|suspect' $G/iso-$id.log | head -1 | cut -c1-90)"
+      echo "  $id  bad view: $(grep -E 'along the|survives a stricter|suspect' $G/iso-$id.log | head -1 | cut -c1-90)"
       continue
     fi
     node tools/genmesh.mjs $id --textured --front-only > $G/mesh-$id.log 2>&1
