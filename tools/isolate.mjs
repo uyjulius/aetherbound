@@ -65,7 +65,8 @@ function readImage(file) {
  * 1024×1024 image where four fifths of the pixels qualify, which is the normal
  * case here rather than an edge case.
  */
-function isolate({ width, height, data }) {
+function isolate({ width, height, data }, saturationMax = SATURATION_MAX,
+  luminanceMin = LUMINANCE_MIN) {
   const background = new Uint8Array(width * height);
   const queue = [];
 
@@ -74,7 +75,7 @@ function isolate({ width, height, data }) {
     const r = data[at], g = data[at + 1], b = data[at + 2];
     const spread = Math.max(r, g, b) - Math.min(r, g, b);
     const luminance = 0.299 * r + 0.587 * g + 0.114 * b;
-    return spread < SATURATION_MAX && luminance > LUMINANCE_MIN;
+    return spread < saturationMax && luminance > luminanceMin;
   };
 
   const seed = (index) => {
@@ -114,7 +115,7 @@ function isolate({ width, height, data }) {
     }
     out.data[at + 3] = 255;
   }
-  return { png: out, share: filled / (width * height) };
+  return { png: out, share: filled / (width * height), kept: width * height - filled };
 }
 
 /**
@@ -174,11 +175,26 @@ if (!views.length) {
 say(`\x1b[1mIsolating ${subject}\x1b[0m`);
 let suspect = false;
 const bands = [];
+const leaks = [];
 for (const [view, file] of views) {
   const image = readImage(file);
   const found = darkBand(image);
   if (found.length) bands.push(`${view}: ${found.join(', ')}`);
-  const { png, share } = isolate(image);
+  const { png, share, kept } = isolate(image);
+  // How much the fill depends on exactly where the thresholds are.
+  //
+  // They are loose on purpose — a backdrop with a gradient and a soft shadow needs them to be —
+  // and on a pale subject that looseness walks straight into the subject: one slime came back
+  // with a white void through its chest and its head floating free of its body. Nothing the
+  // check counted noticed, because eaten pixels are background however you count them.
+  //
+  // So the same fill is run again with the thresholds tightened, and the two are compared. A
+  // backdrop is well clear of either setting, so tightening changes almost nothing; a fill that
+  // was leaking stops leaking, and the difference is large. Measured across the roster: the
+  // broken slime moves by 0.41, the wolf's white fur — genuinely near the line — by 0.20, a
+  // pale stone wall by 0.13, and everything else by less than a tenth.
+  const { kept: keptTight } = isolate(image, 20, 110);
+  const drift = keptTight ? (keptTight - kept) / keptTight : 0;
   const out = path.join(concepts, `${subject}-${view}-clean.png`);
   fs.writeFileSync(out, PNG.sync.write(png));
   const percent = (share * 100).toFixed(1);
@@ -188,10 +204,12 @@ for (const [view, file] of views) {
   // full-height canvas is legitimately 95% background, and the warning fired on every one of
   // them until it meant nothing. What actually goes wrong is the fill leaking through the
   // silhouette and eating the subject, or never reaching the backdrop at all.
-  const kept = 1 - share;
-  const plausible = kept > 0.005 && share > 0.2;
+  const survived = 1 - share;
+  const plausible = survived > 0.005 && share > 0.2;
   if (!plausible) suspect = true;
-  say(`  ${view.padEnd(6)} ${percent.padStart(5)}% to white  ${plausible ? '' : '\x1b[33msuspect\x1b[0m  '}${path.basename(out)}`);
+  if (drift > 0.30) leaks.push(`${view}: ${(drift * 100).toFixed(0)}% more survives a stricter fill`);
+  say(`  ${view.padEnd(6)} ${percent.padStart(5)}% to white  drift ${drift.toFixed(2)}  `
+    + `${plausible ? '' : '\x1b[33msuspect\x1b[0m  '}${path.basename(out)}`);
 }
 
 say();
@@ -200,6 +218,13 @@ if (bands.length) {
   for (const line of bands) say(`  ${line}`);
   say('The fill cannot take it — it removes what is bright and neutral, and a black bar is');
   say('neither — so it would be reconstructed as a slab. Generate the view again.');
+  process.exit(1);
+}
+if (leaks.length) {
+  say('\x1b[31mFAIL\x1b[0m — the fill leaked into the subject:');
+  for (const line of leaks) say(`  ${line}`);
+  say('A fill that moves this much when the thresholds move is standing inside the subject,');
+  say('not around it. Draw the view again — `--attempt N` moves the seed.');
   process.exit(1);
 }
 if (suspect) {

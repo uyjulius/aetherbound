@@ -342,7 +342,8 @@ async function generate(prompt, seed) {
 const args = process.argv.slice(2);
 const force = args.includes('--force');
 const all = args.includes('--all');
-const named = args.filter((a) => !a.startsWith('--'));
+// Everything that is not a flag, and not the number that follows `--attempt`.
+const named = args.filter((a, i) => !a.startsWith('--') && args[i - 1] !== '--attempt');
 
 const world = args.includes('--world');
 const creatures = args.includes('--bestiary');
@@ -381,7 +382,14 @@ for (const id of wanted) {
   const prompt = creatures ? promptForCreature(id, subjects[id])
     : world ? promptForWorld(id) : promptFor(characters[id]);
   // Seeded from the name, so a regeneration of one character is the same character.
-  const seed = [...id].reduce((n, c) => (n * 31 + c.charCodeAt(0)) >>> 0, 7);
+  //
+  // Which is a problem when the first draw came back unusable. Three bestiary views arrived
+  // with a watermark band across them; redrawing with `--force` produced the same band, three
+  // times, because the same prompt and the same seed are the same picture. `--attempt N` moves
+  // the seed without touching the prompt, so a view can be asked for again rather than
+  // reworded — and leaving it off keeps every existing view reproducible.
+  const attempt = Number(args[args.indexOf('--attempt') + 1] ?? 0) || 0;
+  const seed = [...id].reduce((n, c) => (n * 31 + c.charCodeAt(0)) >>> 0, 7) + attempt * 7919;
   try {
     const { bytes } = await generate(prompt, seed % 2_000_000);
     // Gradio 5 hands back a WebP with a `.png` name, and `isolate.mjs` reads PNG — it died on

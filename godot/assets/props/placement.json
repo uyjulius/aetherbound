@@ -269,15 +269,15 @@
   },
   "airship": {
    "file": "airship.glb",
-   "scale": 0.0272,
-   "y": 3.8079,
+   "scale": 6.0797,
+   "y": 4.4576,
    "yaw": 0,
    "fit": "longest",
    "footprint": null,
    "model": [
-    195.1332,
-    352.655,
-    404.151
+    0.6048,
+    1.4597,
+    1.8093
    ]
   }
  },
@@ -303,38 +303,38 @@
   "wood": {
    "file": "building_wood.glb",
    "model": [
-    4.3991,
-    2.8625,
-    3.2835
+    0.7046,
+    0.7266,
+    1.985
    ],
-   "base": -0.0518
+   "base": -0.3742
   },
   "marble": {
    "file": "building_marble.glb",
    "model": [
-    2.1913,
-    4.3291,
-    2.1913
+    0.0126,
+    1.9866,
+    1.9877
    ],
-   "base": -0.002
+   "base": -0.9972
   },
   "magitek": {
    "file": "building_magitek.glb",
    "model": [
-    4.6438,
-    5.4865,
-    3.8558
+    1.8972,
+    1.9881,
+    1.6631
    ],
-   "base": -0.0146
+   "base": -0.9959
   },
   "brick": {
    "file": "building_brick.glb",
    "model": [
-    3.89,
-    3.0034,
-    3.2835
+    1.9613,
+    1.9872,
+    1.5426
    ],
-   "base": -0.0039
+   "base": -0.9988
   }
  },
  "glyphs": {

@@ -10,16 +10,11 @@ a model is CC-BY, saying so is also the licence.
 
 | Kit | Model | Author | Licence | Source |
 |---|---|---|---|---|
-| airship | Airship | Poly by Google | CC-BY 3.0 | https://poly.pizza/m/cr7RPZ4RfGM |
 | airshipmast | Column | Quaternius | CC0 1.0 | https://poly.pizza/m/wLubNpOTX4 |
 | block | Stone Block | Quaternius | CC0 1.0 | https://poly.pizza/m/ZKvgpQwJiY |
 | bridge | Small Bridge | Quaternius | CC0 1.0 | https://poly.pizza/m/j4KsIuJYnq |
-| building_brick | Blacksmith | Quaternius | CC0 1.0 | https://poly.pizza/m/bV52eTG1Aj |
-| building_magitek | Building | Quaternius | CC0 1.0 | https://poly.pizza/m/ZSYgIuHfYb |
-| building_marble | Temple | Quaternius | CC0 1.0 | https://poly.pizza/m/CE2Mn7lh6A |
 | building_plaster | Town House | Quaternius | CC0 1.0 | https://poly.pizza/m/sDQJBImZuw |
 | building_stone | Big Building | Quaternius | CC0 1.0 | https://poly.pizza/m/AVCS8jUd2l |
-| building_wood | Fantasy Sawmill | Quaternius | CC0 1.0 | https://poly.pizza/m/alxTTFjKDM |
 | bush | Bush | Quaternius | CC0 1.0 | https://poly.pizza/m/BVYSNurXMV |
 | floor | Floor Tile | Quaternius | CC0 1.0 | https://poly.pizza/m/6baBuVGcyD |
 | flowerbox | Bush | Quaternius | CC0 1.0 | https://poly.pizza/m/ZYHKojmtPW |
@@ -31,6 +26,11 @@ a model is CC-BY, saying so is also the licence.
 
 
 
+
+
+
+
+
 ## Generated for this game
 
 These were made here rather than downloaded: a concept view from FLUX.1-schnell,
@@ -39,8 +39,13 @@ reconstructed by Hunyuan3D-2.1, then cleaned, decimated and shrunk by the script
 
 | Kit | Model | Made by | Provenance | From |
 |---|---|---|---|---|
+| airship | Airship | generated for this game | generated | assets/concepts/airship-front.png |
 | barrel | Barrel | generated for this game | generated | assets/concepts/barrel-front.png |
 | bench | Bench | generated for this game | generated | assets/concepts/bench-front.png |
+| building_brick | Blacksmith | generated for this game | generated | assets/concepts/building_brick-front.png |
+| building_magitek | Building | generated for this game | generated | assets/concepts/building_magitek-front.png |
+| building_marble | Temple | generated for this game | generated | assets/concepts/building_marble-front.png |
+| building_wood | Fantasy Sawmill | generated for this game | generated | assets/concepts/building_wood-front.png |
 | cart | Broken Cart | generated for this game | generated | assets/concepts/cart-front.png |
 | chest | Chest Closed | generated for this game | generated | assets/concepts/chest-front.png |
 | crate | Cube Crate | generated for this game | generated | assets/concepts/crate-front.png |
