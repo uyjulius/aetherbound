@@ -19,11 +19,21 @@ G=$HOME/Documents/ff/.generation
 while true; do
   node tools/generated-ids.mjs > $G/ids.txt 2>/dev/null || { /bin/sleep 300; continue; }
   wanted=0
-  for id in $(awk '{print $2}' $G/ids.txt); do
+  while read -r kind id; do
     raw=godot/assets/models/raw/$id.glb
     concept=assets/concepts/$id-front.png
+    if [ "$kind" = "creature" ]; then
+      shipped=assets/monsters/$id.glb
+    else
+      shipped=godot/assets/props/$id.glb
+    fi
     [ -f $concept ] || continue
     [ -f $raw ] && [ $raw -nt $concept ] && continue
+    # Or already shipped from a view no newer than this one. The well was generated before
+    # there was a raw directory to keep the reconstruction in, so the freshness test saw no
+    # mesh and asked for 270 seconds of GPU to rebuild something already standing in the
+    # world — with fifty things that do not exist yet waiting behind it in the queue.
+    [ -f $shipped ] && [ $shipped -nt $concept ] && continue
     wanted=$((wanted+1))
     # Every round, and the exit code is respected. `isolate.mjs` refuses a view with a dark
     # band across an edge — the image model adds them unasked — because the fill cannot remove
@@ -45,7 +55,7 @@ while true; do
       echo "  $id  FAILED ($(date +%H:%M)): $(tail -1 $G/mesh-$id.log | cut -c1-110)"
       /bin/sleep 120
     fi
-  done
+  done < $G/ids.txt
   if [ $wanted -eq 0 ]; then
     echo "=== every mesh is current ($(date +%H:%M))"
     /bin/sleep 600
