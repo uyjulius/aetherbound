@@ -22,19 +22,40 @@ def _box(part):
 
 
 def _bounds(parts, spans, biggest):
-    """The box around the substantial geometry — the subject, once the fragments are set aside.
+    """The box around the substantial geometry — the subject, once the flat stuff is set aside.
 
-    Substantial by *area*, not by thickness. Thickness was the first try and it drew the box
-    around everything: the marble temple's shards are three centimetres thick, which clears a
-    threshold set against a one-metre model, so the core stretched to the full reconstruction
-    volume and nothing could be outside it. Area separates them without argument — nineteen
-    parts of five hundred and twenty carry a hundredth of this temple each, and they are the
-    temple.
+    Solid means *not flat compared to itself*: the thinnest span over the longest. Four
+    definitions were tried and three of them are recorded here, because each was fooled by
+    something that shares the property it tested.
+
+    *Absolute thickness* — thicker than 2% of the model is geometry. The marble temple's shards
+    are three centimetres against a one-metre model, so they cleared it, the box stretched to
+    the whole reconstruction volume, and nothing could be outside it.
+
+    *Area* — carrying 1% of the total surface is geometry. But the largest area in any of these
+    files belongs to the studio backdrop; a two-metre sheet has more surface than a torso. A
+    zombie's box stretched to its backdrop and it shipped four and a half metres wide.
+
+    *Connectivity* — the largest part, plus everything touching it, repeated. The most
+    principled of the four and the worst in practice, for the same reason as area: the seed it
+    starts from is the biggest thing in the file, and on a character that is a wall of the
+    studio. Corvin came out 272 metres across with three parts left.
+
+    Relative flatness is what is left, and the numbers do not overlap: backdrop sheets on Corvin
+    and the zombie run 0.001 to 0.020, while the temple's real parts — pediment, columns, steps
+    — run 0.035 to 0.158 and the strips of backdrop around them run 0.004 to 0.014.
+
+    It is not perfect, and the imperfection is worth naming: the temple's shards are chunky
+    little bits rather than sheets, so they pass this test and rejoin the core they were meant
+    to be measured against. That is a rule chasing a defect that should not exist — the
+    reconstruction only invents this debris when it is handed a flat pale background, and it is
+    handed an alpha cut-out now. This cut is a net for what gets through, not the fix.
     """
-    total = sum(sum(f.area for f in p.data.polygons) for p in parts)
-    if total <= 0:
-        return None
-    solid = [p for p in parts if sum(f.area for f in p.data.polygons) >= 0.01 * total]
+    solid = []
+    for part in parts:
+        span = sorted(spans[part.name])
+        if span[2] > 0 and span[0] / span[2] >= 0.03:
+            solid.append(part)
     if not solid:
         return None
     boxes = [_box(p) for p in solid]
