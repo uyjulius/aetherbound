@@ -268,10 +268,28 @@ func _building(prop: Dictionary) -> Node3D:
 		return null
 	var model: Array = spec.get("model", [1, 1, 1])
 	var height := float(prop.get("h", 4.0)) + float(prop.get("rise", 0.0))
-	node.scale = Vector3(
-		float(prop.get("w", 6.0)) / maxf(0.001, float(model[0])),
-		height / maxf(0.001, float(model[1])),
-		float(prop.get("d", 4.0)) / maxf(0.001, float(model[2])))
+	var wide := float(prop.get("w", 6.0))
+	var deep := float(prop.get("d", 4.0))
+	# A quarter turn, when the model's own front runs the wrong way.
+	#
+	# This scaling is per axis, so a building facing sideways is not merely turned — it is
+	# stretched across its front, and the stretch lands on the door and the windows. Two of the
+	# generated styles came off the reconstruction deeper than they are wide, while the maps ask
+	# for a wider-than-deep footprint 257 times out of 270. `plan-scenery.mjs` measures that and
+	# writes the turn; what it means here is that the model's own X now fills the placement's
+	# depth and its Z fills the width.
+	var yaw := float(spec.get("yaw", 0.0))
+	if is_zero_approx(yaw):
+		node.scale = Vector3(
+			wide / maxf(0.001, float(model[0])),
+			height / maxf(0.001, float(model[1])),
+			deep / maxf(0.001, float(model[2])))
+	else:
+		node.rotation.y = yaw
+		node.scale = Vector3(
+			deep / maxf(0.001, float(model[0])),
+			height / maxf(0.001, float(model[1])),
+			wide / maxf(0.001, float(model[2])))
 	node.position.y = -float(spec.get("base", 0.0)) * node.scale.y
 	return node
 

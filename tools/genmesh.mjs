@@ -48,13 +48,19 @@ function loadToken() {
 }
 
 const args = process.argv.slice(2);
-const subject = args.find((a) => !a.startsWith('--')) ?? 'vesna';
+const subject = args.find((a, i) => !a.startsWith('--') && args[i - 1] !== '--attempt') ?? 'vesna';
 const textured = args.includes('--textured');
+const attempt = Number(args[args.indexOf('--attempt') + 1] ?? 0) || 0;
 const anonymous = args.includes('--anon');
 const frontOnly = args.includes('--front-only');
 
 const concepts = path.join(root, 'assets', 'concepts');
-const pick = (stem) => ['-clean.png', '.png', '.jpg']
+// The alpha matte first. White is not nothing: the reconstruction turns a large flat pale
+// region into a surface, which is where the sheet behind the fence and the shard beside the
+// temple came from, and every rule written to delete those afterwards has also deleted
+// something real. A cut-out says "there is nothing here" in a way the model understands — and
+// `removeBackground` goes off with it, because there is no background left to remove.
+const pick = (stem) => ['-cut.png', '-clean.png', '.png', '.jpg']
   .map((suffix) => path.join(concepts, stem + suffix)).find((p) => fs.existsSync(p)) ?? null;
 
 const front = pick(`${subject}-front`);
@@ -81,8 +87,14 @@ say(`  endpoint  ${textured ? '/generation_all (PBR, 270s GPU)' : '/shape_genera
 say(`  pool      ${anonymous ? 'anonymous' : (source ? `authenticated, token from ${source}` : 'anonymous — no token found')}`);
 
 try {
+  // `--attempt N` moves the reconstruction's seed. The default is fixed so a rebuild is the
+  // same mesh, which is right until the mesh is wrong: the marble temple came back as two
+  // sheets of backdrop and nothing else, and asking again produced the same two sheets. Same
+  // lesson as the concept views, one stage later.
   const result = await generateMesh({
     front, back, octree: 256, steps: 30, textured,
+    seed: 1234 + attempt * 7919,
+    removeBackground: !front.endsWith('-cut.png'),
   });
 
   // Keep the raw payload before touching the network again. A GPU call is 90

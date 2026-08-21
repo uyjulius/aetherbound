@@ -48,6 +48,22 @@ const SATURATION_MAX = 30;
  */
 const LUMINANCE_MIN = 70;
 
+/**
+ * How far the fill may step in one pixel.
+ *
+ * The absolute thresholds above say what a backdrop looks like; this says that a backdrop
+ * changes *slowly*. It has to, because "bright and neutral" also describes a white marble
+ * temple: the fill walked straight through one, left two slivers of shadow between its
+ * columns, and the reconstruction faithfully rebuilt the slivers.
+ *
+ * Six, from a sweep. At sixteen the temple still loses nine tenths of itself; at ten, half; at
+ * six, a seventh — and the *backdrop* still clears, which is the other half of the question:
+ * across eight subjects the share flooded moves by less than a point and a half, so a step
+ * this tight is not leaving a grey ring behind. The images that were never in trouble stay out
+ * of it — Corvin, a chest, a wolf and a wall all measure zero either way.
+ */
+const STEP_MAX = 6;
+
 function readImage(file) {
   const bytes = fs.readFileSync(file);
   if (/\.png$/i.test(file)) {
@@ -84,6 +100,21 @@ function isolate({ width, height, data }, saturationMax = SATURATION_MAX,
     queue.push(index);
   };
 
+  /** How far one pixel is from another, per channel, at its worst. */
+  const apart = (a, b) => {
+    const i = a * 4;
+    const j = b * 4;
+    return Math.max(Math.abs(data[i] - data[j]), Math.abs(data[i + 1] - data[j + 1]),
+      Math.abs(data[i + 2] - data[j + 2]));
+  };
+
+  /** Grow into a neighbour only if it looks like the pixel we came from. */
+  const grow = (from, index) => {
+    if (background[index] || !qualifies(index) || apart(from, index) > STEP_MAX) return;
+    background[index] = 1;
+    queue.push(index);
+  };
+
   for (let x = 0; x < width; x++) {
     seed(x);
     seed((height - 1) * width + x);
@@ -99,23 +130,28 @@ function isolate({ width, height, data }, saturationMax = SATURATION_MAX,
     filled++;
     const x = index % width;
     const y = (index - x) / width;
-    if (x > 0) seed(index - 1);
-    if (x < width - 1) seed(index + 1);
-    if (y > 0) seed(index - width);
-    if (y < height - 1) seed(index + width);
+    if (x > 0) grow(index, index - 1);
+    if (x < width - 1) grow(index, index + 1);
+    if (y > 0) grow(index, index - width);
+    if (y < height - 1) grow(index, index + width);
   }
 
   const out = new PNG({ width, height });
+  const cut = new PNG({ width, height });
   for (let index = 0; index < width * height; index++) {
     const at = index * 4;
     if (background[index]) {
       out.data[at] = 255; out.data[at + 1] = 255; out.data[at + 2] = 255;
+      cut.data[at] = 255; cut.data[at + 1] = 255; cut.data[at + 2] = 255;
+      cut.data[at + 3] = 0;
     } else {
       out.data[at] = data[at]; out.data[at + 1] = data[at + 1]; out.data[at + 2] = data[at + 2];
+      cut.data[at] = data[at]; cut.data[at + 1] = data[at + 1]; cut.data[at + 2] = data[at + 2];
+      cut.data[at + 3] = 255;
     }
     out.data[at + 3] = 255;
   }
-  return { png: out, share: filled / (width * height), kept: width * height - filled };
+  return { png: out, cut, share: filled / (width * height), kept: width * height - filled };
 }
 
 /**
@@ -180,7 +216,7 @@ for (const [view, file] of views) {
   const image = readImage(file);
   const found = darkBand(image);
   if (found.length) bands.push(`${view}: ${found.join(', ')}`);
-  const { png, share, kept } = isolate(image);
+  const { png, cut, share, kept } = isolate(image);
   // How much the fill depends on exactly where the thresholds are.
   //
   // They are loose on purpose — a backdrop with a gradient and a soft shadow needs them to be —
@@ -197,6 +233,14 @@ for (const [view, file] of views) {
   const drift = keptTight ? (keptTight - kept) / keptTight : 0;
   const out = path.join(concepts, `${subject}-${view}-clean.png`);
   fs.writeFileSync(out, PNG.sync.write(png));
+  // The same matte again, with the background cut away rather than painted over.
+  //
+  // White is not nothing. The reconstruction turns a large flat pale region into a surface —
+  // that is where the sheets behind the fence and beside the temple come from — and every rule
+  // written to delete those afterwards has also deleted something real: the fence's rails, a
+  // building's walls. An alpha channel says "there is nothing here" in a way the model
+  // understands, so there is nothing to invent and nothing to cut.
+  fs.writeFileSync(path.join(concepts, `${subject}-${view}-cut.png`), PNG.sync.write(cut));
   const percent = (share * 100).toFixed(1);
 
   // Judged on what is *left*, not on what was taken. The old test called anything above 90%

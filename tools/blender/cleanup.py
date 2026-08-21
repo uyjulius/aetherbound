@@ -22,13 +22,19 @@ def _box(part):
 
 
 def _bounds(parts, spans, biggest):
-    """The box around everything solid — the subject, once the sheets are gone.
+    """The box around the substantial geometry — the subject, once the fragments are set aside.
 
-    Solid meaning not itself a thin fragment: a part that is a tenth of the object across in its
-    smallest axis is geometry, and what is left after taking those is what a stray rail has to be
-    near in order to belong to it.
+    Substantial by *area*, not by thickness. Thickness was the first try and it drew the box
+    around everything: the marble temple's shards are three centimetres thick, which clears a
+    threshold set against a one-metre model, so the core stretched to the full reconstruction
+    volume and nothing could be outside it. Area separates them without argument — nineteen
+    parts of five hundred and twenty carry a hundredth of this temple each, and they are the
+    temple.
     """
-    solid = [p for p in parts if min(spans[p.name]) > 0.02 * biggest]
+    total = sum(sum(f.area for f in p.data.polygons) for p in parts)
+    if total <= 0:
+        return None
+    solid = [p for p in parts if sum(f.area for f in p.data.polygons) >= 0.01 * total]
     if not solid:
         return None
     boxes = [_box(p) for p in solid]
@@ -44,6 +50,62 @@ def _gap(part, core):
         distance = max(core[0][i] - high[i], low[i] - core[1][i], 0.0)
         total += distance * distance
     return total ** 0.5
+
+
+def _base_colour_image(part):
+    """The image feeding a part's base colour, or None."""
+    for slot in part.material_slots:
+        material = slot.material
+        if material is None or not material.use_nodes:
+            continue
+        for node in material.node_tree.nodes:
+            if node.type != "BSDF_PRINCIPLED":
+                continue
+            link = node.inputs["Base Color"].links
+            if link and link[0].from_node.type == "TEX_IMAGE":
+                image = link[0].from_node.image
+                if image and image.size[0] and image.size[1]:
+                    return image
+    return None
+
+
+def _looks_like_studio(part, samples=400):
+    """Whether a part is painted the flat neutral grey of a photographer's backdrop.
+
+    The geometric test cannot tell a studio wall from a building's wall — both are large, flat
+    and thin, and that is not a subtlety: it deleted the walls of two of the six building
+    styles and left a roof floating over a doorway. What tells them apart is the paint. A
+    backdrop is one neutral grey; brick, plaster and magitek panelling are neither uniform nor
+    neutral.
+
+    Measured on the meshes that prompted this. Corvin's studio sheets: mean saturation 0.015
+    and 0.019, colour variance 0.0105 and 0.0109, mean RGB (0.5, 0.5, 0.49). The magitek
+    building's walls: saturation 0.089 to 0.138, variance 0.016 to 0.059. The brick building's:
+    saturation 0.042 to 0.216, variance 0.047 to 0.198. The line is drawn between them, on both
+    numbers, because either alone leaves less room than it looks.
+
+    Returns True when it cannot tell — no UVs, no texture — which is the old behaviour.
+    """
+    image = _base_colour_image(part)
+    uv = part.data.uv_layers.active
+    if image is None or uv is None or not len(part.data.loops):
+        return True
+    pixels = image.pixels[:]
+    width, height = image.size
+    step = max(1, len(part.data.loops) // samples)
+    values = []
+    for index in range(0, len(part.data.loops), step):
+        u, v = uv.data[index].uv
+        x = min(width - 1, max(0, int(u * width)))
+        y = min(height - 1, max(0, int((1.0 - v) * height)))
+        at = (y * width + x) * 4
+        values.append(pixels[at:at + 3])
+    if not values:
+        return True
+    mean = [sum(c[k] for c in values) / len(values) for k in range(3)]
+    variance = sum(sum((c[k] - mean[k]) ** 2 for k in range(3)) for c in values) / len(values)
+    saturation = sum(max(c) - min(c) for c in values) / len(values)
+    return saturation < 0.03 and variance < 0.015
 
 
 def cut_backdrop(obj):
@@ -91,7 +153,7 @@ def cut_backdrop(obj):
         span = sorted(spans[part.name])
         # A sheet: flat, and wide in the two axes it is not flat in. Both halves matter — "flat"
         # alone would take a cape, "wide" alone would take the whole body.
-        if span[0] < 0.03 * biggest and span[1] > 0.35 * biggest:
+        if span[0] < 0.03 * biggest and span[1] > 0.35 * biggest and _looks_like_studio(part):
             # Remember where it was. Everything else the backdrop left behind is lying in this
             # same plane, and that is the only thing those fragments have in common: they are
             # every size, they are scattered across two metres, and there are twelve hundred of
@@ -144,6 +206,23 @@ def cut_backdrop(obj):
             elif core is not None and _gap(part, core) > 0.02 * biggest:
                 drop(part, "debris")
         kept = [o for o in bpy.context.scene.objects if o.type == "MESH"]
+    # And anything small drifting on its own, plane or no plane. The marble temple came back
+    # with three white shards of its own base lying a metre away from it — too small to be
+    # sheets, in nobody's plane, and enough to double the width of the bounding box. Buildings
+    # are scaled per axis to fill a footprint, so a stray does not merely float: it squashes
+    # the building it is measured with.
+    #
+    # Distance is the whole test; size is not part of it. A first version spared anything longer
+    # than a quarter of the object, on the theory that a sword or a fence rail might be adrift —
+    # but a sword is in a hand and a rail is between two posts, and both measure a gap of zero.
+    # What the exemption actually spared was the largest shard, which went on sitting beside the
+    # temple like a dropped sheet of paper.
+    core = _bounds([o for o in bpy.context.scene.objects if o.type == "MESH"], spans, biggest)
+    if core is not None:
+        for part in [o for o in bpy.context.scene.objects if o.type == "MESH"]:
+            if _gap(part, core) > 0.06 * biggest:
+                drop(part, "stray")
+
     kept = [o for o in bpy.context.scene.objects if o.type == "MESH"]
     if not kept:
         raise SystemExit("every part looked like a backdrop — nothing left to rig")

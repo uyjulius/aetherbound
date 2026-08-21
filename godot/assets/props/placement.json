@@ -289,7 +289,8 @@
     4.6633,
     2.7436
    ],
-   "base": -0.0011
+   "base": -0.0011,
+   "yaw": 0
   },
   "stone": {
    "file": "building_stone.glb",
@@ -298,7 +299,8 @@
     5.6774,
     4.3906
    ],
-   "base": -0.0134
+   "base": -0.0134,
+   "yaw": 0
   },
   "wood": {
    "file": "building_wood.glb",
@@ -307,34 +309,38 @@
     0.7266,
     1.985
    ],
-   "base": -0.3742
+   "base": -0.3742,
+   "yaw": 1.5708
   },
   "marble": {
    "file": "building_marble.glb",
    "model": [
-    0.0126,
-    1.9866,
-    1.9877
+    0.7159,
+    0.9423,
+    1.5811
    ],
-   "base": -0.9972
+   "base": -0.4869,
+   "yaw": 1.5708
   },
   "magitek": {
    "file": "building_magitek.glb",
    "model": [
     1.8972,
-    1.9881,
-    1.6631
+    1.9897,
+    1.6614
    ],
-   "base": -0.9959
+   "base": -0.9975,
+   "yaw": 0
   },
   "brick": {
    "file": "building_brick.glb",
    "model": [
-    1.9613,
-    1.9872,
-    1.5426
+    1.9648,
+    1.9903,
+    1.5449
    ],
-   "base": -0.9988
+   "base": -0.9987,
+   "yaw": 0
   }
  },
  "glyphs": {

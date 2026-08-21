@@ -258,10 +258,16 @@ for (const style of ['plaster', 'stone', 'wood', 'marble', 'magitek', 'brick']) 
   // Said out loud rather than corrected: the port scales buildings from `model` and has no
   // rotation for them, so turning one is a change on both sides and wants a real model to test
   // against.
+  // Buildings are scaled per axis, not uniformly, so one facing the wrong way is not merely
+  // mis-sized — it is squashed, and the squashing lands on the doors and windows. The maps ask
+  // for a wider-than-deep footprint 257 times out of 270, median 1.41, so a model that is
+  // deeper than it is wide gets a quarter turn and the port fills its depth from the model's
+  // width. Two of the six generated styles need it.
   const [bx, , bz] = asset.size;
-  if (bz > bx * 1.15) {
-    notes.push(`building_${style}: ${bz.toFixed(2)} deep against ${bx.toFixed(2)} wide — the `
-      + 'maps are wider than deep, so this one will be stretched across its front');
+  const turned = bz > bx * 1.15;
+  if (turned) {
+    notes.push(`building_${style}: turned a quarter turn — ${bz.toFixed(2)} deep against `
+      + `${bx.toFixed(2)} wide, and the maps are wider than deep`);
   }
   plan.buildings[style] = {
     file: asset.file,
@@ -269,6 +275,7 @@ for (const style of ['plaster', 'stone', 'wood', 'marble', 'magitek', 'brick']) 
     // the model's size to divide by.
     model: asset.size,
     base: asset.base,
+    yaw: turned ? Number((Math.PI / 2).toFixed(4)) : 0,
   };
 }
 
