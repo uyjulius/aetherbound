@@ -30,7 +30,8 @@
     "render:music": "node tools/render-music.mjs",
     "props": "node tools/fetch-props.mjs",
     "scenery": "node tools/sync-textures.mjs && node tools/plan-scenery.mjs",
-    "sync:models": "node tools/sync-models.mjs"
+    "sync:models": "node tools/sync-models.mjs",
+    "sheet": "node tools/contact-sheet.mjs"
   },
   "dependencies": {
     "three": "^0.180.0"
