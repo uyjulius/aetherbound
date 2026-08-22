@@ -73,60 +73,26 @@ def _gap(part, core):
     return total ** 0.5
 
 
-def _base_colour_image(part):
-    """The image feeding a part's base colour, or None."""
-    for slot in part.material_slots:
-        material = slot.material
-        if material is None or not material.use_nodes:
-            continue
-        for node in material.node_tree.nodes:
-            if node.type != "BSDF_PRINCIPLED":
-                continue
-            link = node.inputs["Base Color"].links
-            if link and link[0].from_node.type == "TEX_IMAGE":
-                image = link[0].from_node.image
-                if image and image.size[0] and image.size[1]:
-                    return image
-    return None
+def _fills_the_volume(span, biggest):
+    """Whether a flat part spans the whole reconstruction volume in both its large axes.
 
+    This is what separates a studio backdrop from a building's wall, and it took two goes.
 
-def _looks_like_studio(part, samples=400):
-    """Whether a part is painted the flat neutral grey of a photographer's backdrop.
+    The first tried to tell them apart by *paint*: a backdrop is one flat neutral grey, a brick
+    wall is not. That worked on the models it was written for and then failed on the first one
+    it had not seen — a zombie's floor plate measured saturation 0.040 against a brick wall's
+    0.042, and its colour variance came out higher than the wall's, because a reconstructed
+    plate's UVs wander across the whole texture atlas and sample the creature.
 
-    The geometric test cannot tell a studio wall from a building's wall — both are large, flat
-    and thin, and that is not a subtlety: it deleted the walls of two of the six building
-    styles and left a roof floating over a doorway. What tells them apart is the paint. A
-    backdrop is one neutral grey; brick, plaster and magitek panelling are neither uniform nor
-    neutral.
-
-    Measured on the meshes that prompted this. Corvin's studio sheets: mean saturation 0.015
-    and 0.019, colour variance 0.0105 and 0.0109, mean RGB (0.5, 0.5, 0.49). The magitek
-    building's walls: saturation 0.089 to 0.138, variance 0.016 to 0.059. The brick building's:
-    saturation 0.042 to 0.216, variance 0.047 to 0.198. The line is drawn between them, on both
-    numbers, because either alone leaves less room than it looks.
-
-    Returns True when it cannot tell — no UVs, no texture — which is the old behaviour.
+    Geometry says it without ambiguity. Hunyuan3D reconstructs into a cube, and the backdrop it
+    invents *is* a face of that cube: the plates on Corvin and on both zombies measure 1.99 and
+    1.98 against a 1.99 model, which is 100% and 99.5%. A real wall belongs to the object and
+    stops where the object does — the magitek building's reach 87% and 79%, the brick building's
+    80% and 80%, and the marble temple's roof is 100% in one axis but 69% in the other. Nothing
+    real fills the box in both directions while being one percent thick.
     """
-    image = _base_colour_image(part)
-    uv = part.data.uv_layers.active
-    if image is None or uv is None or not len(part.data.loops):
-        return True
-    pixels = image.pixels[:]
-    width, height = image.size
-    step = max(1, len(part.data.loops) // samples)
-    values = []
-    for index in range(0, len(part.data.loops), step):
-        u, v = uv.data[index].uv
-        x = min(width - 1, max(0, int(u * width)))
-        y = min(height - 1, max(0, int((1.0 - v) * height)))
-        at = (y * width + x) * 4
-        values.append(pixels[at:at + 3])
-    if not values:
-        return True
-    mean = [sum(c[k] for c in values) / len(values) for k in range(3)]
-    variance = sum(sum((c[k] - mean[k]) ** 2 for k in range(3)) for c in values) / len(values)
-    saturation = sum(max(c) - min(c) for c in values) / len(values)
-    return saturation < 0.03 and variance < 0.015
+    large = sorted(span, reverse=True)[:2]
+    return all(value > 0.95 * biggest for value in large)
 
 
 def cut_backdrop(obj):
@@ -174,7 +140,8 @@ def cut_backdrop(obj):
         span = sorted(spans[part.name])
         # A sheet: flat, and wide in the two axes it is not flat in. Both halves matter — "flat"
         # alone would take a cape, "wide" alone would take the whole body.
-        if span[0] < 0.03 * biggest and span[1] > 0.35 * biggest and _looks_like_studio(part):
+        if (span[0] < 0.03 * biggest and span[1] > 0.35 * biggest
+                and _fills_the_volume(spans[part.name], biggest)):
             # Remember where it was. Everything else the backdrop left behind is lying in this
             # same plane, and that is the only thing those fragments have in common: they are
             # every size, they are scattered across two metres, and there are twelve hundred of

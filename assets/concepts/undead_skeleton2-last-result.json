@@ -1,9 +1,9 @@
 [
  {
   "value": {
-   "path": "/tmp/gradio/bd34bd4189797c8aea41fb79e9d8db212f55dbd07c3969efb6964c2c06433cfd/white_mesh.obj",
-   "url": "https://tencent-hunyuan3d-2-1.hf.space/call/gen/file=/tmp/gradio/bd34bd4189797c8aea41fb79e9d8db212f55dbd07c3969efb6964c2c06433cfd/white_mesh.obj",
-   "size": 1451380,
+   "path": "/tmp/gradio/58d69da85b823ebde47e68d05a5c856966ae0d497a74626b1baf5c1d3d71f1be/white_mesh.obj",
+   "url": "https://tencent-hunyuan3d-2-1.hf.space/call/gen/file=/tmp/gradio/58d69da85b823ebde47e68d05a5c856966ae0d497a74626b1baf5c1d3d71f1be/white_mesh.obj",
+   "size": 1446041,
    "orig_name": "white_mesh.obj",
    "mime_type": null,
    "is_stream": false,
@@ -15,9 +15,9 @@
  },
  {
   "value": {
-   "path": "/tmp/gradio/3f32ebb616713b9115875c7ffe2b2f3347a5ed648f18a50b30794b4b5d0cd4cb/textured_mesh.glb",
-   "url": "https://tencent-hunyuan3d-2-1.hf.space/call/gen/file=/tmp/gradio/3f32ebb616713b9115875c7ffe2b2f3347a5ed648f18a50b30794b4b5d0cd4cb/textured_mesh.glb",
-   "size": 6596896,
+   "path": "/tmp/gradio/40759410bf9698e1e43f054dbbff363af27a6b9a73910e13855e601913ff7083/textured_mesh.glb",
+   "url": "https://tencent-hunyuan3d-2-1.hf.space/call/gen/file=/tmp/gradio/40759410bf9698e1e43f054dbbff363af27a6b9a73910e13855e601913ff7083/textured_mesh.glb",
+   "size": 7049200,
    "orig_name": "textured_mesh.glb",
    "mime_type": null,
    "is_stream": false,
@@ -27,7 +27,7 @@
   },
   "__type__": "update"
  },
- "\n        <div style='height: 650; width: 100%;'>\n        <iframe src=\"/static/5a61bd45-1001-4997-ba59-ee7be75ab551/textured_mesh.html\" height=\"650\" width=\"100%\" frameborder=\"0\"></iframe>\n        </div>\n    ",
+ "\n        <div style='height: 650; width: 100%;'>\n        <iframe src=\"/static/cef6f79e-8572-4030-9f1c-4988f233ec69/textured_mesh.html\" height=\"650\" width=\"100%\" frameborder=\"0\"></iframe>\n        </div>\n    ",
  {
   "model": {
    "shapegen": "tencent/Hunyuan3D-2.1/hunyuan3d-dit-v2-1",
@@ -39,19 +39,18 @@
    "guidance_scale": 5,
    "seed": 1234,
    "octree_resolution": 256,
-   "check_box_rembg": true,
+   "check_box_rembg": false,
    "num_chunks": 8000
   },
-  "number_of_faces": 85490,
-  "number_of_vertices": 42649,
+  "number_of_faces": 200790,
+  "number_of_vertices": 100207,
   "time": {
-   "remove background": 0.9856603145599365,
-   "shape generation": 16.76269006729126,
-   "export to trimesh": 0.019727468490600586,
-   "face reduction": 0.7287600040435791,
-   "texture generation": 105.40730547904968,
-   "convert textured OBJ to GLB": 1.2896382808685303,
-   "total": 125.2007384300232
+   "shape generation": 17.13749623298645,
+   "export to trimesh": 0.04955267906188965,
+   "face reduction": 2.161259174346924,
+   "texture generation": 105.69213032722473,
+   "convert textured OBJ to GLB": 1.3723664283752441,
+   "total": 126.42711424827576
   }
  },
  1234
