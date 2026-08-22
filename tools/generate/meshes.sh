@@ -29,11 +29,16 @@ while true; do
     fi
     [ -f $concept ] || continue
     [ -f $raw ] && [ $raw -nt $concept ] && continue
-    # Or already shipped from a view no newer than this one. The well was generated before
-    # there was a raw directory to keep the reconstruction in, so the freshness test saw no
-    # mesh and asked for 270 seconds of GPU to rebuild something already standing in the
-    # world — with fifty things that do not exist yet waiting behind it in the queue.
-    [ -f $shipped ] && [ $shipped -nt $concept ] && continue
+    # No reconstruction at all, but something already shipped: the well was generated before
+    # there was a raw directory to keep reconstructions in, so the freshness test saw no mesh
+    # and asked for 270 seconds of GPU to rebuild something already standing in the world.
+    #
+    # Only when there is no raw. Written the other way round — skip whenever the shipped file
+    # is newer — it marks an item done the moment anything re-ships it, and re-shipping from an
+    # *old* raw is exactly what happens when the cleanup improves. A shredded zombie sat at the
+    # front of the queue all afternoon looking finished, because it had been re-cut that
+    # morning from the reconstruction that shredded it.
+    [ ! -f $raw ] && [ -f $shipped ] && [ $shipped -nt $concept ] && continue
     wanted=$((wanted+1))
     # Every round, and the exit code is respected. `isolate.mjs` refuses a view with a dark
     # band across an edge — the image model adds them unasked — because the fill cannot remove
