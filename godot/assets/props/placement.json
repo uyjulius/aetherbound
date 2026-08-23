@@ -83,8 +83,8 @@
   },
   "stall": {
    "file": "stall.glb",
-   "scale": 1.6592,
-   "y": 0.6988,
+   "scale": 1.4673,
+   "y": 0.6906,
    "yaw": 1.5708,
    "fit": "width",
    "footprint": {
@@ -92,9 +92,9 @@
     "d": 1.2
    },
    "model": [
-    1.1905,
-    0.8425,
-    1.4465
+    1.1457,
+    1.0085,
+    1.6357
    ]
   },
   "well": {
@@ -147,8 +147,8 @@
   },
   "bush": {
    "file": "bush.glb",
-   "scale": 0.8643,
-   "y": -0.1005,
+   "scale": 1.3349,
+   "y": 0.7721,
    "yaw": 0,
    "fit": "width",
    "footprint": {
@@ -156,9 +156,9 @@
     "d": 3.019
    },
    "model": [
-    3.0857,
-    1.9601,
-    3.0857
+    1.9979,
+    1.3421,
+    1.9928
    ]
   },
   "rock": {
@@ -180,14 +180,14 @@
   "bridge": {
    "file": "bridge.glb",
    "scale": 1,
-   "y": 0.2755,
+   "y": 0.2729,
    "yaw": 0,
    "fit": "width",
    "footprint": null,
    "model": [
-    6.9381,
-    2.6175,
-    2.6376
+    1.0559,
+    0.532,
+    1.9885
    ]
   },
   "lamppost": {
@@ -224,8 +224,8 @@
   },
   "signpost": {
    "file": "signpost.glb",
-   "scale": 1.8407,
-   "y": -0.0311,
+   "scale": 0.956,
+   "y": 0.9538,
    "yaw": 0,
    "fit": "height",
    "footprint": {
@@ -233,9 +233,9 @@
     "d": 0.2
    },
    "model": [
-    0.5696,
-    1.0322,
-    0.5225
+    1.3468,
+    1.9875,
+    0.5244
    ]
   },
   "savepoint": {
@@ -253,8 +253,8 @@
   },
   "airshipmast": {
    "file": "airshipmast.glb",
-   "scale": 2.9467,
-   "y": -0.0245,
+   "scale": 6.0292,
+   "y": 6.0335,
    "yaw": 0,
    "fit": "height",
    "footprint": {
@@ -262,9 +262,9 @@
     "d": 3.2
    },
    "model": [
-    1.3041,
-    4.0723,
-    1.3041
+    0.5705,
+    1.9903,
+    0.5239
    ]
   },
   "airship": {
@@ -285,21 +285,21 @@
   "plaster": {
    "file": "building_plaster.glb",
    "model": [
-    3.7475,
-    4.6633,
-    2.7436
+    1.2643,
+    2.005,
+    1.3741
    ],
-   "base": -0.0011,
+   "base": -1.0057,
    "yaw": 0
   },
   "stone": {
    "file": "building_stone.glb",
    "model": [
-    4.7052,
-    5.6774,
-    4.3906
+    1.3497,
+    1.9991,
+    1.474
    ],
-   "base": -0.0134,
+   "base": -1.0087,
    "yaw": 0
   },
   "wood": {
@@ -388,7 +388,7 @@
    "kit": "bush",
    "file": "bush.glb",
    "scale": 1,
-   "y": 0.0405,
+   "y": 0.6858,
    "radius": 0,
    "standin": null
   },
@@ -403,8 +403,8 @@
   "reeds": {
    "kit": "bush",
    "file": "bush.glb",
-   "scale": 0.7142,
-   "y": 0.0289,
+   "scale": 1.0431,
+   "y": 0.7154,
    "radius": 0,
    "standin": "reeds are a bush at knee height"
   }
