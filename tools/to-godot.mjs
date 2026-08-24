@@ -147,8 +147,17 @@ function readCredits() {
   // fourteen were made here from their own concept views, and the crowd's nine are Quaternius's
   // CC0 models. Read separately, because collapsing them would credit a person for work this
   // project did and take credit for work it did not.
+  //
+  // Split at the crowd's heading rather than told apart by shape. Once the villagers were
+  // generated too, both tables became a title, a model file and a concept view — so the party's
+  // pattern matched the crowd's rows as well, and "the crowd is what the party pattern did not
+  // take" came out empty. Where a row *is* decides what it is; nothing else can.
   const cast = fs.readFileSync(path.join(root, 'assets', 'models', 'CREDITS.md'), 'utf8');
-  const partyRows = [...cast.matchAll(/^\| (.+?) \| `(\S+\.glb)` \| (\S+) \|$/gm)];
+  const crowdAt = cast.indexOf('## The crowd');
+  if (crowdAt < 0) throw new Error('assets/models/CREDITS.md: no crowd section');
+  const partyText = cast.slice(0, crowdAt);
+  const crowdText = cast.slice(crowdAt);
+  const partyRows = [...partyText.matchAll(/^\| (.+?) \| `(\S+\.glb)` \| (\S+) \|$/gm)];
   if (!partyRows.length) throw new Error('assets/models/CREDITS.md: no party rows matched');
   for (const [, name, , view] of partyRows) {
     entries.push({
@@ -156,13 +165,27 @@ function readCredits() {
       licence: 'generated', source: view,
     });
   }
-  const crowdRows = [...cast.matchAll(/^\| (?!Character model|---)(.+?) \| (https:\/\/\S+) \|$/gm)];
-  if (!crowdRows.length) throw new Error('assets/models/CREDITS.md: no crowd rows matched');
-  for (const [, title, source] of crowdRows) {
+  // The crowd, in whichever of two shapes its table is in. Bought, a row is a title and a
+  // poly.pizza URL; generated, it is a villager, a model file and the view it was drawn from —
+  // the same two shapes the bestiary went through, and for the same reason. The party's rows
+  // match the generated pattern too, so the crowd is what is left after taking them.
+  const boughtCrowd = [...crowdText.matchAll(
+    /^\| (?!Character model|---)(.+?) \| (https:\/\/\S+) \|$/gm)];
+  for (const [, title, source] of boughtCrowd) {
     entries.push({
       kind: 'crowd', what: '', title: title.trim(), author: 'Quaternius',
       licence: 'CC0 1.0', source,
     });
+  }
+  const grownCrowd = [...crowdText.matchAll(/^\| (.+?) \| `(\S+\.glb)` \| (\S+) \|$/gm)];
+  for (const [, title, , view] of grownCrowd) {
+    entries.push({
+      kind: 'crowd', what: '', title: title.trim(), author: 'generated for this game',
+      licence: 'generated', source: view,
+    });
+  }
+  if (!boughtCrowd.length && !grownCrowd.length) {
+    throw new Error('assets/models/CREDITS.md: no crowd rows matched, in either shape');
   }
 
   // The bestiary is read in whichever of two shapes its credits file is in, because the roster
