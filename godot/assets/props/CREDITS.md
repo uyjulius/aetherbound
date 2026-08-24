@@ -10,13 +10,18 @@ a model is CC-BY, saying so is also the licence.
 
 | Kit | Model | Author | Licence | Source |
 |---|---|---|---|---|
-| block | Stone Block | Quaternius | CC0 1.0 | https://poly.pizza/m/ZKvgpQwJiY |
-| floor | Floor Tile | Quaternius | CC0 1.0 | https://poly.pizza/m/6baBuVGcyD |
-| flowerbox | Bush | Quaternius | CC0 1.0 | https://poly.pizza/m/ZYHKojmtPW |
-| rock | Rock | Quaternius | CC0 1.0 | https://poly.pizza/m/34W5ymEePk |
-| savepoint | Big Crystal | Quaternius | CC0 1.0 | https://poly.pizza/m/pf5lzmgr2J |
-| tree | Tree | Quaternius | CC0 1.0 | https://poly.pizza/m/2paAm1ja4w |
-| wall | Wall Modular | Quaternius | CC0 1.0 | https://poly.pizza/m/itasw0GWNf |
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -46,6 +51,7 @@ reconstructed by Hunyuan3D-2.1, then cleaned, decimated and shrunk by the script
 | airshipmast | Column | generated for this game | generated | assets/concepts/airshipmast-front.png |
 | barrel | Barrel | generated for this game | generated | assets/concepts/barrel-front.png |
 | bench | Bench | generated for this game | generated | assets/concepts/bench-front.png |
+| block | Stone Block | generated for this game | generated | assets/concepts/block-front.png |
 | bridge | Small Bridge | generated for this game | generated | assets/concepts/bridge-front.png |
 | building_brick | Blacksmith | generated for this game | generated | assets/concepts/building_brick-front.png |
 | building_magitek | Building | generated for this game | generated | assets/concepts/building_magitek-front.png |
@@ -58,7 +64,13 @@ reconstructed by Hunyuan3D-2.1, then cleaned, decimated and shrunk by the script
 | chest | Chest Closed | generated for this game | generated | assets/concepts/chest-front.png |
 | crate | Cube Crate | generated for this game | generated | assets/concepts/crate-front.png |
 | fence | Fence | generated for this game | generated | assets/concepts/fence-front.png |
+| floor | Floor Tile | generated for this game | generated | assets/concepts/floor-front.png |
+| flowerbox | Bush | generated for this game | generated | assets/concepts/flowerbox-front.png |
 | lamppost | Hanging Lantern | generated for this game | generated | assets/concepts/lantern-front.jpg |
+| rock | Rock | generated for this game | generated | assets/concepts/rock-front.png |
+| savepoint | Big Crystal | generated for this game | generated | assets/concepts/savepoint-front.png |
 | signpost | Sign | generated for this game | generated | assets/concepts/signpost-front.png |
 | stall | Market Stand | generated for this game | generated | assets/concepts/stall-front.png |
+| tree | Tree | generated for this game | generated | assets/concepts/tree-front.png |
+| wall | Wall Modular | generated for this game | generated | assets/concepts/wall-front.png |
 | well | Village Well | generated for this game | generated | assets/concepts/well-front.png |

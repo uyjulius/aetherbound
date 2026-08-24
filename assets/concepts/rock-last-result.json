@@ -1,10 +1,10 @@
 [
  {
   "value": {
-   "path": "/tmp/gradio/5af09900302a3033b948c67cf3ce197c4ee56e44c18e368e1e76c66eb517e3db/white_mesh.glb",
-   "url": "https://tencent-hunyuan3d-2-1.hf.space/call/shape/file=/tmp/gradio/5af09900302a3033b948c67cf3ce197c4ee56e44c18e368e1e76c66eb517e3db/white_mesh.glb",
-   "size": 11506708,
-   "orig_name": "white_mesh.glb",
+   "path": "/tmp/gradio/cfecbec7493cd7aab006e54359f60ffd1f1cdee94b70c293c219341f75095e95/white_mesh.obj",
+   "url": "https://tencent-hunyuan3d-2-1.hf.space/call/gen/file=/tmp/gradio/cfecbec7493cd7aab006e54359f60ffd1f1cdee94b70c293c219341f75095e95/white_mesh.obj",
+   "size": 1465466,
+   "orig_name": "white_mesh.obj",
    "mime_type": null,
    "is_stream": false,
    "meta": {
@@ -13,7 +13,21 @@
   },
   "__type__": "update"
  },
- "\n        <div style='height: 650; width: 100%;'>\n        <iframe src=\"/static/90810ad6-568f-4492-b790-2bfaff57c1a7/white_mesh.html\" height=\"650\" width=\"100%\" frameborder=\"0\"></iframe>\n        </div>\n    ",
+ {
+  "value": {
+   "path": "/tmp/gradio/1119a69124df0aac44adfc721dda468f8bd7038035ce6565f3d8ab950f6f9249/textured_mesh.glb",
+   "url": "https://tencent-hunyuan3d-2-1.hf.space/call/gen/file=/tmp/gradio/1119a69124df0aac44adfc721dda468f8bd7038035ce6565f3d8ab950f6f9249/textured_mesh.glb",
+   "size": 5372552,
+   "orig_name": "textured_mesh.glb",
+   "mime_type": null,
+   "is_stream": false,
+   "meta": {
+    "_type": "gradio.FileData"
+   }
+  },
+  "__type__": "update"
+ },
+ "\n        <div style='height: 650; width: 100%;'>\n        <iframe src=\"/static/ae1115bb-3647-49e4-9225-6604d4e7b8d3/textured_mesh.html\" height=\"650\" width=\"100%\" frameborder=\"0\"></iframe>\n        </div>\n    ",
  {
   "model": {
    "shapegen": "tencent/Hunyuan3D-2.1/hunyuan3d-dit-v2-1",
@@ -25,16 +39,18 @@
    "guidance_scale": 5,
    "seed": 1234,
    "octree_resolution": 256,
-   "check_box_rembg": true,
+   "check_box_rembg": false,
    "num_chunks": 8000
   },
-  "number_of_faces": 639714,
-  "number_of_vertices": 319073,
+  "number_of_faces": 634316,
+  "number_of_vertices": 317150,
   "time": {
-   "remove background": 0.9179584980010986,
-   "shape generation": 16.595685720443726,
-   "export to trimesh": 0.1678159236907959,
-   "total": 17.68373680114746
+   "shape generation": 16.562382698059082,
+   "export to trimesh": 0.1839141845703125,
+   "face reduction": 8.242891311645508,
+   "texture generation": 78.15124082565308,
+   "convert textured OBJ to GLB": 0.9986462593078613,
+   "total": 104.17057275772095
   }
  },
  1234

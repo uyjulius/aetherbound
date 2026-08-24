@@ -140,7 +140,13 @@ def cut_backdrop(obj):
         span = sorted(spans[part.name])
         # A sheet: flat, and wide in the two axes it is not flat in. Both halves matter — "flat"
         # alone would take a cape, "wide" alone would take the whole body.
-        if (span[0] < 0.03 * biggest and span[1] > 0.35 * biggest
+        # Six percent, not three. Three was chosen when thinness was doing all the work, and it
+        # missed by a hair: a slime's two floor plates measured 5cm on a 1.68m model, which is
+        # 3.0%, and thirty-four percent of that creature shipped as ground. Now that a sheet
+        # must also fill the reconstruction box in both its large axes, the thinness test only
+        # has to say "plate rather than block", and it can afford to be generous — nothing real
+        # is two metres square, six centimetres thick, and exactly the size of the volume.
+        if (span[0] < 0.06 * biggest and span[1] > 0.35 * biggest
                 and _fills_the_volume(spans[part.name], biggest)):
             # Remember where it was. Everything else the backdrop left behind is lying in this
             # same plane, and that is the only thing those fragments have in common: they are

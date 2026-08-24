@@ -28,40 +28,40 @@ import { analytics, EV } from '../engine/analytics.js';
  */
 export const MONSTER_MODELS = {
   quadruped: [
-    { id: 'P1gU3Qkr9r', title: 'Wolf' }, { id: 'Bc97C66HKi', title: 'Fox' },
-    { id: 'a8PIIYwF7r', title: 'Bull' }, { id: 'wcWiuEqwzq', title: 'Husky' },
+    { id: 'quadruped_wolf', title: 'Wolf' }, { id: 'quadruped_fox', title: 'Fox' },
+    { id: 'quadruped_bull', title: 'Bull' }, { id: 'quadruped_husky', title: 'Husky' },
   ],
   humanoid: [
-    { id: 'OdCOFSmEhl', title: 'Goblin' }, { id: '22K0aSZkHV', title: 'Zombie' },
-    { id: 'KaVJET0WHx', title: 'Big Arm' }, { id: 'kttbFvCl2C', title: 'Wizard' },
+    { id: 'humanoid_goblin', title: 'Goblin' }, { id: 'humanoid_zombie', title: 'Zombie' },
+    { id: 'humanoid_bigarm', title: 'Big Arm' }, { id: 'humanoid_wizard', title: 'Wizard' },
   ],
   undead: [
-    { id: 'VlXjG0N8Eg', title: 'Zombie' }, { id: 'yq5ATpujSt', title: 'Skeleton' },
-    { id: 'DM4QScSmbS', title: 'Skeleton' }, { id: 'wODZYCgX5Z', title: 'Skeleton' },
+    { id: 'undead_zombie', title: 'Zombie' }, { id: 'undead_skeleton', title: 'Skeleton' },
+    { id: 'undead_skeleton2', title: 'Skeleton' }, { id: 'undead_skeleton3', title: 'Skeleton' },
   ],
   insect: [
-    { id: 'yRYJiAJyiM', title: 'Spider' }, { id: 'Gs3yfsV5lB', title: 'Crab' },
-    { id: '42djT5zJnx', title: 'Armabee' }, { id: 'GcttdvsqsQ', title: 'Armabee Evolved' },
+    { id: 'insect_spider', title: 'Spider' }, { id: 'insect_crab', title: 'Crab' },
+    { id: 'insect_armabee', title: 'Armabee' }, { id: 'insect_armabeeevolved', title: 'Armabee Evolved' },
   ],
   avian: [
-    { id: 'VBvzjFIYws', title: 'Dragon' }, { id: '3rUm1cN3yp', title: 'Dragon' },
-    { id: 'hNO9XvjlKa', title: 'Bat' }, { id: 'x59pqJscry', title: 'Glub' },
+    { id: 'avian_dragon', title: 'Dragon' }, { id: 'avian_dragon2', title: 'Dragon' },
+    { id: 'avian_bat', title: 'Bat' }, { id: 'avian_glub', title: 'Glub' },
   ],
   construct: [
-    { id: 'D5wW2jDO42', title: 'Mech' }, { id: 'QCm7qe9uNJ', title: 'Robot' },
-    { id: '1gNo5ezvmr', title: 'Robot Enemy' }, { id: 'mPDR0L5uKx', title: 'Robot Enemy Large' },
+    { id: 'construct_mech', title: 'Mech' }, { id: 'construct_robot', title: 'Robot' },
+    { id: 'construct_robotenemy', title: 'Robot Enemy' }, { id: 'construct_robotenemylarge', title: 'Robot Enemy Large' },
   ],
   plant: [
-    { id: 'grnFTziU8u', title: 'Mushroom King' }, { id: 'IGn9lhdama', title: 'Cactoro' },
-    { id: '66CYX5UhRK', title: 'Cactoro' }, { id: '9hQPBt759vL', title: 'Carnivore Plant' },
+    { id: 'plant_mushroomking', title: 'Mushroom King' }, { id: 'plant_cactoro', title: 'Cactoro' },
+    { id: 'plant_cactoro2', title: 'Cactoro' }, { id: 'plant_carnivoreplant', title: 'Carnivore Plant' },
   ],
   blob: [
-    { id: '6O6XUMssAW', title: 'Slime' }, { id: 'LyjSUKHKnh', title: 'Slime' },
-    { id: 'AyP8sQmDLh', title: 'Pink Slime' }, { id: 'eSLKTsbl7F', title: 'Slime Enemy' },
+    { id: 'blob_slime', title: 'Slime' }, { id: 'blob_slime2', title: 'Slime' },
+    { id: 'blob_pinkslime', title: 'Pink Slime' }, { id: 'blob_slimeenemy', title: 'Slime Enemy' },
   ],
   floater: [
-    { id: 'BR1vpIvvvv', title: 'Tentacle' }, { id: 'yzD8b7ZHZm', title: 'Manta Ray' },
-    { id: 'kzpT6fNmM5', title: 'Flying Enemy' }, { id: '7Jh8vsARfN', title: 'Blobfish' },
+    { id: 'floater_tentacle', title: 'Tentacle' }, { id: 'floater_mantaray', title: 'Manta Ray' },
+    { id: 'floater_flyingenemy', title: 'Flying Enemy' }, { id: 'floater_blobfish', title: 'Blobfish' },
   ],
 };
 

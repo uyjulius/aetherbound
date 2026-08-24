@@ -45,7 +45,15 @@ for (const id of ids) {
     trouble.push(`${id}: no model at ${path.relative(root, full)}`);
     continue;
   }
-  const concept = path.join('assets', 'concepts', `${id}-front.png`);
+  // The view this was made from, keeping whatever the manifest already records. The lamppost
+  // was generated before the catalogue existed and its view is `lantern-front.jpg` — a
+  // different name and a different extension — so looking only for `<id>-front.png` reported it
+  // as having no provenance at all, on a re-measure that was not about provenance.
+  const existing = String(manifest[id]?.source ?? '');
+  const concept = existing.startsWith('assets/concepts/')
+    && fs.existsSync(path.join(root, existing))
+    ? existing
+    : path.join('assets', 'concepts', `${id}-front.png`);
   if (!fs.existsSync(path.join(root, concept))) {
     // Without the concept there is nothing to point at, and an entry that claims to be
     // generated but cannot say from what is no better than the one it replaced.

@@ -51,8 +51,8 @@
   },
   "bench": {
    "file": "bench.glb",
-   "scale": 1.0425,
-   "y": 0.2277,
+   "scale": 1.0965,
+   "y": 0.2879,
    "yaw": 0,
    "fit": "width",
    "footprint": {
@@ -60,9 +60,9 @@
     "d": 0.507
    },
    "model": [
-    1.7266,
-    0.4419,
-    0.7093
+    1.6416,
+    0.5303,
+    0.5349
    ]
   },
   "cart": {
@@ -115,24 +115,24 @@
   },
   "fence": {
    "file": "fence.glb",
-   "scale": 3.0754,
-   "y": 1.4128,
-   "yaw": 1.5708,
+   "scale": 3.4592,
+   "y": 3.4606,
+   "yaw": 0,
    "fit": "width",
    "footprint": {
     "w": 6.12,
     "d": 0.12
    },
    "model": [
-    0.8038,
-    0.9097,
-    1.99
+    1.7692,
+    1.992,
+    0.2227
    ]
   },
   "flowerbox": {
    "file": "flowerbox.glb",
-   "scale": 0.6187,
-   "y": 0.0514,
+   "scale": 0.5875,
+   "y": 0.3986,
    "yaw": 0,
    "fit": "width",
    "footprint": {
@@ -140,9 +140,9 @@
     "d": 0.372
    },
    "model": [
-    1.8619,
-    1.5848,
-    0.6274
+    1.9609,
+    1.3236,
+    1.6378
    ]
   },
   "bush": {
@@ -163,8 +163,8 @@
   },
   "rock": {
    "file": "rock.glb",
-   "scale": 1.0889,
-   "y": -0.1004,
+   "scale": 1.7937,
+   "y": 1.2456,
    "yaw": 0,
    "fit": "width",
    "footprint": {
@@ -172,9 +172,9 @@
     "d": 3.742
    },
    "model": [
-    3.3024,
-    3.8322,
-    3.0119
+    2.0048,
+    1.812,
+    1.9759
    ]
   },
   "bridge": {
@@ -208,8 +208,8 @@
   },
   "tree": {
    "file": "tree.glb",
-   "scale": 2.4188,
-   "y": 0.1028,
+   "scale": 3.0026,
+   "y": 3.0443,
    "yaw": 0,
    "fit": "height",
    "footprint": {
@@ -217,9 +217,9 @@
     "d": 0.8
    },
    "model": [
-    1.8891,
-    2.4806,
-    2.7731
+    1.5172,
+    1.9983,
+    1.4598
    ]
   },
   "signpost": {
@@ -240,15 +240,15 @@
   },
   "savepoint": {
    "file": "savepoint.glb",
-   "scale": 1.3296,
-   "y": 0.0029,
+   "scale": 1.2869,
+   "y": 0.9283,
    "yaw": 0,
    "fit": "height",
    "footprint": null,
    "model": [
-    1.4758,
-    1.6546,
-    1.4819
+    0.5612,
+    1.7096,
+    0.5479
    ]
   },
   "airshipmast": {
@@ -347,40 +347,40 @@
   "forest": {
    "kit": "tree",
    "file": "tree.glb",
-   "scale": 2.8219,
-   "y": 0.1199,
+   "scale": 3.503,
+   "y": 3.5517,
    "radius": 0,
    "standin": null
   },
   "tree": {
    "kit": "tree",
    "file": "tree.glb",
-   "scale": 2.4188,
-   "y": 0.1028,
+   "scale": 3.0026,
+   "y": 3.0443,
    "radius": 0.6,
    "standin": null
   },
   "pine": {
    "kit": "tree",
    "file": "tree.glb",
-   "scale": 2.6203,
-   "y": 0.1114,
+   "scale": 3.2528,
+   "y": 3.298,
    "radius": 0,
    "standin": "no single pine in the catalogue"
   },
   "deadtree": {
    "kit": "tree",
    "file": "tree.glb",
-   "scale": 2.0156,
-   "y": 0.0857,
+   "scale": 2.5021,
+   "y": 2.5369,
    "radius": 0.5,
    "standin": "the dead trees come as a group of five"
   },
   "palm": {
    "kit": "tree",
    "file": "tree.glb",
-   "scale": 2.2172,
-   "y": 0.0942,
+   "scale": 2.7523,
+   "y": 2.7906,
    "radius": 0.5,
    "standin": "the palms come as a group of five"
   },
@@ -395,8 +395,8 @@
   "boulder": {
    "kit": "rock",
    "file": "rock.glb",
-   "scale": 0.5451,
-   "y": 0.2004,
+   "scale": 0.8978,
+   "y": 0.8187,
    "radius": 0.9,
    "standin": null
   },
@@ -492,25 +492,25 @@
   "floor": {
    "file": "block.glb",
    "model": [
-    2,
-    2,
-    2
+    1.9816,
+    1.8227,
+    1.9726
    ]
   },
   "wall": {
    "file": "block.glb",
    "model": [
-    2,
-    2,
-    2
+    1.9816,
+    1.8227,
+    1.9726
    ]
   },
   "paved": {
    "file": "floor.glb",
    "model": [
-    2.0048,
-    0.2503,
-    2.0006
+    1.9872,
+    0.2155,
+    1.9882
    ]
   }
  }

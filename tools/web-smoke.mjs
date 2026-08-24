@@ -1181,12 +1181,18 @@ if (field) {
   await toRow('Credits');
   await page.keyboard.press('Enter');
   for (let i = 0; i < 12 && !creditsLine; i++) await page.waitForTimeout(300);
+  // Every model is counted, and almost all of them are now this project's own. The check used
+  // to insist on at least one CC-BY credit, which was the right thing to insist on while the
+  // world was assembled from bought models — an attribution-required licence is an obligation,
+  // and a screen that silently dropped it would be a licence breach. It is not the right thing
+  // any more: the bestiary and the scenery are generated, the last bought model left with them,
+  // and the count went to zero. What has to hold is that nothing is *miscredited* — so the
+  // requirement is now that every model is accounted for as either somebody's or this game's.
+  const counted = (field) => Number(creditsLine?.match(new RegExp(`${field}=(\\d+)`))?.[1] ?? 0);
   check('the credits name who made the models',
-    Boolean(creditsLine) && Number(creditsLine.match(/models=(\d+)/)?.[1] ?? 0) > 40
-      && Number(creditsLine.match(/ccby=(\d+)/)?.[1] ?? 0) > 0
-      // And say which are this project's own. Sixteen of them are, and a credits screen that
-      // called them somebody else's would be worse than no credits screen.
-      && Number(creditsLine.match(/made=(\d+)/)?.[1] ?? 0) > 0,
+    Boolean(creditsLine) && counted('models') > 40
+      && counted('made') + counted('ccby') > 0
+      && counted('made') <= counted('models'),
     creditsLine ?? 'no CREDITS line');
   const creditsShot = path.join(root, '.renders',
     remote ? 'godot-web-credits-live.png' : 'godot-web-credits.png');
@@ -1210,6 +1216,19 @@ check('the analytics stay out of the test suite',
 // batch is decoded here to prove it carries real events for the right project.
 {
   const posted = [];
+  // The main page goes first. Everything above is finished with it, and leaving it open costs
+  // this check the thing it needs: two Godot instances in one browser means two WebGL contexts
+  // and two copies of a hundred-megabyte pack, and Chromium starves or drops one of them. The
+  // probe booted far enough to print its readiness line and then ran no frames at all — no
+  // flush, no post, and a check that read as "the instrumentation is broken" when it was the
+  // browser that had run out of room. It passed until the world became generated and the build
+  // doubled; the check did not change, the weight did.
+  const shot = path.join(root, '.renders',
+    remote ? 'godot-web-title-live.png' : 'godot-web-title.png');
+  fs.mkdirSync(path.dirname(shot), { recursive: true });
+  await page.screenshot({ path: shot });
+  console.log(`\n  screenshot ${path.relative(root, shot)}`);
+  await page.close();
   const probe = await browser.newPage({ viewport: { width: 900, height: 600 } });
   // In front, because a background tab in Chromium gets no animation frames — and a Godot build
   // runs its whole main loop on them. On CI the probe booted far enough to print its readiness
@@ -1268,12 +1287,6 @@ check('nothing 404s', badResponses.length === 0, badResponses.slice(0, 3).join('
 check('no console errors', errors.length === 0, errors.slice(0, 3).join(' | '));
 check('no engine warnings', warnings.length === 0,
   warnings.slice(0, 3).map((w) => w.replace(/^WARNING:\s*/, '')).join(' | '));
-
-const shot = path.join(root, '.renders',
-  remote ? 'godot-web-title-live.png' : 'godot-web-title.png');
-fs.mkdirSync(path.dirname(shot), { recursive: true });
-await page.screenshot({ path: shot });
-console.log(`\n  screenshot ${path.relative(root, shot)}`);
 
 await browser.close();
 server?.close();

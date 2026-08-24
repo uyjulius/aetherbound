@@ -38,8 +38,17 @@ while true; do
       out=godot/assets/props/$id.glb
       [ -f $out ] && [ $out -nt $raw ] && continue
       python3 tools/fix_glb.py $raw > $G/ship-$id.log 2>&1
+      # The kits that are meant to lie flat. The reconstruction follows the orientation of the
+      # view it was given, and a paving slab drawn from above comes back standing on its edge —
+      # two metres wide, two metres tall and twenty-two centimetres thick, laid across the
+      # ground of every town. Only the floor: the stone block measures 1.98 x 1.82 x 1.97 and
+      # is a cube, which has no flat way up to find.
+      case $id in
+        floor) flat=(--lay-flat) ;;
+        *) flat=() ;;
+      esac
       $BLENDER -b -noaudio --python tools/blender/prop_shipping.py -- \
-        --raw $raw --out $out --faces 3000 >> $G/ship-$id.log 2>&1
+        --raw $raw --out $out --faces 3000 $flat >> $G/ship-$id.log 2>&1
       if [ -f $out ]; then
         python3 tools/shrink_glb.py $out --max 1024 >> $G/ship-$id.log 2>&1
         node tools/mark-generated.mjs $id >> $G/ship-$id.log 2>&1

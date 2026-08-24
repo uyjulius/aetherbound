@@ -20,7 +20,7 @@
     "export:godot": "node tools/to-godot.mjs",
     "export:web": "node tools/export-web.mjs",
     "smoke:web": "node tools/web-smoke.mjs",
-    "port": "node tools/parity.mjs && node tools/data-parity.mjs && node tools/ai-parity.mjs && node tools/rng-parity.mjs && node tools/glue-parity.mjs && node tools/growth-parity.mjs && node tools/commands-parity.mjs && node tools/field-parity.mjs && node tools/danger-parity.mjs && node tools/analytics-parity.mjs && node tools/battle-parity.mjs && node tools/events-parity.mjs && node tools/effects-parity.mjs && node tools/saves-parity.mjs && node tools/audio-parity.mjs && node tools/scenery-parity.mjs && node tools/models-parity.mjs && node tools/cast-parity.mjs",
+    "port": "node tools/parity.mjs && node tools/data-parity.mjs && node tools/ai-parity.mjs && node tools/rng-parity.mjs && node tools/glue-parity.mjs && node tools/growth-parity.mjs && node tools/commands-parity.mjs && node tools/field-parity.mjs && node tools/danger-parity.mjs && node tools/analytics-parity.mjs && node tools/battle-parity.mjs && node tools/events-parity.mjs && node tools/effects-parity.mjs && node tools/saves-parity.mjs && node tools/audio-parity.mjs && node tools/scenery-parity.mjs && node tools/models-parity.mjs && node tools/cast-parity.mjs && node tools/bestiary-parity.mjs",
     "start": "npm run textures && npm run build && npm run serve",
     "balance": "node tools/balance.mjs",
     "harvest": "node tools/harvest-reference.mjs",
