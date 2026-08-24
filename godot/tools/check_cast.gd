@@ -33,6 +33,14 @@ const HANGING := ["idle", "walk", "battleIdle", "hurt"]
 func _initialize() -> void:
 	var characters: Dictionary = _read("res://data/characters.json")
 	var ids: Array = characters.keys()
+	# And the villagers, who are checked for exactly the same things and were checked for none of
+	# them: six of them shipped, rigged and animated, and this said "14 characters" — because it
+	# reads the character table, and a villager is not in it. They come off the same rigger with
+	# the same skeleton and the same eight clips, so every failure this file exists to catch can
+	# happen to them too.
+	for file in DirAccess.get_files_at(MODELS):
+		if file.begins_with("villager_") and file.ends_with(".glb"):
+			ids.append(file.trim_suffix(".glb"))
 	ids.sort()
 	var report := {}
 	var trouble: Array = []
