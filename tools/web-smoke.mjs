@@ -68,6 +68,29 @@ const check = (name, ok, detail = '') => {
   console.log(`[${ok ? '  ok  ' : ' FAIL '}] ${name}${detail ? `  — ${detail}` : ''}`);
 };
 
+/**
+ * A picture, if one can be had. Never a verdict.
+ *
+ * A screenshot forces a frame, and on a two-core runner with a hundred-megabyte pack that took
+ * longer than Playwright's two-minute ceiling — so a build whose seventy-one checks had all
+ * passed failed on a diagnostic. Screenshots are here to be looked at when something is wrong;
+ * they are not the thing being tested, and they must not be able to fail the run.
+ *
+ * A minute each, which is a compromise found by trying. At thirty seconds two of the sixteen
+ * were lost on this machine, and losing the picture is a real cost — every reconstruction
+ * failure this project has found was found by looking at one.
+ */
+const capture = async (target, file) => {
+  fs.mkdirSync(path.dirname(file), { recursive: true });
+  try {
+    await target.screenshot({ path: file, timeout: 60_000 });
+    return true;
+  } catch (err) {
+    console.log(`  (no screenshot ${path.basename(file)}: ${String(err.message).split('\n')[0]})`);
+    return false;
+  }
+};
+
 if (!remote && !fs.existsSync(path.join(dir, 'index.html'))) {
   console.log(`[ FAIL ] no export in ${path.relative(root, dir)} — run node tools/export-web.mjs`);
   process.exit(1);
@@ -394,7 +417,7 @@ if (ready) {
   const shot = path.join(root, '.renders',
     remote ? 'godot-web-field-live.png' : 'godot-web-field.png');
   fs.mkdirSync(path.dirname(shot), { recursive: true });
-  await page.screenshot({ path: shot });
+  await capture(page, shot);
 
   // And into a scene. The scripted scenes are the largest part of the port and the
   // only way to know they *play* — rather than merely producing the right transcript
@@ -410,7 +433,7 @@ if (ready) {
     await page.waitForTimeout(1200);
     const sceneShot = path.join(root, '.renders',
       remote ? 'godot-web-scene-live.png' : 'godot-web-scene.png');
-    await page.screenshot({ path: sceneShot });
+    await capture(page, sceneShot);
     // Then the pages, turned with confirm, until the scene ends.
     for (let i = 0; i < 12 && !sceneEnded; i++) {
       await page.keyboard.press('Enter');
@@ -494,7 +517,7 @@ if (ready) {
           : `menus were ${turns.slice(0, 3).join(' / ')}`);
       const battleShot = path.join(root, '.renders',
         remote ? 'godot-web-battle-live.png' : 'godot-web-battle.png');
-      await page.screenshot({ path: battleShot });
+      await capture(page, battleShot);
       // Attack with whoever is ready, until somebody wins. Two confirms per turn: the
       // command, then the target.
       for (let i = 0; i < 80 && !battleEnded; i++) {
@@ -573,16 +596,16 @@ if (ready) {
       check('the menu sees the party bag', Boolean(bag) && Number(bag[1]) > 0,
         menuOpened);
       await page.waitForTimeout(400);
-      await page.screenshot({ path: path.join(root, '.renders',
-        remote ? 'godot-web-menu-live.png' : 'godot-web-menu.png') });
+      await capture(page, path.join(root, '.renders',
+        remote ? 'godot-web-menu-live.png' : 'godot-web-menu.png'));
       // Items, Magic, Equip: down twice, then in through the character list to the
       // weapon slot.
       for (const key of ['ArrowDown', 'ArrowDown', 'Enter', 'Enter', 'Enter']) {
         await page.keyboard.press(key);
         await page.waitForTimeout(260);
       }
-      await page.screenshot({ path: path.join(root, '.renders',
-        remote ? 'godot-web-equip-live.png' : 'godot-web-equip.png') });
+      await capture(page, path.join(root, '.renders',
+        remote ? 'godot-web-equip-live.png' : 'godot-web-equip.png'));
       // '(remove)' is the first row, so this takes the weapon off...
       await page.keyboard.press('Enter');
       await page.waitForTimeout(400);
@@ -633,8 +656,8 @@ if (ready) {
         await page.waitForTimeout(140);
       }
       await page.waitForTimeout(250);
-      await page.screenshot({ path: path.join(root, '.renders',
-        remote ? 'godot-web-shop-live.png' : 'godot-web-shop.png') });
+      await capture(page, path.join(root, '.renders',
+        remote ? 'godot-web-shop-live.png' : 'godot-web-shop.png'));
       await page.keyboard.press('KeyV');
       await page.waitForTimeout(500);
       // The three answers, from the starting kit and the cast's equip lists: the robe is
@@ -716,8 +739,8 @@ if (ready) {
       mapEntered ?? 'no MAP_ENTERED after sixty steps');
     if (mapEntered) {
       await page.waitForTimeout(600);
-      await page.screenshot({ path: path.join(root, '.renders',
-        remote ? 'godot-web-travel-live.png' : 'godot-web-travel.png') });
+      await capture(page, path.join(root, '.renders',
+        remote ? 'godot-web-travel-live.png' : 'godot-web-travel.png'));
     }
   }
 }
@@ -736,8 +759,8 @@ if (field) {
   check('the menu offers a Save row', foundSave, menuOpened ?? 'no MENU_OPEN line');
   await page.keyboard.press('Enter');   // into the slot list
   await page.waitForTimeout(400);
-  await page.screenshot({ path: path.join(root, '.renders',
-    remote ? 'godot-web-save-live.png' : 'godot-web-save.png') });
+  await capture(page, path.join(root, '.renders',
+    remote ? 'godot-web-save-live.png' : 'godot-web-save.png'));
   await page.keyboard.press('Enter');   // slot 1
   await page.waitForTimeout(600);
   check('the menu writes a save', written.some((line) => /slot=0 /.test(line)),
@@ -829,8 +852,8 @@ if (field) {
         + `${expected.position.x},${expected.position.z}` : 'no RESUMED line in 30s');
     if (resumed) {
       await page.waitForTimeout(800);
-      await page.screenshot({ path: path.join(root, '.renders',
-        remote ? 'godot-web-ruin-live.png' : 'godot-web-ruin.png') });
+      await capture(page, path.join(root, '.renders',
+        remote ? 'godot-web-ruin-live.png' : 'godot-web-ruin.png'));
     }
   }
 }
@@ -853,8 +876,8 @@ if (field) {
     await page.keyboard.press(key);
     await page.waitForTimeout(220);
   }
-  await page.screenshot({ path: path.join(root, '.renders',
-    remote ? 'godot-web-config-live.png' : 'godot-web-config.png') });
+  await capture(page, path.join(root, '.renders',
+    remote ? 'godot-web-config-live.png' : 'godot-web-config.png'));
   // Three presses, and the volume has to have actually moved and come back part way —
   // a settings screen that draws a number without changing anything is the usual failure.
   const volumes = configured.filter((line) => line.includes('musicVolume='))
@@ -875,8 +898,8 @@ if (field) {
   }
   await page.keyboard.press('Enter');
   await page.waitForTimeout(500);
-  await page.screenshot({ path: path.join(root, '.renders',
-    remote ? 'godot-web-bestiary-live.png' : 'godot-web-bestiary.png') });
+  await capture(page, path.join(root, '.renders',
+    remote ? 'godot-web-bestiary-live.png' : 'godot-web-bestiary.png'));
   // Backing out puts the cursor at the top of the root list, so each screen below is
   // "N rows down": Items, Magic, Equip, Status, Espers, Formation, Bestiary, Journal.
   await page.keyboard.press('Escape');
@@ -887,8 +910,8 @@ if (field) {
   }
   await page.keyboard.press('Enter');
   await page.waitForTimeout(500);
-  await page.screenshot({ path: path.join(root, '.renders',
-    remote ? 'godot-web-journal-live.png' : 'godot-web-journal.png') });
+  await capture(page, path.join(root, '.renders',
+    remote ? 'godot-web-journal-live.png' : 'godot-web-journal.png'));
   const deepClosed = await closeMenu();
   check('the menu closes from a deep screen', deepClosed,
     menuClosed ?? 'no MENU_CLOSED after eight cancels');
@@ -1077,8 +1100,8 @@ if (field) {
     await page.waitForTimeout(300);
   }
   check('and put it down again', Boolean(landed), landed ?? 'no LANDED line');
-  await page.screenshot({ path: path.join(root, '.renders',
-    remote ? 'godot-web-airship-live.png' : 'godot-web-airship.png') });
+  await capture(page, path.join(root, '.renders',
+    remote ? 'godot-web-airship-live.png' : 'godot-web-airship.png'));
   await clearField();
 }
 
@@ -1164,8 +1187,8 @@ if (field) {
   check('opening every map raises nothing',
     errors.length === errorsBefore && warnings.length === warningsBefore,
     [...errors.slice(errorsBefore), ...warnings.slice(warningsBefore)].slice(0, 3).join(' | '));
-  await page.screenshot({ path: path.join(root, '.renders',
-    remote ? 'godot-web-lastmap-live.png' : 'godot-web-lastmap.png') });
+  await capture(page, path.join(root, '.renders',
+    remote ? 'godot-web-lastmap-live.png' : 'godot-web-lastmap.png'));
 }
 
 // The instrumentation is loaded and *off*, which is the only state this suite may see. Rule
@@ -1196,7 +1219,7 @@ if (field) {
     creditsLine ?? 'no CREDITS line');
   const creditsShot = path.join(root, '.renders',
     remote ? 'godot-web-credits-live.png' : 'godot-web-credits.png');
-  await page.screenshot({ path: creditsShot });
+  await capture(page, creditsShot);
   await closeMenu();
 }
 
@@ -1226,7 +1249,7 @@ check('the analytics stay out of the test suite',
   const shot = path.join(root, '.renders',
     remote ? 'godot-web-title-live.png' : 'godot-web-title.png');
   fs.mkdirSync(path.dirname(shot), { recursive: true });
-  await page.screenshot({ path: shot });
+  await capture(page, shot);
   console.log(`\n  screenshot ${path.relative(root, shot)}`);
   await page.close();
   const probe = await browser.newPage({ viewport: { width: 900, height: 600 } });
