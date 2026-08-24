@@ -12,6 +12,9 @@
  * Props are the kits the world actually places, which is the props manifest's own keys.
  * Creatures are named for the roster entry each one replaces, by the same rule
  * `genconcept.mjs --bestiary` used to draw them and `adopt-bestiary.mjs` uses to find them.
+ * The crowd is the nine models every townsperson who is not in the party is drawn as — read
+ * from the drawn catalogue rather than from `CROWD`, because `CROWD` still names the bought
+ * models until the generated ones exist to replace them.
  */
 
 import fs from 'node:fs';
@@ -35,11 +38,21 @@ for (const [plan, entries] of Object.entries(MONSTER_MODELS)) {
   }
 }
 
+// The villagers, by the names `genconcept.mjs --crowd` draws them under. Taken from the views
+// on disk so this file needs no second copy of the list.
+const crowd = fs.readdirSync(path.join(root, 'assets', 'concepts'))
+  .filter((name) => /^villager_[a-z]+-front\.png$/.test(name))
+  .map((name) => name.replace('-front.png', ''))
+  .sort();
+
 const only = process.argv.includes('--props') ? 'props'
-  : process.argv.includes('--creatures') ? 'creatures' : null;
+  : process.argv.includes('--creatures') ? 'creatures'
+    : process.argv.includes('--crowd') ? 'crowd' : null;
 if (only === 'props') console.log(props.join('\n'));
 else if (only === 'creatures') console.log(creatures.join('\n'));
+else if (only === 'crowd') console.log(crowd.join('\n'));
 else {
   for (const id of props) console.log(`prop ${id}`);
   for (const id of creatures) console.log(`creature ${id}`);
+  for (const id of crowd) console.log(`crowd ${id}`);
 }

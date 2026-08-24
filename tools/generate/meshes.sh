@@ -22,11 +22,11 @@ while true; do
   while read -r kind id; do
     raw=godot/assets/models/raw/$id.glb
     concept=assets/concepts/$id-front.png
-    if [ "$kind" = "creature" ]; then
-      shipped=assets/monsters/$id.glb
-    else
-      shipped=godot/assets/props/$id.glb
-    fi
+    case $kind in
+      creature) shipped=assets/monsters/$id.glb ;;
+      crowd)    shipped=assets/models/$id.glb ;;
+      *)        shipped=godot/assets/props/$id.glb ;;
+    esac
     [ -f $concept ] || continue
     [ -f $raw ] && [ $raw -nt $concept ] && continue
     # No reconstruction at all, but something already shipped: the well was generated before

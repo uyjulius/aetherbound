@@ -281,6 +281,53 @@ function promptForCreature(id, entry) {
 }
 
 /** The catalogue, built from the table rather than typed out. */
+/**
+ * The crowd: nine villagers, so a town's people are this game's own too.
+ *
+ * They are not the party and must not read as it. Fourteen named characters have their looks
+ * from the character table; these nine are the other three hundred people in the world, picked
+ * by a hash of their appearance, and a villager who is Vesna in a different coat is worse than
+ * a villager who is one of nine. So the prompts describe *types* — a miller, a fisherwoman —
+ * with no crest, no armour and no weapon, and nothing a player would read as a hero.
+ *
+ * Same T-pose as the cast, because they share the cast's skeleton and its eight clips.
+ */
+const CROWD = {
+  villager_miller: 'a stocky middle-aged miller in a flour-dusted apron over a linen shirt, '
+    + 'rolled sleeves, plain trousers, worn leather shoes',
+  villager_fisherwoman: 'a weathered fisherwoman in an oiled canvas smock and knee boots, '
+    + 'hair tied back under a headscarf',
+  villager_smith: 'a broad blacksmith in a scorched leather apron over a sleeveless tunic, '
+    + 'heavy gloves at the belt, no hammer in hand',
+  villager_child: 'a small child in a patched wool tunic and bare feet, unkempt hair',
+  villager_elder: 'a stooped elderly villager in a long plain robe and a shawl, leaning on '
+    + 'nothing, white hair',
+  villager_farmhand: 'a young farmhand in a rough shirt and braces, trousers tucked into '
+    + 'muddy boots, a straw hat pushed back',
+  villager_weaver: 'a slight weaver in a simple dyed dress with an apron of coloured thread, '
+    + 'sleeves pinned',
+  villager_baker: 'a round baker in a white apron over a plain shirt, cloth cap, sleeves '
+    + 'rolled to the elbow',
+  villager_carter: 'a lean carter in a travel-worn coat and gaiters, a cap and a scarf, '
+    + 'nothing carried',
+};
+
+
+function promptForCrowd(id) {
+  const subject = CROWD[id];
+  if (!subject) return null;
+  return [
+    'stylised 3D game character reference, a single', subject + ';',
+    'an ordinary townsperson in a worn medieval world, no armour, no weapon, no crest;',
+    'believable fabrics with visible weave and wear, physically based materials,',
+    'clean readable silhouette, even soft studio lighting, sharp focus,',
+    'the whole figure in frame and complete,',
+    T_POSE + ';',
+    GROUND,
+  ].join(' ').replace(/\s+/g, ' ').trim();
+}
+
+
 function bestiary() {
   const table = JSON.parse(fs.readFileSync(
     path.join(root, 'godot', 'data', 'monster_models.json'), 'utf8'));
@@ -347,9 +394,10 @@ const named = args.filter((a, i) => !a.startsWith('--') && args[i - 1] !== '--at
 
 const world = args.includes('--world');
 const creatures = args.includes('--bestiary');
+const crowd = args.includes('--crowd');
 const characters = JSON.parse(fs.readFileSync(
   path.join(root, 'godot', 'data', 'characters.json'), 'utf8'));
-const subjects = creatures ? bestiary() : world ? WORLD : characters;
+const subjects = creatures ? bestiary() : crowd ? CROWD : world ? WORLD : characters;
 const conceptDir = path.join(root, 'assets', 'concepts');
 fs.mkdirSync(conceptDir, { recursive: true });
 
@@ -380,7 +428,8 @@ for (const id of wanted) {
     continue;
   }
   const prompt = creatures ? promptForCreature(id, subjects[id])
-    : world ? promptForWorld(id) : promptFor(characters[id]);
+    : crowd ? promptForCrowd(id)
+      : world ? promptForWorld(id) : promptFor(characters[id]);
   // Seeded from the name, so a regeneration of one character is the same character.
   //
   // Which is a problem when the first draw came back unusable. Three bestiary views arrived

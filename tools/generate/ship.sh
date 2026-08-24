@@ -21,14 +21,29 @@ while true; do
     raw=godot/assets/models/raw/$id.glb
     [ -f $raw ] || continue
     plan=${id%%_*}
-    if [ "$kind" = "creature" ]; then
+    if [ "$kind" = "crowd" ]; then
+      # Villagers are characters: they share the cast's skeleton and its eight clips, so they
+      # go through the character rigger and land in `assets/models` beside the party.
+      out=assets/models/$id.glb
+      [ -f $out ] && [ $out -nt $raw ] && continue
+      python3 tools/fix_glb.py $raw > $G/ship-$id.log 2>&1
+      $BLENDER -b -noaudio --python tools/blender/rig_character.py -- \
+        --raw $raw --out $out --height 1.66 --faces 8000 >> $G/ship-$id.log 2>&1
+      if [ -f $out ]; then
+        python3 tools/shrink_glb.py $out --max 512 >> $G/ship-$id.log 2>&1
+        echo "$(date +%H:%M) crowd $id $(ls -la $out | awk '{printf "%.2fMB", $5/1048576}')"
+        shipped=1
+      else
+        echo "$(date +%H:%M) crowd $id FAILED: $(grep -E 'Error|SystemExit' $G/ship-$id.log | tail -1 | cut -c1-90)"
+      fi
+    elif [ "$kind" = "creature" ]; then
       out=assets/monsters/$id.glb
       [ -f $out ] && [ $out -nt $raw ] && continue
       python3 tools/fix_glb.py $raw > $G/ship-$id.log 2>&1
       $BLENDER -b -noaudio --python tools/blender/rig_creature.py -- \
         --raw $raw --out $out --plan $plan --height 1.6 --faces 4000 >> $G/ship-$id.log 2>&1
       if [ -f $out ]; then
-        python3 tools/shrink_glb.py $out --max 1024 >> $G/ship-$id.log 2>&1
+        python3 tools/shrink_glb.py $out --max 512 >> $G/ship-$id.log 2>&1
         echo "$(date +%H:%M) creature $id $(ls -la $out | awk '{printf "%.2fMB", $5/1048576}')"
         shipped=1
       else
@@ -50,7 +65,7 @@ while true; do
       $BLENDER -b -noaudio --python tools/blender/prop_shipping.py -- \
         --raw $raw --out $out --faces 3000 $flat >> $G/ship-$id.log 2>&1
       if [ -f $out ]; then
-        python3 tools/shrink_glb.py $out --max 1024 >> $G/ship-$id.log 2>&1
+        python3 tools/shrink_glb.py $out --max 512 >> $G/ship-$id.log 2>&1
         node tools/mark-generated.mjs $id >> $G/ship-$id.log 2>&1
         echo "$(date +%H:%M) prop $id $(ls -la $out | awk '{printf "%.2fMB", $5/1048576}')"
         shipped=1
