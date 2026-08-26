@@ -71,5 +71,9 @@ if (trouble.length) {
   for (const line of trouble) say(`  ${line}`);
   process.exit(1);
 }
-say(`\x1b[32mOK\x1b[0m — ${names.length} characters, ${names.length * 8} clips, and every one of`);
+// Summed rather than assumed. The party carries eight clips and a villager carries ten —
+// they also sit and work — so a fixed multiplier would have quietly reported the wrong
+// total the moment the two families stopped being the same shape.
+const clipCount = names.reduce((n, name) => n + (cast[name].clips ?? 0), 0);
+say(`\x1b[32mOK\x1b[0m — ${names.length} characters, ${clipCount} clips, and every one of`);
 say('   them moves and stands on its own two feet.');

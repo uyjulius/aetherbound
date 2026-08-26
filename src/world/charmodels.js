@@ -24,10 +24,15 @@ import { toonMaterial } from '../fx/materials.js';
  * `tools/genconcept.mjs`, `tools/genmesh.mjs` and `tools/blender/rig_character.py`; the concept
  * views they were made from are in `assets/concepts/`.
  *
- * Under them is the crowd: nine models from poly.pizza that every NPC in the world is picked
- * from by a hash of their appearance. They stay because a villager should not be one of the
- * party wearing a different hat, and because a table of two hundred named villagers is not a
- * thing anybody should author.
+ * Under them is the crowd: nine villagers that every NPC in the world is picked from by a hash
+ * of their appearance. They were nine models from poly.pizza until the generator could draw a
+ * townsperson, and they are this game's own now — described as trades rather than as people,
+ * off the same rigger and the same skeleton as the party, with two clips the party has no use
+ * for: a villager also sits and works.
+ *
+ * The party is deliberately not in the pool, because a villager should not be one of the party
+ * wearing a different hat — and a table of two hundred named villagers is not a thing anybody
+ * should author.
  */
 export const CHARACTER_MODELS = {
   // --- the party, generated for this game ---------------------------------
@@ -46,45 +51,45 @@ export const CHARACTER_MODELS = {
   wick:      { file: 'wick.glb', title: 'Wick' },
   themask:   { file: 'themask.glb', title: 'The Mask' },
 
-  // --- the crowd, from poly.pizza under CC-BY -----------------------------
-  cubeguy:   { file: 'K1IczhnvQ5.glb', title: 'Cube Guy Character' },
-  cubewoman: { file: '75ikp7NEDx.glb', title: 'Cube Woman Character' },
-  panda:     { file: 'q1uJ28Hs8T.glb', title: 'Panda' },
-  mako:      { file: '2urczqZ9Xf.glb', title: 'Mako' },
-  rabbit:    { file: 'mKev485XTR.glb', title: 'Rabbit' },
-  rabbitblond: { file: 'cMsI6FDhNx.glb', title: 'Rabbit Blond' },
-  rabbitcyan:  { file: 'RPZ9gxcFL3.glb', title: 'Rabbit Cyan Hair' },
-  rabbitpig:   { file: 'SwKX8OIlw8.glb', title: 'Rabbit With pigtails' },
-  rabbitgrey:  { file: 'KRnXIKJbqp.glb', title: 'Rabbit Grey' },
+  // --- the crowd, generated for this game -----------------------------------
+  villager_baker:       { file: 'villager_baker.glb', title: 'Baker' },
+  villager_carter:      { file: 'villager_carter.glb', title: 'Carter' },
+  villager_child:       { file: 'villager_child.glb', title: 'Child' },
+  villager_elder:       { file: 'villager_elder.glb', title: 'Elder' },
+  villager_farmhand:    { file: 'villager_farmhand.glb', title: 'Farmhand' },
+  villager_fisherwoman: { file: 'villager_fisherwoman.glb', title: 'Fisherwoman' },
+  villager_miller:      { file: 'villager_miller.glb', title: 'Miller' },
+  villager_smith:       { file: 'villager_smith.glb', title: 'Smith' },
+  villager_weaver:      { file: 'villager_weaver.glb', title: 'Weaver' },
 };
 
 /**
  * Who an NPC may be drawn as. The party is deliberately not in here.
  */
-export const CROWD = ['cubeguy', 'cubewoman', 'panda', 'mako', 'rabbit',
-  'rabbitblond', 'rabbitcyan', 'rabbitpig', 'rabbitgrey'];
+export const CROWD = ['villager_baker', 'villager_carter', 'villager_child', 'villager_elder',
+  'villager_farmhand', 'villager_fisherwoman', 'villager_miller', 'villager_smith',
+  'villager_weaver'];
 
 /**
- * Game clip → the animation the artist actually authored.
+ * A clip the game asks for → the nearest clip the cast actually carries.
  *
- * The pack names clips for a third-person action game, so a few need
- * reinterpreting: a spellcast borrows the affirmative gesture, and sitting
- * borrows the crouch. Everything here resolves to real keyframes; nothing
- * falls back to a computed pose.
+ * This was the translation into Quaternius's vocabulary while the crowd came from their pack:
+ * `attack` was Punch, `cast` was the affirmative gesture, `sit` was the crouch. Nothing in the
+ * game comes from that pack any more, so every one of those names now names nothing — and a
+ * map whose every entry misses is indistinguishable from no map at all, except that it reads
+ * like it is doing something.
+ *
+ * What is left is the verbs no model authors. The party carries eight clips and a villager
+ * ten; these two are neither, and asking for one is a request to be drawn as the closest
+ * thing that exists rather than a mistake to be caught.
  */
 export const CLIP_MAP = {
-  idle: 'Idle',
-  loiter: 'Idle',
-  walk: 'Walk',
-  run: 'Run',
-  battleIdle: 'Idle_Hold',
-  attack: 'Punch',
-  cast: 'Yes',
-  hurt: 'HitReact',
-  victory: 'Wave',
-  dead: 'Death',
-  sit: 'Duck',
-  work: 'Idle_Attack',
+  // A party member closes the distance before swinging (`battle/view.js`), and there is no run
+  // in the cast's vocabulary. Walking is the point of the fallback — idling, which is what the
+  // dead `Run` entry resolved to, slides them across the floor with their arms at their sides.
+  run: 'walk',
+  // Standing about is what idle already is.
+  loiter: 'idle',
 };
 
 /** Clips that play once and hold, rather than looping. */

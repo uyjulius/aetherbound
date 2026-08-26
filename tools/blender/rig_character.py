@@ -47,6 +47,10 @@ def parse_args() -> argparse.Namespace:
     ap.add_argument("--out", required=True)
     ap.add_argument("--height", type=float, default=1.66)
     ap.add_argument("--faces", type=int, default=12000)
+    # The crowd only. A villager also sits and works — 222 of the 324 NPC placements in
+    # the maps ask for one of those two — and the party does neither.
+    ap.add_argument("--villager", action="store_true",
+                    help="also author the crowd's sit and work clips")
     return ap.parse_args(argv_after_ddash())
 
 
@@ -174,11 +178,16 @@ def main() -> int:
             "This is the heat-weighting failure; proximity weighting should "
             "have caught it.")
 
-    made = rigging.author_animations(rig, clips=ab_clips.CLIPS)
+    wanted = ab_clips.VILLAGER_CLIPS if args.villager else ab_clips.CLIPS
+    made = rigging.author_animations(rig, clips=wanted)
     print(f"[rig] {len(made)} clips: " + ", ".join(name for name, _loop, _end in made))
 
-    missing = {"idle", "walk", "battleIdle", "attack", "cast", "hurt", "dead", "victory"} \
-        - {name for name, _l, _e in made}
+    # Named literally rather than taken from `wanted`, so that a clip renamed by accident in
+    # clips.py is a failure here instead of a vocabulary the game never asked for.
+    required = {"idle", "walk", "battleIdle", "attack", "cast", "hurt", "dead", "victory"}
+    if args.villager:
+        required |= {"sit", "work"}
+    missing = required - {name for name, _l, _e in made}
     if missing:
         raise SystemExit(f"clips the game asks for by name are missing: {sorted(missing)}")
 
@@ -198,7 +207,7 @@ def main() -> int:
         # Blender's exporter drops a channel that holds one value for the whole clip, on the
         # reasonable-sounding grounds that it carries no animation. What such a channel carries
         # is a *pose*, and a bone with no track sits wherever the rest pose put it — which for
-        # these meshes is a T-pose. None of the eight clips here holds a bone perfectly still,
+        # these meshes is a T-pose. None of the clips here holds a bone perfectly still,
         # so nothing is lost today; this is a guard against the clip that eventually does.
         export_optimize_animation_size=False,
         export_skins=True,

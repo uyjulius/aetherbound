@@ -32,31 +32,27 @@ where it came from is a file nobody can check.
 | Wick | `wick.glb` | assets/concepts/wick-front.png |
 | The Mask | `themask.glb` | assets/concepts/themask-front.png |
 
-## The crowd: by Quaternius, CC0
+## The crowd: generated for this game
 
-Every NPC in the world is drawn as one of nine models by **Quaternius**,
-released **CC0** (public domain) and obtained through
-[poly.pizza](https://poly.pizza). The party is deliberately not in that pool: a
-villager who is Vesna in a different coat is worse than a villager who is one of
-nine.
+Every townsperson who is not one of the fourteen is drawn as one of these nine.
+They are described as *types* rather than as people — a miller, a fisherwoman, a
+child — with no crest, no armour and no weapon, because a villager who reads as
+a hero is worse than one who reads as a villager. They come off the same rigger
+as the party and share its skeleton, with two clips the party has no use for: a
+townsperson also sits and works, and the maps ask for one of those in 222 of
+their 324 NPC placements.
 
-CC0 imposes no attribution requirement. This section exists because using
-somebody's work without saying so is a poor way to behave, not because a licence
-compels it.
+Which one a person gets is a hash of their own appearance, so the same villager
+is always the same villager, and the party is deliberately not in the pool.
 
-| Character model | Source |
-|---|---|
-| Cube Guy Character | https://poly.pizza/m/K1IczhnvQ5 |
-| Cube Woman Character | https://poly.pizza/m/75ikp7NEDx |
-| Panda | https://poly.pizza/m/q1uJ28Hs8T |
-| Mako | https://poly.pizza/m/2urczqZ9Xf |
-| Rabbit | https://poly.pizza/m/mKev485XTR |
-| Rabbit Blond | https://poly.pizza/m/cMsI6FDhNx |
-| Rabbit Cyan Hair | https://poly.pizza/m/RPZ9gxcFL3 |
-| Rabbit With pigtails | https://poly.pizza/m/SwKX8OIlw8 |
-| Rabbit Grey | https://poly.pizza/m/KRnXIKJbqp |
-
-The clips inside the crowd's files are the artist's own — Idle, Walk, Run,
-Punch, HitReact, Death, Wave, Duck and the rest — and the game maps its own clip
-names onto them in `src/world/charmodels.js`. It does not generate motion for
-either family.
+| Villager | Model | Concept view |
+|---|---|---|
+| Baker | `villager_baker.glb` | assets/concepts/villager_baker-front.png |
+| Carter | `villager_carter.glb` | assets/concepts/villager_carter-front.png |
+| Child | `villager_child.glb` | assets/concepts/villager_child-front.png |
+| Elder | `villager_elder.glb` | assets/concepts/villager_elder-front.png |
+| Farmhand | `villager_farmhand.glb` | assets/concepts/villager_farmhand-front.png |
+| Fisherwoman | `villager_fisherwoman.glb` | assets/concepts/villager_fisherwoman-front.png |
+| Miller | `villager_miller.glb` | assets/concepts/villager_miller-front.png |
+| Smith | `villager_smith.glb` | assets/concepts/villager_smith-front.png |
+| Weaver | `villager_weaver.glb` | assets/concepts/villager_weaver-front.png |

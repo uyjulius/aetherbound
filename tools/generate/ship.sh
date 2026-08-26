@@ -22,13 +22,15 @@ while true; do
     [ -f $raw ] || continue
     plan=${id%%_*}
     if [ "$kind" = "crowd" ]; then
-      # Villagers are characters: they share the cast's skeleton and its eight clips, so they
-      # go through the character rigger and land in `assets/models` beside the party.
+      # Villagers are characters: they share the cast's skeleton, so they go through the
+      # character rigger and land in `assets/models` beside the party. `--villager` adds the
+      # two clips the party has no use for — a townsperson sits and works, and the maps ask
+      # for one of those in 222 of their 324 NPC placements.
       out=assets/models/$id.glb
       [ -f $out ] && [ $out -nt $raw ] && continue
       python3 tools/fix_glb.py $raw > $G/ship-$id.log 2>&1
       $BLENDER -b -noaudio --python tools/blender/rig_character.py -- \
-        --raw $raw --out $out --height 1.66 --faces 8000 >> $G/ship-$id.log 2>&1
+        --raw $raw --out $out --height 1.66 --faces 8000 --villager >> $G/ship-$id.log 2>&1
       if [ -f $out ]; then
         python3 tools/shrink_glb.py $out --max 512 >> $G/ship-$id.log 2>&1
         echo "$(date +%H:%M) crowd $id $(ls -la $out | awk '{printf "%.2fMB", $5/1048576}')"

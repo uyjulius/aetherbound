@@ -18,6 +18,11 @@ extends SceneTree
 ## moment the game tells them to act.
 const CLIPS := ["idle", "walk", "battleIdle", "attack", "cast", "hurt", "dead", "victory"]
 
+## And the two a townsperson has on top of them. The maps place NPCs with `work` 168 times and
+## `sit` 54 times — 222 of 324 placements — so these are not decoration either: a villager
+## missing one stands idle in a town where the map said they were working.
+const CROWD_CLIPS := ["sit", "work"]
+
 ## Where the cast lives inside the Godot project. `assets/models` is the *generated* directory —
 ## raw meshes and one-off spikes — and the shipped cast is synced into `assets/cast` by
 ## `tools/sync-models.mjs`, which is the copy the game loads.
@@ -77,7 +82,7 @@ func _initialize() -> void:
 		var scarecrow: Array = []
 		var smallest := 1e9
 		var lowest_drop := 1e9
-		for clip in CLIPS:
+		for clip in (CLIPS + CROWD_CLIPS if id.begins_with("villager_") else CLIPS):
 			if not player.has_animation(clip):
 				missing.append(clip)
 				continue

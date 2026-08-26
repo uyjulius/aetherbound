@@ -4,7 +4,7 @@
  *   node tools/adopt-crowd.mjs            # check and rewrite
  *   node tools/adopt-crowd.mjs --prune    # …and delete the models nothing refers to
  *
- * The nine entries in `CROWD` are Quaternius's, and every townsperson who is not one of the
+ * The nine entries in `CROWD` were Quaternius's, and every townsperson who is not one of the
  * fourteen named characters is drawn as one of them. That was the last bought thing in the
  * world.
  *
@@ -101,8 +101,10 @@ credits = `${credits.slice(0, crowdStart)}## The crowd: generated for this game
 Every townsperson who is not one of the fourteen is drawn as one of these nine.
 They are described as *types* rather than as people — a miller, a fisherwoman, a
 child — with no crest, no armour and no weapon, because a villager who reads as
-a hero is worse than one who reads as a villager. They share the party's
-skeleton and its eight clips.
+a hero is worse than one who reads as a villager. They come off the same rigger
+as the party and share its skeleton, with two clips the party has no use for: a
+townsperson also sits and works, and the maps ask for one of those in 222 of
+their 324 NPC placements.
 
 Which one a person gets is a hash of their own appearance, so the same villager
 is always the same villager, and the party is deliberately not in the pool.

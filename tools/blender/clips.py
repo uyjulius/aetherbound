@@ -169,3 +169,73 @@ CLIPS = {
             "spine": (9, 0, 0), "chest": (11, 0, 0), "head": (-11, 0, 0)})),
     ]),
 }
+
+
+# The crowd's two extra verbs.
+#
+# The party has eight clips because a party member idles, walks, fights and dies. A
+# townsperson does something else for a living, and the maps say so: across the ninety-five
+# maps, NPCs are placed with `work` 168 times and `sit` 54 times — 222 of 324 placements.
+#
+# While the crowd was Quaternius's these borrowed from the pack: `sit` played Duck and `work`
+# played Idle_Attack. Generated villagers share the party's skeleton and the party's eight
+# clips, so both would have fallen through `_action`'s chain to `idle` and two-thirds of every
+# town would have stood perfectly still. Nothing would have failed; the towns would just have
+# been dead.
+#
+# They are not added to the party. Nothing in the game asks a party member to sit or to work,
+# and fourteen proven meshes are not worth rewriting for a clip nobody plays.
+VILLAGER_CLIPS = {
+    **CLIPS,
+
+    # Settled rather than standing: knees folded, weight down, torso upright, hands forward on
+    # the knees.
+    #
+    # Not a chair-height sit, and it cannot be one. The rig has no translation channels, so the
+    # pelvis stays over the feet, and the game plants every model by its lowest point — a
+    # character posed as though on a bench would be planted sitting on the floor instead. The
+    # pack's `Duck`, which `sit` used to borrow, was the same shape for the same reason. At the
+    # distance a town is played from, what carries is that this person is down and the one next
+    # to them is standing.
+    "sit": (True, [
+        (0, base(legs(106, -98, 103, -96) | {
+            "hips": (-6, 0, 0), "spine": (7, 0, 0), "chest": (3, 0, 0), "head": (3, 0, 0),
+            "upper_arm.L": (ARM_DOWN + 40, 0, 8), "forearm.L": (-64, 0, 16),
+            "upper_arm.R": (ARM_DOWN + 40, 0, -8), "forearm.R": (-64, 0, -16)})),
+        (50, base(legs(106, -98, 103, -96) | {
+            "hips": (-6, 0, 0), "spine": (4, 0, 0), "chest": (1, 0, 0), "head": (1, 0, 0),
+            "upper_arm.L": (ARM_DOWN + 44, 0, 8), "forearm.L": (-70, 0, 16),
+            "upper_arm.R": (ARM_DOWN + 44, 0, -8), "forearm.R": (-70, 0, -16)})),
+        (100, base(legs(106, -98, 103, -96) | {
+            "hips": (-6, 0, 0), "spine": (7, 0, 0), "chest": (3, 0, 0), "head": (3, 0, 0),
+            "upper_arm.L": (ARM_DOWN + 40, 0, 8), "forearm.L": (-64, 0, 16),
+            "upper_arm.R": (ARM_DOWN + 40, 0, -8), "forearm.R": (-64, 0, -16)})),
+    ]),
+
+    # Working: bent to the task, both hands in front, a two-beat stroke. Deliberately not any
+    # one trade — the same clip has to read as a smith at an anvil, a weaver at a loom and a
+    # baker at a board, because which villager a person is drawn as is a hash of their
+    # appearance and not of what the map says they are doing.
+    #
+    # Positive X on the spine is flexion and negative is extension: the first draft of this had
+    # the sign the other way round and the smith worked with his head thrown back, staring at
+    # the sky. `dead` is the one to read for the convention — it falls backwards on hips -84.
+    "work": (True, [
+        (0, base(legs(6, -14, -4, -12) | {
+            "spine": (26, 0, 0), "chest": (13, 0, 0), "head": (10, 0, 0),
+            "upper_arm.L": (ARM_DOWN + 52, 0, 12), "forearm.L": (-62, 0, 18),
+            "upper_arm.R": (ARM_DOWN + 56, 0, -12), "forearm.R": (-58, 0, -18)})),
+        (12, base(legs(6, -14, -4, -12) | {
+            "spine": (34, 0, 0), "chest": (17, 0, 0), "head": (14, 0, 0),
+            "upper_arm.L": (ARM_DOWN + 30, 0, 12), "forearm.L": (-82, 0, 18),
+            "upper_arm.R": (ARM_DOWN + 32, 0, -12), "forearm.R": (-78, 0, -18)})),
+        (24, base(legs(6, -14, -4, -12) | {
+            "spine": (29, 0, 0), "chest": (14, 0, 0), "head": (11, 0, 0),
+            "upper_arm.L": (ARM_DOWN + 44, 0, 12), "forearm.L": (-70, 0, 18),
+            "upper_arm.R": (ARM_DOWN + 47, 0, -12), "forearm.R": (-66, 0, -18)})),
+        (36, base(legs(6, -14, -4, -12) | {
+            "spine": (26, 0, 0), "chest": (13, 0, 0), "head": (10, 0, 0),
+            "upper_arm.L": (ARM_DOWN + 52, 0, 12), "forearm.L": (-62, 0, 18),
+            "upper_arm.R": (ARM_DOWN + 56, 0, -12), "forearm.R": (-58, 0, -18)})),
+    ]),
+}
