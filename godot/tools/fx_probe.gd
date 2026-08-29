@@ -10,6 +10,7 @@ extends SceneTree
 ## integrator and asks whether the particles moved.
 
 const ParticleField := preload("res://scripts/fx/particles.gd")
+const Effects := preload("res://scripts/fx/effects.gd")
 
 var _failures: Array = []
 var _skips: Array = []
@@ -32,6 +33,7 @@ func _initialize() -> void:
 	_integrator()
 	_emitters()
 	_drawing()
+	_mesh_effects()
 
 	# Printed unconditionally, before the pass/fail branch below, so a skip is visible whether
 	# or not anything else failed — a skip line missing from green output is as bad as one
@@ -257,6 +259,53 @@ func _drawing() -> void:
 		_check("instance colour is uploaded", c.r > 0.5, "r %f" % c.r)
 
 	field.detach()
+	host.queue_free()
+
+
+## The mesh effects. Each is checked for the one property that makes it that effect and not a
+## coloured blob: a circle lies flat, a pillar is tall, a bolt spans the gap it was given.
+func _mesh_effects() -> void:
+	var host := Node3D.new()
+	get_root().add_child(host)
+
+	var circle := Effects.magic_circle(host, Vector3(0.0, 1.0, 0.0), Color(0.2, 0.8, 0.9), 1.6)
+	_check("a magic circle is built", circle != null and circle.get_child_count() > 0,
+		"children %d" % (circle.get_child_count() if circle != null else -1))
+	# Laid flat on the ground. Upright, it is a coloured hoop standing in front of the caster.
+	_check("and lies flat",
+		absf(circle.rotation.x + PI / 2.0) < 0.001, "rotation.x %f" % circle.rotation.x)
+
+	var pillar := Effects.light_pillar(host, Vector3.ZERO, Color(1, 0.95, 0.7), 0.9, 9.0)
+	_check("a light pillar is tall", pillar.scale.y > pillar.scale.x * 4.0,
+		"scale %s" % pillar.scale)
+
+	# A bolt is a chain of segments spanning from A to B. One segment, or a chain that stops
+	# short, is the failure — and both draw something.
+	var from := Vector3(0.0, 14.0, 0.0)
+	var to := Vector3(0.0, 1.0, 0.0)
+	var bolt := Effects.lightning_bolt(host, from, to, Color(1, 0.9, 0.4), 9, 0.7)
+	_check("a bolt is a chain", bolt.get_child_count() == 9,
+		"segments %d" % bolt.get_child_count())
+	var lowest := 1e9
+	var highest := -1e9
+	for child in bolt.get_children():
+		lowest = minf(lowest, (child as Node3D).position.y)
+		highest = maxf(highest, (child as Node3D).position.y)
+	_check("and spans the gap it was given",
+		lowest < to.y + 2.0 and highest > from.y - 2.0,
+		"y %f..%f for %f..%f" % [lowest, highest, to.y, from.y])
+
+	# Opacity is driven by every effect that fades. A setter that silently does nothing is a
+	# spell whose circle never fades out.
+	Effects.set_opacity(circle, 0.25)
+	var first := circle.get_child(0) as MeshInstance3D
+	var mat := first.get_surface_override_material(0) as StandardMaterial3D
+	_check("opacity reaches the material",
+		mat != null and absf(mat.albedo_color.a - 0.25) < 0.001,
+		"alpha %f" % (mat.albedo_color.a if mat != null else -1.0))
+
+	Effects.dispose_effect(circle)
+	Effects.dispose_effect(bolt)
 	host.queue_free()
 
 
