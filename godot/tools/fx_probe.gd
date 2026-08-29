@@ -210,14 +210,14 @@ func _drawing() -> void:
 	# `visible_instance_count`, `mesh` and existence are plain resource fields, not routed
 	# through that stub, so they read back correctly under headless and stay real checks below.
 	#
-	# The two checks that need the buffer readback are skipped, loudly, only under headless —
-	# run this same probe under a real renderer and they run for real, e.g.:
-	#   godot --path godot --display-driver macos --rendering-driver opengl3 \
-	#       --script res://tools/fx_probe.gd
-	# and pixel-level coverage lives in tools/render_spells.gd, which needs a real window anyway.
+	# The two checks that need the buffer readback only run under a real rendering driver —
+	# locally, or in Task 10's render_spells.gd — and neither runs in CI. That leaves one gap
+	# in CI: `_upload` running but writing nothing into the per-instance buffers. "it draws the
+	# live range" below still catches `_upload` never running at all, and the browser smoke
+	# check catches particles failing to appear on screen.
 	var headless := DisplayServer.get_name() == "headless"
-	var skip_reason := ("MultiMesh per-instance buffers are a no-op under the dummy " +
-		"rendering driver; covered by tools/render_spells.gd")
+	var skip_reason := ("only runs under a real rendering driver, e.g. " +
+		"godot --path godot --display-driver macos --rendering-driver opengl3")
 
 	# Typed explicitly: an untyped `field` makes `field.multimesh` a Variant, and `var mm :=
 	# field.multimesh` below can't infer a static type from that — same trap as
