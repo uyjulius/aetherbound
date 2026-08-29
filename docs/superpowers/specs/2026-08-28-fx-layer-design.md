@@ -5,7 +5,7 @@
 ## What this covers
 
 `src/fx/` — 1,897 lines across four modules, and the last unported system in the
-game. Particles and the eleven spell effects, the toon material chain, and the
+game. Particles and the twelve spell effects, the toon material chain, and the
 post-processing composite.
 
 It is the port's own bug class, one more time. Nineteen parity harnesses pass.
@@ -14,7 +14,7 @@ thing: one `OmniLight3D` at nine energy, faded over 200ms
 (`battle_view.gd:1053`), with a number over it. Fire, Blizzard, Bolt, Holy and
 Shadow are distinguishable only by the colour of the light.
 
-The reference authored eleven **distinct silhouettes of motion** on purpose, and
+The reference authored twelve **distinct silhouettes of motion** on purpose, and
 said why: *"In a turn-based game the player watches these thousands of times, so
 the read has to be instant and the shape has to carry the information."* Fire
 billows and rises. Ice gathers, hangs, then shatters outward — the pause is the
@@ -66,7 +66,7 @@ path is what the browser check exercises.
 |---|---|---|
 | Particle field | `godot/scripts/fx/particles.gd` | Pooled CPU integrator + five emitters |
 | Mesh effects | `godot/scripts/fx/effects.gd` | Five builders, additive |
-| Spell effects | `godot/scripts/fx/spellfx.gd` | Eleven element coroutines |
+| Spell effects | `godot/scripts/fx/spellfx.gd` | Twelve effect coroutines |
 | Materials | `godot/scripts/fx/materials.gd` | Toon, foliage, water, aether, rim |
 | Post chain | `godot/scripts/fx/postfx.gd` | Composite quad, twelve grades |
 | Shaders | `godot/shaders/*.gdshader` | Six; the project has none today |
@@ -162,7 +162,7 @@ matched. It compares *effects*, against a live field:
 - particles actually spawn, and the pool drains back to zero
 - a burst's mean radius from the origin **grows**; an implode's **shrinks**
 - no two elements produce the same **signature** — the tuple of peak particle
-  count, total lifetime, mean end-radius and mean colour. Eleven effects that
+  count, total lifetime, mean end-radius and mean colour. Twelve effects that
   differ only in colour would pass every other check on this list, and that is
   precisely the failure being guarded against
 - the twelve grades produce twelve different framebuffers
@@ -191,7 +191,7 @@ Measuring it is part of phase 1, not a thing discovered in phase 4.
 ## Order
 
 1. `particles.gd`, `effects.gd`, `fx_probe.gd`, and the measurement
-2. `spellfx.gd` — eleven elements — `fx-parity.mjs`, and the battle timing change
+2. `spellfx.gd` — twelve effects — `fx-parity.mjs`, and the battle timing change
 3. `materials.gd` and its shaders, into `scenery.gd` and `cast_models.gd`
 4. `postfx.gd` and the grades; wire `grade()` and `stage_class()`; rewrite the
    two comments that say this chain was dropped on purpose
