@@ -34,6 +34,7 @@ func _initialize() -> void:
 	_emitters()
 	_drawing()
 	_mesh_effects()
+	_cost()
 
 	# Printed unconditionally, before the pass/fail branch below, so a skip is visible whether
 	# or not anything else failed — a skip line missing from green output is as bad as one
@@ -306,6 +307,31 @@ func _mesh_effects() -> void:
 
 	Effects.dispose_effect(circle)
 	Effects.dispose_effect(bolt)
+	host.queue_free()
+
+
+## What a full pool costs to integrate. Not a pass/fail — a number, printed, so the decision
+## about the web pool size is made against a measurement rather than a worry.
+func _cost() -> void:
+	var field = ParticleField.new()
+	var host := Node3D.new()
+	get_root().add_child(host)
+	field.attach(host)
+	# Fill it: twelve bursts of 250 is the pool, and a heavy spell is several emitters at once.
+	for i in 12:
+		field.burst(Vector3(0.0, 1.0, 0.0), 250, 6.0, 1.0, 60.0, 0.5,
+			Color(1, 0.6, 0.2), Color(0.4, 0.1, 0.0), 0.0, 1.2, 0.0, 1.5)
+
+	var frames := 120
+	var started := Time.get_ticks_usec()
+	for i in frames:
+		field.update(1.0 / 60.0)
+	var elapsed := Time.get_ticks_usec() - started
+
+	var per_frame := float(elapsed) / float(frames) / 1000.0
+	print("FX_COST particles=%d ms_per_frame=%.3f budget_pct=%.1f" % [
+		field.count, per_frame, per_frame / 16.667 * 100.0])
+	field.detach()
 	host.queue_free()
 
 
