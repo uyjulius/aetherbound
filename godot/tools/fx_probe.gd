@@ -12,6 +12,7 @@ extends SceneTree
 const ParticleField := preload("res://scripts/fx/particles.gd")
 
 var _failures: Array = []
+var _skips: Array = []
 var _checked := 0
 
 func _check(name: String, ok: bool, detail := "") -> void:
@@ -20,13 +21,29 @@ func _check(name: String, ok: bool, detail := "") -> void:
 		_failures.append("%s — %s" % [name, detail])
 
 
+## A check that cannot run in this process, as opposed to one that ran and failed. Recorded
+## separately from `_failures` so a skip never reads as a pass (silent) or a bug (FX_FAIL) —
+## see `_drawing()` for the one place this fires.
+func _skip(name: String, reason: String) -> void:
+	_skips.append("%s — %s" % [name, reason])
+
+
 func _initialize() -> void:
 	_integrator()
 	_emitters()
 	_drawing()
 
+	# Printed unconditionally, before the pass/fail branch below, so a skip is visible whether
+	# or not anything else failed — a skip line missing from green output is as bad as one
+	# missing from red output.
+	for line in _skips:
+		print("FX_SKIP %s" % line)
+
 	if _failures.is_empty():
-		print("FX_OK %d checks" % _checked)
+		if _skips.is_empty():
+			print("FX_OK %d checks" % _checked)
+		else:
+			print("FX_OK %d checks, %d skipped (headless)" % [_checked, _skips.size()])
 		quit(0)
 	else:
 		for line in _failures:
@@ -185,6 +202,23 @@ func _emitters() -> void:
 ## visible-instance range never updated, a MultiMesh never given a mesh. All three look
 ## exactly like a working effect from inside the integrator.
 func _drawing() -> void:
+	# `set_instance_transform`/`set_instance_color`/`get_instance_*` round-trip through the
+	# RenderingServer's per-instance MultiMesh buffer, and Godot's "headless" display driver
+	# backs that with a dummy storage implementation that is a genuine no-op: writes land
+	# nowhere, so every read comes back zeroed regardless of what this script asked for.
+	# Confirmed with a standalone MultiMesh with no particle code involved — not a bug here.
+	# `visible_instance_count`, `mesh` and existence are plain resource fields, not routed
+	# through that stub, so they read back correctly under headless and stay real checks below.
+	#
+	# The two checks that need the buffer readback are skipped, loudly, only under headless —
+	# run this same probe under a real renderer and they run for real, e.g.:
+	#   godot --path godot --display-driver macos --rendering-driver opengl3 \
+	#       --script res://tools/fx_probe.gd
+	# and pixel-level coverage lives in tools/render_spells.gd, which needs a real window anyway.
+	var headless := DisplayServer.get_name() == "headless"
+	var skip_reason := ("MultiMesh per-instance buffers are a no-op under the dummy " +
+		"rendering driver; covered by tools/render_spells.gd")
+
 	# Typed explicitly: an untyped `field` makes `field.multimesh` a Variant, and `var mm :=
 	# field.multimesh` below can't infer a static type from that — same trap as
 	# `Callable.call()` returning Variant, just triggered here instead of at export time.
@@ -207,14 +241,20 @@ func _drawing() -> void:
 
 	# The transform of instance 0 must actually be where particle 0 is. A MultiMesh whose
 	# transforms are never written draws forty particles in a heap at the origin.
-	var xf := mm.get_instance_transform(0)
-	var p := Vector3(field.positions[0], field.positions[1], field.positions[2])
-	_check("instance transforms follow the particles",
-		xf.origin.distance_to(p) < 0.0001, "%s vs %s" % [xf.origin, p])
+	if headless:
+		_skip("instance transforms follow the particles", skip_reason)
+	else:
+		var xf := mm.get_instance_transform(0)
+		var p := Vector3(field.positions[0], field.positions[1], field.positions[2])
+		_check("instance transforms follow the particles",
+			xf.origin.distance_to(p) < 0.0001, "%s vs %s" % [xf.origin, p])
 
 	# And the colour is the lerped one, not the spawn colour.
-	var c := mm.get_instance_color(0)
-	_check("instance colour is uploaded", c.r > 0.5, "r %f" % c.r)
+	if headless:
+		_skip("instance colour is uploaded", skip_reason)
+	else:
+		var c := mm.get_instance_color(0)
+		_check("instance colour is uploaded", c.r > 0.5, "r %f" % c.r)
 
 	field.detach()
 	host.queue_free()
