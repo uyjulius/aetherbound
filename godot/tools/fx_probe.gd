@@ -135,14 +135,41 @@ func _emitters() -> void:
 	_check("a column rises", _mean_y(up) > y_before + 0.1,
 		"%f -> %f" % [y_before, _mean_y(up)])
 
-	# A streak lies along the line it was given, not scattered around either end.
+	# A streak lies along the line it was given, not scattered around it or clustered at one
+	# end. The line runs diagonally so no axis is trivially zero at both endpoints — a line
+	# from (0,0,0) to (10,0,0) shares z == 0 with every point on it, so "|z| < 0.001" would
+	# pass even for particles bunched at t=0 or a broken t computation. Two things are worth
+	# asserting, and they are independent: nearness (particles sit close to the line) and
+	# spread (particles are distributed along its length, not clumped).
+	var streak_from := Vector3.ZERO
+	var streak_to := Vector3(6.0, 3.0, 9.0)
 	var trail = ParticleField.new()
-	trail.streak(Vector3.ZERO, Vector3(10.0, 0.0, 0.0), 26, 1.0, 0.4,
-		Color(1, 1, 1), Color(1, 1, 1), 0.0, 0.0)
-	var off_axis := 0.0
+	trail.streak(streak_from, streak_to)
+	var seg := streak_to - streak_from
+	var seg_len := seg.length()
+	var dir := seg / seg_len
+	var max_dist := 0.0
+	var min_t := INF
+	var max_t := -INF
 	for i in trail.count:
-		off_axis = maxf(off_axis, absf(trail.positions[i * 3 + 2]))
-	_check("a streak follows its line", off_axis < 0.001, "max |z| %f" % off_axis)
+		var p := Vector3(trail.positions[i * 3], trail.positions[i * 3 + 1],
+			trail.positions[i * 3 + 2])
+		var proj := (p - streak_from).dot(dir)
+		max_dist = maxf(max_dist, p.distance_to(streak_from + dir * proj))
+		var t := proj / seg_len
+		min_t = minf(min_t, t)
+		max_t = maxf(max_t, t)
+	# Nearness: the default jitter is 0.25, applied independently on x/y/z, so the worst-case
+	# offset from the line is at most 0.125 per axis — magnitude sqrt(3 * 0.125^2) ~= 0.2165.
+	# 0.3 leaves headroom without hiding a real bug.
+	_check("a streak stays near its line", max_dist < 0.3, "max distance %f" % max_dist)
+	# Spread: the emitter lays particles at t = i / count for i in 0..count-1, so with the
+	# default count of 26 the projections should span from 0 to 25/26 of the segment. 0.15 of
+	# slack at each end allows for jitter without letting a clustered or broken t pass.
+	var expected_max_t := float(trail.count - 1) / float(trail.count)
+	_check("a streak spreads along its line",
+		min_t < 0.15 and max_t > expected_max_t - 0.15,
+		"t range %f -> %f (expected up to %f)" % [min_t, max_t, expected_max_t])
 
 	# And the pool refuses to overflow rather than growing without bound.
 	var flooded = ParticleField.new()
