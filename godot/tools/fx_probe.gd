@@ -23,6 +23,7 @@ func _check(name: String, ok: bool, detail := "") -> void:
 func _initialize() -> void:
 	_integrator()
 	_emitters()
+	_drawing()
 
 	if _failures.is_empty():
 		print("FX_OK %d checks" % _checked)
@@ -178,6 +179,45 @@ func _emitters() -> void:
 			Color(1, 1, 1), Color(1, 1, 1), 0.0, 0.0, 0.0, 0.0)
 	_check("the pool has a ceiling", flooded.count == ParticleField.MAX_PARTICLES,
 		"count %d" % flooded.count)
+
+
+## Drawing. The pool can be perfect and draw nothing — an instance count left at zero, a
+## visible-instance range never updated, a MultiMesh never given a mesh. All three look
+## exactly like a working effect from inside the integrator.
+func _drawing() -> void:
+	# Typed explicitly: an untyped `field` makes `field.multimesh` a Variant, and `var mm :=
+	# field.multimesh` below can't infer a static type from that — same trap as
+	# `Callable.call()` returning Variant, just triggered here instead of at export time.
+	var field: ParticleField = ParticleField.new()
+	var host := Node3D.new()
+	get_root().add_child(host)
+	field.attach(host)
+
+	field.burst(Vector3(0.0, 1.0, 0.0), 40, 6.0, 1.0, 1.0, 0.5,
+		Color(1, 0.5, 0.2), Color(1, 0, 0), 0.0, 0.0, 0.0, 0.0)
+	field.update(0.05)
+
+	var mm := field.multimesh
+	_check("the field has a multimesh", mm != null, "null multimesh")
+	if mm == null:
+		return
+	_check("it has a mesh to instance", mm.mesh != null, "null mesh")
+	_check("it draws the live range", mm.visible_instance_count == field.count,
+		"visible %d live %d" % [mm.visible_instance_count, field.count])
+
+	# The transform of instance 0 must actually be where particle 0 is. A MultiMesh whose
+	# transforms are never written draws forty particles in a heap at the origin.
+	var xf := mm.get_instance_transform(0)
+	var p := Vector3(field.positions[0], field.positions[1], field.positions[2])
+	_check("instance transforms follow the particles",
+		xf.origin.distance_to(p) < 0.0001, "%s vs %s" % [xf.origin, p])
+
+	# And the colour is the lerped one, not the spawn colour.
+	var c := mm.get_instance_color(0)
+	_check("instance colour is uploaded", c.r > 0.5, "r %f" % c.r)
+
+	field.detach()
+	host.queue_free()
 
 
 func _mean_radius(field, origin: Vector3) -> float:

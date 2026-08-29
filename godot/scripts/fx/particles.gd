@@ -20,8 +20,12 @@ extends RefCounted
 ## the port where it is.
 
 const MAX_PARTICLES := 3000
+const SHADER := preload("res://shaders/particle.gdshader")
 
 var count := 0
+
+var multimesh: MultiMesh
+var _instance: MultiMeshInstance3D
 
 var positions := PackedFloat32Array()
 var colors := PackedFloat32Array()
@@ -61,6 +65,42 @@ func _init() -> void:
 ## cannot tell exponential drag from linear.
 func velocity_x(i: int) -> float:
 	return _vx[i]
+
+
+## Put the field in the tree under `parent`. One `MultiMeshInstance3D` for the whole pool:
+## three thousand particles is one draw call, and a Node3D each would be three thousand.
+func attach(parent: Node3D) -> void:
+	if _instance != null:
+		detach()
+	var quad := QuadMesh.new()
+	quad.size = Vector2.ONE
+
+	multimesh = MultiMesh.new()
+	multimesh.transform_format = MultiMesh.TRANSFORM_3D
+	multimesh.use_colors = true
+	multimesh.use_custom_data = true
+	multimesh.mesh = quad
+	multimesh.instance_count = MAX_PARTICLES
+	multimesh.visible_instance_count = 0
+
+	var material := ShaderMaterial.new()
+	material.shader = SHADER
+	quad.surface_set_material(0, material)
+
+	_instance = MultiMeshInstance3D.new()
+	_instance.multimesh = multimesh
+	# Nothing here is worth culling against: the field is one node covering the whole stage,
+	# and a bounding box computed from an empty pool culls every effect on the first frame.
+	_instance.custom_aabb = AABB(Vector3(-500, -500, -500), Vector3(1000, 1000, 1000))
+	_instance.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	parent.add_child(_instance)
+
+
+func detach() -> void:
+	if _instance != null and is_instance_valid(_instance):
+		_instance.queue_free()
+	_instance = null
+	multimesh = null
 
 
 ## Spawn one particle. Returns false when the pool is full, exactly as the reference does —
@@ -137,6 +177,7 @@ func update(dt: float) -> void:
 		colors[i * 3 + 2] = _b0[i] + (_b1[i] - _b0[i]) * t
 		i += 1
 	count = n
+	_upload()
 
 
 func _copy(from: int, to: int) -> void:
@@ -149,6 +190,20 @@ func _copy(from: int, to: int) -> void:
 	for arr in [_vx, _vy, _vz, _life, _max_life, _gravity, _drag, _base_size,
 			_turbulence, _r0, _g0, _b0, _r1, _g1, _b1, sizes, alphas]:
 		arr[to] = arr[from]
+
+
+## Push the live range into the MultiMesh. Called at the end of `update`.
+func _upload() -> void:
+	if multimesh == null:
+		return
+	multimesh.visible_instance_count = count
+	for i in count:
+		var origin := Vector3(positions[i * 3], positions[i * 3 + 1], positions[i * 3 + 2])
+		multimesh.set_instance_transform(i, Transform3D(Basis.IDENTITY, origin))
+		multimesh.set_instance_color(i, Color(colors[i * 3], colors[i * 3 + 1],
+			colors[i * 3 + 2], 1.0))
+		# x is size, y is alpha — read by the shader out of INSTANCE_CUSTOM.
+		multimesh.set_instance_custom_data(i, Color(sizes[i], alphas[i], 0.0, 0.0))
 
 
 func clear() -> void:
