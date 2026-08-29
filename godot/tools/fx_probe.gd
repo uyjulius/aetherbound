@@ -22,6 +22,7 @@ func _check(name: String, ok: bool, detail := "") -> void:
 
 func _initialize() -> void:
 	_integrator()
+	_emitters()
 
 	if _failures.is_empty():
 		print("FX_OK %d checks" % _checked)
@@ -88,3 +89,84 @@ func _integrator() -> void:
 	var xs: Array = [three.positions[0], three.positions[3]]
 	xs.sort()
 	_check("and keeps the right ones", xs[0] == 0.0 and xs[1] == 2.0, str(xs))
+
+
+## The emitters, checked by what they *do* rather than by what they spawn.
+##
+## A burst and an implode both fill the pool with the right number of particles and both look
+## perfectly correct in a count. The difference between them is the direction of travel, and
+## that is the only thing worth asserting: the reference's implode aims every particle to
+## arrive at the centre as it dies, and a sign error there is a fire spell that sucks inward.
+func _emitters() -> void:
+	var origin := Vector3(0.0, 1.0, 0.0)
+
+	var out = ParticleField.new()
+	out.burst(origin, 60, 6.0, 1.0, 1.0, 0.5,
+		Color(1, 1, 1), Color(1, 1, 1), 0.0, 0.0, 0.0, 0.0)
+	_check("a burst fills the pool", out.count == 60, "count %d" % out.count)
+	var before_out := _mean_radius(out, origin)
+	out.update(0.2)
+	var after_out := _mean_radius(out, origin)
+	_check("a burst travels outward", after_out > before_out + 0.1,
+		"%f -> %f" % [before_out, after_out])
+
+	var inward = ParticleField.new()
+	inward.implode(origin, 60, 3.2, 1.0, 0.42, Color(1, 1, 1), Color(1, 1, 1))
+	var before_in := _mean_radius(inward, origin)
+	inward.update(0.2)
+	var after_in := _mean_radius(inward, origin)
+	_check("an implode converges", after_in < before_in - 0.1,
+		"%f -> %f" % [before_in, after_in])
+
+	# A ring is laid flat: it opens outward on x/z and stays put on y until `up` lifts it.
+	var flat = ParticleField.new()
+	flat.ring(origin, 48, 0.4, 6.0, 1.0, 0.45,
+		Color(1, 1, 1), Color(1, 1, 1), 0.0, 0.0, 0.0)
+	var lift := 0.0
+	for i in flat.count:
+		lift += absf(flat.positions[i * 3 + 1] - origin.y)
+	_check("a ring is laid flat", lift < 0.001, "total lift %f" % lift)
+
+	# A column rises. It is the one emitter whose whole character is vertical.
+	var up = ParticleField.new()
+	up.column(origin, 50, 0.7, 5.0, 1.0, 0.5, Color(1, 1, 1), Color(1, 1, 1), 0.4, 0.0)
+	var y_before := _mean_y(up)
+	up.update(0.2)
+	_check("a column rises", _mean_y(up) > y_before + 0.1,
+		"%f -> %f" % [y_before, _mean_y(up)])
+
+	# A streak lies along the line it was given, not scattered around either end.
+	var trail = ParticleField.new()
+	trail.streak(Vector3.ZERO, Vector3(10.0, 0.0, 0.0), 26, 1.0, 0.4,
+		Color(1, 1, 1), Color(1, 1, 1), 0.0, 0.0)
+	var off_axis := 0.0
+	for i in trail.count:
+		off_axis = maxf(off_axis, absf(trail.positions[i * 3 + 2]))
+	_check("a streak follows its line", off_axis < 0.001, "max |z| %f" % off_axis)
+
+	# And the pool refuses to overflow rather than growing without bound.
+	var flooded = ParticleField.new()
+	for i in 100:
+		flooded.burst(origin, 60, 6.0, 1.0, 1.0, 0.5,
+			Color(1, 1, 1), Color(1, 1, 1), 0.0, 0.0, 0.0, 0.0)
+	_check("the pool has a ceiling", flooded.count == ParticleField.MAX_PARTICLES,
+		"count %d" % flooded.count)
+
+
+func _mean_radius(field, origin: Vector3) -> float:
+	if field.count == 0:
+		return 0.0
+	var total := 0.0
+	for i in field.count:
+		total += Vector3(field.positions[i * 3], field.positions[i * 3 + 1],
+			field.positions[i * 3 + 2]).distance_to(origin)
+	return total / float(field.count)
+
+
+func _mean_y(field) -> float:
+	if field.count == 0:
+		return 0.0
+	var total := 0.0
+	for i in field.count:
+		total += field.positions[i * 3 + 1]
+	return total / float(field.count)

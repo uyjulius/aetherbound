@@ -153,3 +153,104 @@ func _copy(from: int, to: int) -> void:
 
 func clear() -> void:
 	count = 0
+
+
+# ---------------------------------------------------------------------------
+# Emitter shapes
+#
+# Each is a direct port of `src/fx/particles.js`. The randomisation is Godot's own unseeded
+# `randf()` — see the note at the top of this file for why it must not be a game stream.
+# ---------------------------------------------------------------------------
+
+## Outward burst from a point.
+func burst(pos: Vector3, count_n := 40, speed := 4.0, spread := 1.0, life := 0.8,
+		size := 0.5, color := Color(1, 1, 1), end_color := Color(1, 1, 1),
+		gravity := -2.0, drag := 1.2, up := 0.0, turbulence := 0.0) -> void:
+	for i in count_n:
+		var theta := randf() * TAU
+		var phi := acos(1.0 - 2.0 * randf() * spread)
+		var s := speed * (0.5 + randf() * 0.8)
+		spawn(
+			pos.x + (randf() - 0.5) * 0.2,
+			pos.y + (randf() - 0.5) * 0.2,
+			pos.z + (randf() - 0.5) * 0.2,
+			sin(phi) * cos(theta) * s,
+			cos(phi) * s + up,
+			sin(phi) * sin(theta) * s,
+			life * (0.7 + randf() * 0.6),
+			size * (0.6 + randf() * 0.8),
+			color, end_color, gravity, drag, turbulence)
+
+
+## A ring of particles racing outward along the ground.
+func ring(pos: Vector3, count_n := 48, radius := 0.4, speed := 6.0, life := 0.6,
+		size := 0.45, color := Color(1, 1, 1), end_color := Color(1, 1, 1),
+		gravity := 0.0, drag := 2.2, up := 0.6) -> void:
+	for i in count_n:
+		var a := (float(i) / float(count_n)) * TAU + randf() * 0.1
+		spawn(
+			pos.x + cos(a) * radius,
+			pos.y,
+			pos.z + sin(a) * radius,
+			cos(a) * speed,
+			up * (0.5 + randf()),
+			sin(a) * speed,
+			life * (0.8 + randf() * 0.4),
+			size * (0.7 + randf() * 0.6),
+			color, end_color, gravity, drag, 0.0)
+
+
+## A rising column, for holy light and flame pillars.
+func column(pos: Vector3, count_n := 50, radius := 0.7, speed := 5.0, life := 1.0,
+		size := 0.5, color := Color(1, 1, 1), end_color := Color(1, 1, 1),
+		drag := 0.4, turbulence := 1.2) -> void:
+	for i in count_n:
+		var a := randf() * TAU
+		var r := sqrt(randf()) * radius
+		spawn(
+			pos.x + cos(a) * r,
+			pos.y + randf() * 0.4,
+			pos.z + sin(a) * r,
+			cos(a) * 0.4,
+			speed * (0.6 + randf() * 0.8),
+			sin(a) * 0.4,
+			life * (0.6 + randf() * 0.8),
+			size * (0.5 + randf() * 0.9),
+			color, end_color, 0.4, drag, turbulence)
+
+
+## Particles converging inward onto a point — a charge-up.
+func implode(pos: Vector3, count_n := 44, radius := 3.2, life := 0.55, size := 0.42,
+		color := Color(1, 1, 1), end_color := Color(1, 1, 1)) -> void:
+	for i in count_n:
+		var theta := randf() * TAU
+		var phi := acos(1.0 - 2.0 * randf())
+		var r := radius * (0.6 + randf() * 0.6)
+		var px := pos.x + sin(phi) * cos(theta) * r
+		var py := pos.y + cos(phi) * r * 0.6
+		var pz := pos.z + sin(phi) * sin(theta) * r
+		var l := life * (0.75 + randf() * 0.5)
+		# Aim each particle so it arrives at the centre as it dies. No drag and no gravity,
+		# because either would leave it short and the convergence is the whole effect.
+		spawn(px, py, pz,
+			(pos.x - px) / l, (pos.y - py) / l, (pos.z - pz) / l,
+			l, size * (0.7 + randf() * 0.6),
+			color, end_color, 0.0, 0.0, 0.0)
+
+
+## A trail from A to B, used for projectiles and slashes.
+func streak(from: Vector3, to: Vector3, count_n := 26, life := 0.45, size := 0.4,
+		color := Color(1, 1, 1), end_color := Color(1, 1, 1),
+		jitter := 0.25, drag := 1.4) -> void:
+	for i in count_n:
+		var t := float(i) / float(count_n)
+		spawn(
+			from.x + (to.x - from.x) * t + (randf() - 0.5) * jitter,
+			from.y + (to.y - from.y) * t + (randf() - 0.5) * jitter,
+			from.z + (to.z - from.z) * t + (randf() - 0.5) * jitter,
+			(randf() - 0.5) * 1.5,
+			(randf() - 0.5) * 1.5 + 0.6,
+			(randf() - 0.5) * 1.5,
+			life * (0.6 + randf() * 0.7),
+			size * (0.6 + randf() * 0.8),
+			color, end_color, -0.5, drag, 0.0)
