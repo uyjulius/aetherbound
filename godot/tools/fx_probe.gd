@@ -11,6 +11,8 @@ extends SceneTree
 
 const ParticleField := preload("res://scripts/fx/particles.gd")
 const Effects := preload("res://scripts/fx/effects.gd")
+const SpellFX := preload("res://scripts/fx/spellfx.gd")
+const Scheduler := preload("res://scripts/engine/scheduler.gd")
 
 var _failures: Array = []
 var _skips: Array = []
@@ -34,6 +36,7 @@ func _initialize() -> void:
 	_emitters()
 	_drawing()
 	_mesh_effects()
+	_spells()
 	_cost()
 
 	# Printed unconditionally, before the pass/fail branch below, so a skip is visible whether
@@ -308,6 +311,60 @@ func _mesh_effects() -> void:
 	Effects.dispose_effect(circle)
 	Effects.dispose_effect(bolt)
 	host.queue_free()
+
+
+## Every effect, run for real against a live field.
+##
+## The signature is the guard that matters. Twelve effects that differ only in colour would
+## pass a count check, a duration check and a "did anything spawn" check — and they are
+## exactly what the port has today.
+func _spells() -> void:
+	var elements := ["fire", "ice", "bolt", "water", "wind", "earth",
+		"poison", "holy", "shadow", "aether", "heal", "physical"]
+	var signatures := {}
+
+	for element in elements:
+		var host := Node3D.new()
+		get_root().add_child(host)
+		var field = ParticleField.new()
+		var ctx = SpellFX.FXContext.new()
+		ctx.stage = host
+		ctx.particles = field
+
+		var sched = Scheduler.new()
+		var peak := 0
+		var ticks := 0
+		var routine = sched.run(func(r): await SpellFX.play(r, ctx, element,
+			Vector3(0.0, 1.0, 0.0)), element)
+		while sched.is_busy() and ticks < 600:
+			sched.update(1.0 / 60.0)
+			field.update(1.0 / 60.0)
+			peak = maxi(peak, field.count)
+			ticks += 1
+
+		_check("%s finishes" % element, not sched.is_busy(), "still running after %d ticks" % ticks)
+		_check("%s puts particles on screen" % element, peak > 0, "peak %d" % peak)
+
+		# Run the field out and confirm it drains. A leak here fills the pool and every later
+		# spell in the fight draws nothing.
+		for i in 300:
+			field.update(1.0 / 60.0)
+		_check("%s drains" % element, field.count == 0, "%d left" % field.count)
+
+		signatures[element] = "%d/%d" % [peak, ticks]
+		host.queue_free()
+
+	# No two effects may share a signature. This is the check that says fire is not blue ice.
+	var seen := {}
+	for element in signatures:
+		var sig: String = signatures[element]
+		if seen.has(sig):
+			_check("%s differs from %s" % [element, seen[sig]], false,
+				"identical signature %s" % sig)
+		else:
+			seen[sig] = element
+	_check("twelve effects have twelve shapes", seen.size() == elements.size(),
+		"%d distinct of %d" % [seen.size(), elements.size()])
 
 
 ## What a full pool costs to integrate. Not a pass/fail — a number, printed, so the decision

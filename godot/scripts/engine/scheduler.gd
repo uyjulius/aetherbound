@@ -156,7 +156,6 @@ class Routine:
 				Scheduler.Block.TICK:
 					_block = Scheduler.Block.NONE
 					resumed.emit(carry)
-					return
 				Scheduler.Block.TIME:
 					_time -= carry
 					if _time > 0.0:
