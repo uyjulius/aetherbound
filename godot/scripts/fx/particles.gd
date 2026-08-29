@@ -24,6 +24,13 @@ const SHADER := preload("res://shaders/particle.gdshader")
 
 var count := 0
 
+## Total particles ever spawned by this field, monotonic across `update()` calls and reset
+## only by `clear()`. Peak *concurrent* count depends on unseeded `randf()` lifetime jitter
+## landing either side of a tick boundary, which makes it a poor fingerprint for "did this
+## effect do what it always does" — the emitter counts in `spellfx.gd` are fixed constants,
+## so this total is the same every run and is what the probe's per-element signature uses.
+var spawned_total := 0
+
 var multimesh: MultiMesh
 var _instance: MultiMeshInstance3D
 
@@ -115,6 +122,7 @@ func spawn(x: float, y: float, z: float, vx: float, vy: float, vz: float,
 		return false
 	var i := count
 	count += 1
+	spawned_total += 1
 	positions[i * 3] = x
 	positions[i * 3 + 1] = y
 	positions[i * 3 + 2] = z
@@ -208,6 +216,7 @@ func _upload() -> void:
 
 func clear() -> void:
 	count = 0
+	spawned_total = 0
 
 
 # ---------------------------------------------------------------------------

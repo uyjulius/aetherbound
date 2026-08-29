@@ -318,6 +318,13 @@ func _mesh_effects() -> void:
 ## The signature is the guard that matters. Twelve effects that differ only in colour would
 ## pass a count check, a duration check and a "did anything spawn" check — and they are
 ## exactly what the port has today.
+##
+## The signature is `spawned_total/ticks`, not peak concurrent count. Peak depends on
+## unseeded `randf()` lifetime jitter landing either side of a tick boundary, so two runs of
+## the *same* effect can peak a few particles apart — that made this check fire on only
+## some runs of a genuine duplicate. Every emitter count in `spellfx.gd` is a fixed constant,
+## so the cumulative total spawned is exactly reproducible run to run, and a real collision
+## now fails every time.
 func _spells() -> void:
 	var elements := ["fire", "ice", "bolt", "water", "wind", "earth",
 		"poison", "holy", "shadow", "aether", "heal", "physical"]
@@ -332,18 +339,17 @@ func _spells() -> void:
 		ctx.particles = field
 
 		var sched = Scheduler.new()
-		var peak := 0
 		var ticks := 0
 		var routine = sched.run(func(r): await SpellFX.play(r, ctx, element,
 			Vector3(0.0, 1.0, 0.0)), element)
 		while sched.is_busy() and ticks < 600:
 			sched.update(1.0 / 60.0)
 			field.update(1.0 / 60.0)
-			peak = maxi(peak, field.count)
 			ticks += 1
 
 		_check("%s finishes" % element, not sched.is_busy(), "still running after %d ticks" % ticks)
-		_check("%s puts particles on screen" % element, peak > 0, "peak %d" % peak)
+		_check("%s puts particles on screen" % element, field.spawned_total > 0,
+			"spawned %d" % field.spawned_total)
 
 		# Run the field out and confirm it drains. A leak here fills the pool and every later
 		# spell in the fight draws nothing.
@@ -351,7 +357,7 @@ func _spells() -> void:
 			field.update(1.0 / 60.0)
 		_check("%s drains" % element, field.count == 0, "%d left" % field.count)
 
-		signatures[element] = "%d/%d" % [peak, ticks]
+		signatures[element] = "%d/%d" % [field.spawned_total, ticks]
 		host.queue_free()
 
 	# No two effects may share a signature. This is the check that says fire is not blue ice.
