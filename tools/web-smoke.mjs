@@ -129,7 +129,9 @@ const server = remote ? null : http.createServer(async (req, res) => {
   fs.createReadStream(file).pipe(res);
 });
 if (server) await new Promise((resolve) => server.listen(port, resolve));
-const target = remote ?? `http://localhost:${port}/`;
+const targetUrl = new URL(remote ?? `http://localhost:${port}/`);
+targetUrl.searchParams.set('fx_cost', '1');
+const target = targetUrl.href;
 
 const browser = await chromium.launch({
   headless: !headed,
@@ -195,6 +197,8 @@ const crowd = [];
 let stage = null;
 const turns = [];
 const actions = [];
+const fx = [];
+const fxCosts = [];
 const found = [];
 let chest = null;
 let chestDone = null;
@@ -263,6 +267,8 @@ page.on('console', (message) => {
   if (/^STAGE /.test(text.trim())) stage = text.trim();
   if (/^TURN /.test(text.trim())) turns.push(text.trim());
   if (/^ACTION /.test(text.trim())) actions.push(text.trim());
+  if (/^FX /.test(text.trim())) fx.push(text.trim());
+  if (/^FX_COST /.test(text.trim())) fxCosts.push(text.trim());
   if (/^CHEST /.test(text.trim())) chest = text.trim();
   if (/^CHEST_DONE /.test(text.trim())) chestDone = text.trim();
   if (/^SAVE_POINT /.test(text.trim())) savePoint = text.trim();
@@ -515,6 +521,18 @@ if (ready) {
       check('a spell can be chosen and cast', cast,
         actions.length ? actions.slice(0, 5).join(' | ')
           : `menus were ${turns.slice(0, 3).join(' / ')}`);
+      // ACTION is printed before the animation starts. Wait for this spell's completion,
+      // and don't let an earlier physical attack satisfy the particle check.
+      const spellDrew = () => fx.find((line) => /\bkind=spell\b/.test(line)
+        && Number(line.match(/\bpeak=(\d+)/)?.[1] ?? 0) > 0);
+      const fxDeadline = Date.now() + Math.max(20_000, READY_TIMEOUT_MS / 4);
+      while (cast && !spellDrew() && Date.now() < fxDeadline) await page.waitForTimeout(200);
+      check('a cast spell emits particles in the exported build', Boolean(spellDrew()),
+        fx.length ? fx.join(' | ') : 'no FX completion line in the build output');
+      const cost = fxCosts[0];
+      check('the web particle pool reports its measured frame cost',
+        Boolean(cost) && Number.isFinite(Number(cost.match(/\bms_per_frame=([\d.]+)/)?.[1])),
+        cost ?? 'no FX_COST line in the build output');
       const battleShot = path.join(root, '.renders',
         remote ? 'godot-web-battle-live.png' : 'godot-web-battle.png');
       await capture(page, battleShot);

@@ -32,11 +32,16 @@ func _skip(name: String, reason: String) -> void:
 
 
 func _initialize() -> void:
+	if "--record" in OS.get_cmdline_user_args():
+		_record_transcripts()
+		return
+
 	_integrator()
 	_emitters()
 	_drawing()
 	_mesh_effects()
 	_spells()
+	_battle_completion()
 	_cost()
 
 	# Printed unconditionally, before the pass/fail branch below, so a skip is visible whether
@@ -313,6 +318,28 @@ func _mesh_effects() -> void:
 	host.queue_free()
 
 
+## Every effect's emission transcript, for `fx-parity.mjs` to hold against the reference's own.
+##
+## Driven at a fixed 1/60 so the tick count is a comparable number rather than a function of
+## how fast the machine happened to be.
+func _record_transcripts() -> void:
+	var elements := ["fire", "ice", "bolt", "water", "wind", "earth",
+		"poison", "holy", "shadow", "aether", "heal", "physical"]
+	var out := {}
+	for element in elements:
+		var ctx = SpellFX.FXContext.new()
+		ctx.recording = true
+		var sched = Scheduler.new()
+		var ticks := 0
+		sched.run(func(r): await SpellFX.play(r, ctx, element, Vector3(0.0, 1.0, 0.0)), element)
+		while sched.is_busy() and ticks < 600:
+			sched.update(1.0 / 60.0)
+			ticks += 1
+		out[element] = {"calls": ctx.log, "ticks": ticks}
+	print(JSON.stringify(out))
+	quit(0)
+
+
 ## Every effect, run for real against a live field.
 ##
 ## The signature is the guard that matters. Twelve effects that differ only in colour would
@@ -396,6 +423,37 @@ func _cost() -> void:
 		field.count, per_frame, per_frame / 16.667 * 100.0])
 	field.detach()
 	host.queue_free()
+
+
+## Exercise the view's completion boundary: physical emits its entire particle burst
+## immediately before returning, so sampling only while busy used to report peak=0.
+func _battle_completion() -> void:
+	var view = load("res://scripts/ui/battle_view.gd").new()
+	_check("white magic without an element uses holy",
+		view._effect_element({"spell": {"school": "white", "kind": "status"}}) == "holy")
+	_check("other magic without an element uses aether",
+		view._effect_element({"spell": {"school": "black", "kind": "status"}}) == "aether")
+	_check("healing uses heal even with an explicit element",
+		view._effect_element({"spell": {"kind": "heal", "element": "holy"}}) == "heal")
+	_check("an elemental spell keeps its authored effect",
+		view._effect_element({"spell": {"school": "black", "element": "ice"}}) == "ice")
+	view._stage = Node3D.new()
+	get_root().add_child(view._stage)
+	view._setup_fx()
+	view._play_effect("physical", "spell", [])
+	_check("battle holds while the effect runs", view._fx_busy)
+	for i in 120:
+		view._fx_sched.update(1.0 / 60.0)
+		view._fx_field.update(1.0 / 60.0)
+		if view._fx_busy:
+			view._fx_peak = maxi(view._fx_peak, view._fx_field.count)
+		else:
+			break
+	_check("battle releases after the effect", not view._fx_busy)
+	_check("battle counts the final particle burst", view._fx_peak == 22,
+		"peak %d" % view._fx_peak)
+	view._tear_down_stage()
+	view.free()
 
 
 func _mean_radius(field, origin: Vector3) -> float:

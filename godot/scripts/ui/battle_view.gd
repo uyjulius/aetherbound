@@ -20,6 +20,9 @@ extends Control
 
 const BattleModel := preload("res://scripts/battle/battle.gd")
 const CastBuilder := preload("res://scripts/world/cast_models.gd")
+const ParticleField := preload("res://scripts/fx/particles.gd")
+const SpellFX := preload("res://scripts/fx/spellfx.gd")
+const Scheduler := preload("res://scripts/engine/scheduler.gd")
 
 ## Where the two lines stand, and how far apart. A JRPG fight is read left to right and the
 ## party is nearer the camera.
@@ -65,6 +68,14 @@ var _ground := "grass.png"
 ## The map the fight started on, for its sky and its haze.
 var _map_def: Dictionary = {}
 
+var _fx_field
+var _fx_sched
+var _fx_ctx
+## Held while an effect plays. The battle clock stops; the effect clock keeps running.
+var _fx_busy := false
+var _fx_peak := 0
+var _fx_cost_reported := false
+
 
 
 
@@ -81,7 +92,7 @@ func _input(event: InputEvent) -> void:
 	# banked when the first gauge filled, so the first menu chose its top row and the one
 	# after it chose a target, and no arrow key could get a word in. The dialogue box and the
 	# list screens learned the same lesson; this is the third.
-	if not visible or event.is_echo():
+	if not visible or _fx_busy or event.is_echo():
 		return
 	if event.is_action_pressed("confirm"):
 		_confirms += 1
@@ -260,7 +271,41 @@ func _raise_stage(database) -> void:
 		_bodies[combatant.id] = body
 		_clips[combatant.id] = ""
 		_play_clip(combatant, "idle")
+	_setup_fx()
 	print("STAGE party=%d enemies=%d" % [battle.party.size(), battle.enemies.size()])
+
+
+func _setup_fx() -> void:
+	_fx_field = ParticleField.new()
+	_fx_field.attach(_stage)
+	_fx_sched = Scheduler.new()
+	_fx_ctx = SpellFX.FXContext.new()
+	_fx_ctx.stage = _stage
+	_fx_ctx.particles = _fx_field
+	_fx_ctx.on_flash = func(colour: Color, strength: float): _screen_flash(colour, strength)
+	if not _fx_cost_reported and OS.has_feature("web"):
+		var requested: Variant = JavaScriptBridge.eval(
+			"new URLSearchParams(location.search).get('fx_cost') === '1' ? 1 : 0", true)
+		if int(requested) == 1:
+			_report_fx_cost()
+			_fx_cost_reported = true
+
+
+## Diagnostic-only full-pool benchmark, selected by the web smoke run with `?fx_cost=1`.
+func _report_fx_cost() -> void:
+	var field = ParticleField.new()
+	field.attach(_stage)
+	for i in 12:
+		field.burst(Vector3(0.0, 1.0, 0.0), 250, 6.0, 1.0, 60.0, 0.5,
+			Color(1, 0.6, 0.2), Color(0.4, 0.1, 0.0), 0.0, 1.2, 0.0, 1.5)
+	var frames := 120
+	var started := Time.get_ticks_usec()
+	for i in frames:
+		field.update(1.0 / 60.0)
+	var per_frame := float(Time.get_ticks_usec() - started) / float(frames) / 1000.0
+	print("FX_COST ms_per_frame=%.3f budget_pct=%.1f pool=%d" % [
+		per_frame, per_frame / 16.667 * 100.0, field.count])
+	field.detach()
 
 
 ## A slab of the ground the party was standing on. Scaled from the same block the world is
@@ -308,6 +353,14 @@ func _slot(index: int, total: int, z: float) -> Vector3:
 
 
 func _tear_down_stage() -> void:
+	_fx_busy = false
+	if _fx_sched != null:
+		_fx_sched.cancel_all()
+	if _fx_field != null:
+		_fx_field.detach()
+	_fx_sched = null
+	_fx_field = null
+	_fx_ctx = null
 	if _name_tags != null:
 		_name_tags.clear()
 	if _stage != null:
@@ -354,6 +407,16 @@ func _process(delta: float) -> void:
 	if battle == null:
 		return
 	if battle.phase == BattleModel.Phase.ENDING:
+		return
+
+	# Effects advance while the battle clock is held; otherwise awaiting one deadlocks.
+	if _fx_sched != null:
+		_fx_sched.update(delta)
+	if _fx_field != null:
+		_fx_field.update(delta)
+		if _fx_busy:
+			_fx_peak = maxi(_fx_peak, _fx_field.count)
+	if _fx_busy:
 		return
 
 	battle.update(delta)
@@ -714,6 +777,9 @@ func _push(title: String, rows: Array) -> void:
 
 
 func _commit(actor: Combatant, action: Dictionary) -> void:
+	# A confirm already queued before this coroutine yielded must not commit a second turn.
+	if _fx_busy:
+		return
 	var full := action.duplicate()
 	full["actor"] = actor
 	_menus.clear()
@@ -736,8 +802,49 @@ func _commit(actor: Combatant, action: Dictionary) -> void:
 		"actor": actor.id, "kind": kind,
 		"what": String(full.get("spell", full.get("item", full.get("move", {}))).get("id", "")),
 		"element": _element_of(full)})
+	var element := _effect_element(full)
+	await _play_effect(element, kind, Array(full.get("targets", [])))
+	# The effect may have been cancelled because the view was torn down while it awaited.
+	if battle == null:
+		return
 	battle.commit_action(full)
-	_after_action(actor, kind, before, _element_of(full))
+	_after_action(actor, kind, before, element)
+
+
+func _effect_element(action: Dictionary) -> String:
+	var spell: Dictionary = action.get("spell", {})
+	if String(spell.get("kind", "")) == "heal":
+		return "heal"
+	if not spell.is_empty():
+		var element := String(spell.get("element", ""))
+		if not element.is_empty():
+			return element
+		return "holy" if String(spell.get("school", "")) == "white" else "aether"
+	return _element_of(action)
+
+
+## Play at the primary target, matching the reference's target anchor, then release the ATB.
+func _play_effect(element: String, kind: String, targets: Array) -> void:
+	if _fx_sched == null or _stage == null:
+		return
+	var target: Combatant = targets[0] if not targets.is_empty() else null
+	var body: Node3D = _bodies.get(target.id, null) if target != null else null
+	var at := Vector3(0.0, 0.9, 0.0) if body == null \
+		else body.position + Vector3(0.0, 0.9, 0.0)
+	_fx_busy = true
+	_fx_peak = 0
+	_confirms = 0
+	_cancels = 0
+	_moves.clear()
+	var routine = _fx_sched.run(
+		func(r): await SpellFX.play(r, _fx_ctx, element, at), "spellfx")
+	await _fx_sched.join(routine)
+	# Physical's burst is its final instruction. join resumes inside scheduler.update,
+	# before _process can sample the field, so include that final emission in the peak.
+	if _fx_field != null:
+		_fx_peak = maxi(_fx_peak, _fx_field.count)
+	_fx_busy = false
+	print("FX kind=%s element=%s peak=%d" % [kind, element, _fx_peak])
 
 
 ## What element an action lands as, for the light it throws.
@@ -1070,6 +1177,19 @@ func _flash(target: Combatant, element: String, healing: bool) -> void:
 	var fade := create_tween().bind_node(light)
 	fade.tween_property(light, "light_energy", 0.0, 0.2)
 	fade.tween_callback(func(): if is_instance_valid(light): light.queue_free())
+
+
+## Whole-screen flash requested by Bolt and Holy. It is bound to the overlay so stage teardown
+## cannot leave a tween writing into a freed battle view child.
+func _screen_flash(colour: Color, strength: float) -> void:
+	var rect := ColorRect.new()
+	rect.color = Color(colour.r, colour.g, colour.b, clampf(strength, 0.0, 1.0))
+	rect.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	add_child(rect)
+	rect.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	var fade := create_tween().bind_node(rect)
+	fade.tween_property(rect, "color:a", 0.0, 0.25)
+	fade.tween_callback(func(): if is_instance_valid(rect): rect.queue_free())
 
 
 ## A number that rises and fades where the blow landed. The only animation here, and it
