@@ -37,6 +37,9 @@ var _title: Label
 var _list: VBoxContainer
 var _detail: Label
 var _footer: Label
+var _row_plain: StyleBoxEmpty
+var _row_selected: StyleBoxFlat
+var _row_header: StyleBoxFlat
 ## Presses, counted from real events rather than polled — see the class comment.
 var _confirms := 0
 var _cancels := 0
@@ -67,15 +70,29 @@ func _input(event: InputEvent) -> void:
 func _build() -> void:
 	var ground := ColorRect.new()
 	ground.color = Color(Palette.ink)
-	ground.color.a = 0.96
+	ground.color.a = 0.975
 	ground.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	add_child(ground)
 
+	var kicker := Label.new()
+	kicker.text = "A  E  T  H  E  R  B  O  U  N  D    ·    FIELD ARCHIVE"
+	kicker.position = Vector2(72, 24)
+	kicker.add_theme_font_size_override("font_size", 15)
+	kicker.add_theme_color_override("font_color", Palette.ui_color("textDim"))
+	add_child(kicker)
+
 	_title = Label.new()
-	_title.position = Vector2(72, 44)
-	_title.add_theme_font_size_override("font_size", 40)
+	_title.position = Vector2(72, 51)
+	_title.add_theme_font_size_override("font_size", 44)
 	_title.add_theme_color_override("font_color", Palette.ui_color("select"))
 	add_child(_title)
+
+	var rule := ColorRect.new()
+	rule.color = Palette.ui_color("select")
+	rule.color.a = 0.7
+	rule.position = Vector2(60, 108)
+	rule.size = Vector2(1800, 2)
+	add_child(rule)
 
 	# Two windows, in the game's own chrome, rather than text floating on a dim screen. The
 	# reference's menu is a set of panels and this was a column of words over the field: legible
@@ -84,32 +101,49 @@ func _build() -> void:
 	# was which.
 	var list_panel := PanelContainer.new()
 	list_panel.add_theme_stylebox_override("panel", WindowBox.panel(0.9, 20.0))
-	list_panel.position = Vector2(60, 116)
-	list_panel.custom_minimum_size = Vector2(640, 828)
+	list_panel.position = Vector2(60, 130)
+	list_panel.custom_minimum_size = Vector2(620, 790)
 	add_child(list_panel)
 
 	_list = VBoxContainer.new()
 	_list.size_flags_vertical = Control.SIZE_SHRINK_BEGIN
-	_list.add_theme_constant_override("separation", 6)
+	_list.add_theme_constant_override("separation", 5)
 	list_panel.add_child(_list)
 
 	var detail_panel := PanelContainer.new()
 	detail_panel.add_theme_stylebox_override("panel", WindowBox.panel(0.9, 20.0))
-	detail_panel.position = Vector2(724, 116)
-	detail_panel.custom_minimum_size = Vector2(1136, 828)
+	detail_panel.position = Vector2(706, 130)
+	detail_panel.custom_minimum_size = Vector2(1154, 790)
 	add_child(detail_panel)
 
 	_detail = Label.new()
 	_detail.size_flags_vertical = Control.SIZE_SHRINK_BEGIN
-	_detail.add_theme_font_size_override("font_size", 22)
+	_detail.add_theme_font_size_override("font_size", 24)
+	_detail.add_theme_constant_override("line_spacing", 4)
 	_detail.add_theme_color_override("font_color", Palette.ui_color("text"))
 	detail_panel.add_child(_detail)
 
 	_footer = Label.new()
-	_footer.position = Vector2(72, 972)
+	_footer.position = Vector2(72, 952)
 	_footer.add_theme_font_size_override("font_size", 20)
 	_footer.add_theme_color_override("font_color", Palette.ui_color("textDim"))
 	add_child(_footer)
+
+	_row_plain = StyleBoxEmpty.new()
+	_row_plain.set_content_margin_all(10)
+	_row_selected = StyleBoxFlat.new()
+	_row_selected.bg_color = Palette.ui_color("panelTop")
+	_row_selected.bg_color.a = 0.82
+	_row_selected.border_color = Palette.ui_color("select")
+	_row_selected.border_width_left = 4
+	_row_selected.set_corner_radius_all(6)
+	_row_selected.set_content_margin_all(10)
+	_row_header = StyleBoxFlat.new()
+	_row_header.bg_color = Color(0, 0, 0, 0)
+	_row_header.border_color = Palette.ui_color("panelEdgeLight")
+	_row_header.border_color.a = 0.35
+	_row_header.border_width_bottom = 1
+	_row_header.set_content_margin_all(10)
 
 
 # ---------------------------------------------------------------------------
@@ -279,20 +313,29 @@ func _paint() -> void:
 	_title.text = String(screen.get("title", ""))
 
 	while _list.get_child_count() < PAGE:
+		var holder := PanelContainer.new()
+		holder.custom_minimum_size = Vector2(0, 49)
+		holder.add_theme_stylebox_override("panel", _row_plain)
 		var fresh := Label.new()
-		fresh.add_theme_font_size_override("font_size", 26)
-		_list.add_child(fresh)
+		fresh.add_theme_font_size_override("font_size", 25)
+		fresh.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+		holder.add_child(fresh)
+		_list.add_child(holder)
 	for i in PAGE:
-		var row: Label = _list.get_child(i)
+		var holder: PanelContainer = _list.get_child(i)
+		var row: Label = holder.get_child(0)
 		var at := _scroll + i
 		if at >= rows.size():
 			row.text = ""
+			holder.add_theme_stylebox_override("panel", _row_plain)
 			continue
 		var entry: Dictionary = rows[at]
 		var header := bool(entry.get("header", false))
 		row.text = ("%s" % String(entry.get("label", ""))) if header \
-			else "%s %-28s %s" % [">" if at == _index else " ",
-				String(entry.get("label", "")), String(entry.get("right", ""))]
+			else "%-28s %s" % [String(entry.get("label", "")),
+				String(entry.get("right", ""))]
+		holder.add_theme_stylebox_override("panel", _row_header if header else (
+			_row_selected if at == _index else _row_plain))
 		var colour := Palette.ui_color("text")
 		if header:
 			colour = Palette.ui_color("select")

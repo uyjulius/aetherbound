@@ -29,34 +29,52 @@ const SKY_PANORAMA := preload("res://assets/sky/aether-clouds.png")
 
 
 static func apply(environment: Environment, sun: DirectionalLight3D, map_def: Dictionary) -> void:
-	var sky_def: Dictionary = map_def.get("sky", {})
-	if sky_def.is_empty():
-		return
-
-	var material := ShaderMaterial.new()
-	material.shader = PAINTED_SKY
-	material.set_shader_parameter("sky_panorama", SKY_PANORAMA)
-	material.set_shader_parameter("zenith_color",
-		Color(String(sky_def.get("zenith", "#2f6494"))))
-	material.set_shader_parameter("horizon_color",
-		Color(String(sky_def.get("horizon", "#a6bcb8"))))
-	material.set_shader_parameter("ground_color",
-		Color(String(sky_def.get("ground", "#565448"))))
-	# Clear days keep more of the map's clean authored gradient. Overcast maps reveal more of
-	# the generated cloud plate, without changing the colour script that identifies the map.
-	var cloud := float(sky_def.get("cloud", 0.0))
-	material.set_shader_parameter("painted_strength",
-		lerpf(0.38, 0.70, clampf(cloud, 0.0, 1.0)))
-
-	var sky := Sky.new()
-	sky.sky_material = material
-	environment.background_mode = Environment.BG_SKY
-	environment.sky = sky
-	environment.ambient_light_source = Environment.AMBIENT_SOURCE_SKY
-	environment.ambient_light_energy = 1.0
-	environment.reflected_light_source = Environment.REFLECTION_SOURCE_SKY
-
+	# JSON preserves an explicit `sky: null` on enclosed maps. Treat null and absence as the
+	# same authored choice rather than assigning Nil to a typed Dictionary.
+	var sky_value: Variant = map_def.get("sky", null)
+	var sky_def: Dictionary = sky_value if sky_value is Dictionary else {}
 	var fog: Array = map_def.get("fog", [])
+	var cloud := 0.0
+	if sky_def.is_empty():
+		# Interiors deliberately have no sky. `Environment` is reused between maps, so leaving
+		# the previous sky attached here put Harrowmere's clouds behind an inn's walls and kept
+		# its outdoor sun shining through the roof. A flat authored haze colour gives those maps
+		# a closed volume; their placed lamps do the local lighting.
+		environment.background_mode = Environment.BG_COLOR
+		environment.sky = null
+		environment.background_color = Color(String(fog[0])) if fog.size() >= 1 \
+			else Palette.ramp_at("stone", 0.22)
+		environment.ambient_light_source = Environment.AMBIENT_SOURCE_COLOR
+		environment.ambient_light_color = Palette.ramp_at("stone", 0.58)
+		environment.ambient_light_energy = 0.42
+		if sun != null:
+			sun.visible = false
+	else:
+		var material := ShaderMaterial.new()
+		material.shader = PAINTED_SKY
+		material.set_shader_parameter("sky_panorama", SKY_PANORAMA)
+		material.set_shader_parameter("zenith_color",
+			Color(String(sky_def.get("zenith", "#2f6494"))))
+		material.set_shader_parameter("horizon_color",
+			Color(String(sky_def.get("horizon", "#a6bcb8"))))
+		material.set_shader_parameter("ground_color",
+			Color(String(sky_def.get("ground", "#565448"))))
+		# Clear days keep more of the map's clean authored gradient. Overcast maps reveal more of
+		# the generated cloud plate, without changing the colour script that identifies the map.
+		cloud = float(sky_def.get("cloud", 0.0))
+		material.set_shader_parameter("painted_strength",
+			lerpf(0.38, 0.70, clampf(cloud, 0.0, 1.0)))
+
+		var sky := Sky.new()
+		sky.sky_material = material
+		environment.background_mode = Environment.BG_SKY
+		environment.sky = sky
+		environment.ambient_light_source = Environment.AMBIENT_SOURCE_SKY
+		environment.ambient_light_energy = 1.0
+		environment.reflected_light_source = Environment.REFLECTION_SOURCE_SKY
+		if sun != null:
+			sun.visible = true
+
 	if fog.size() >= 3:
 		environment.fog_enabled = true
 		environment.fog_light_color = Color(String(fog[0]))
@@ -70,7 +88,7 @@ static func apply(environment: Environment, sun: DirectionalLight3D, map_def: Di
 	else:
 		environment.fog_enabled = false
 
-	if sun != null:
+	if sun != null and not sky_def.is_empty():
 		var direction: Array = sky_def.get("sunDir", [0.5, 0.55, 0.4])
 		var towards := Vector3(float(direction[0]), float(direction[1]),
 			float(direction[2])).normalized()

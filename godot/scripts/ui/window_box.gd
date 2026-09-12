@@ -15,7 +15,11 @@ static func panel(alpha := 0.94, margin := 22.0) -> StyleBoxFlat:
 	style.bg_color = Palette.ui_color("panelBottom")
 	style.bg_color.a = alpha
 	style.border_color = Palette.ui_color("panelEdgeLight")
-	style.set_border_width_all(2)
-	style.set_corner_radius_all(4)
+	style.set_border_width_all(1)
+	style.border_width_top = 2
+	style.set_corner_radius_all(10)
 	style.set_content_margin_all(margin)
+	style.shadow_color = Color(0.0, 0.0, 0.0, 0.38)
+	style.shadow_size = 10
+	style.shadow_offset = Vector2(0, 5)
 	return style

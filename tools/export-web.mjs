@@ -46,6 +46,9 @@ const REQUIRED = [
   ['index.wasm', 5_000_000],
   ['index.js', 100_000],
   ['index.html', 1_000],
+  // Visitors see this while the large pack downloads. Shipping Godot's default splash here
+  // makes the first minute look like an engine demo rather than Aetherbound.
+  ['index.png', 1_000_000],
 ];
 
 fs.rmSync(outDir, { recursive: true, force: true });

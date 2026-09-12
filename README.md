@@ -84,9 +84,10 @@ Every shipping character, creature, and scenery model has generated provenance r
 
 The 3D pipeline starts from a generated concept view, reconstructs it into a mesh, then cleans,
 decimates, rigs, animates, and exports the result as GLB. The concept views remain in
-`assets/concepts`, so every model can be traced to its source. The title vista and painted sky
-were generated for this project with OpenAI's built-in image generation tool; their prompts and
-provenance are recorded beside the assets in `godot/assets/ui` and `godot/assets/sky`.
+`assets/concepts`, so every model can be traced to its source. The title vista, painted sky, and
+app icon were generated for this project with OpenAI's built-in image generation tool; their
+prompts and provenance are recorded beside the assets in `godot/assets/ui` and
+`godot/assets/sky`.
 
 Party and crowd models carry baked skeletal animation clips in their GLBs. Creature clips are
 resolved from their own baked animation libraries. The automated probes currently verify 23
@@ -116,8 +117,10 @@ as encounter rolls, combat variance, and loot, with explicit saved RNG streams.
 
 The Godot presentation combines authored map palettes with a generated panoramic cloud sky.
 Each location controls its own zenith, horizon, fog, ground, cloud strength, and grade, while
-the panorama supplies painted cloud detail. The title uses a generated cinematic vista with a
-slow camera drift and a restrained aether pulse.
+the panorama supplies painted cloud detail. Enclosed maps clear the outdoor sky and sun, then
+use their authored fog colour and placed lamps; save crystals cast their own cool aether light.
+The title and browser loading screen use a generated cinematic vista with a restrained aether
+pulse, and the field and menu interfaces share the same navy, brass, and gold window treatment.
 
 Battle presentation includes:
 

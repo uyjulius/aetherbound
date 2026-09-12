@@ -248,7 +248,31 @@ func _place_props(map_def: Dictionary) -> void:
 		node.position = world
 		node.rotation.y = yaw
 		add_child(node)
+		_add_authored_light(kit, world, map_def)
 		placed += 1
+
+
+## Light carried by an authored prop placement. The lamp and crystal meshes remain the
+## generated GLBs; these lights make their stated purpose visible, using the intensity and
+## range already authored on each map. Shadows stay with the sun so a town with fifteen lamps
+## remains affordable in the Compatibility renderer.
+func _add_authored_light(kit: String, world: Vector3, map_def: Dictionary) -> void:
+	if kit != "lamppost" and kit != "savepoint":
+		return
+	var light := OmniLight3D.new()
+	if kit == "savepoint":
+		light.light_color = Palette.element_color("aether")
+		light.light_energy = 3.2
+		light.omni_range = 6.0
+		light.position = world + Vector3(0, 1.25, 0)
+	else:
+		light.light_color = Color(String(map_def.get("lampColor", "#ffd28a")))
+		light.light_energy = float(map_def.get("lampIntensity", 6.0))
+		light.omni_range = float(map_def.get("lampRange", 12.0))
+		light.position = world + Vector3(0, 1.75, 0)
+	light.omni_attenuation = 1.45
+	light.shadow_enabled = false
+	add_child(light)
 
 
 ## A house, scaled to the box the map declares for it.

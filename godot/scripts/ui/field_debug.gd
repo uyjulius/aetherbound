@@ -1,16 +1,13 @@
 extends Control
 ##
-## A diagnostic view of the ported world: the grid, the colliders, the triggers
-## and a party you can walk around them with.
+## The shipping field view: authored scenery, animated cast, camera, HUD, interactions,
+## encounters, travel, and the party walking through the ported world.
 ##
-## Deliberately a diagnostic and not a scene. The reference builds its ground,
-## walls and props from geometry computed in code, and this project does not ship
-## procedurally generated assets — so the scenery for these 95 maps is an asset
-## problem with its own sub-project, and drawing boxes here to stand in for it
-## would be exactly the shortcut that was ruled out. What *is* finished is the
-## simulation: walkability, collision, camera-relative movement, triggers and
-## encounter distance, all of it checked against the reference by
-## `tools/field-parity.mjs`. This is that simulation, made visible.
+## The reference builds its ground, walls and props from geometry computed in code. This build
+## instead instances generated GLBs at the same authored placements. Walkability, collision,
+## camera-relative movement, triggers and encounter distance remain checked against the
+## reference by `tools/field-parity.mjs`. The collision diagnostic survives behind `G`, where
+## it is useful without being part of the player-facing presentation.
 ##
 ## Controls: move, `run`, `pageLeft`/`pageRight` to orbit the camera in 45°
 ## detents, `menu` for the field menu, `M` for the next map, `cancel` to go back.
@@ -76,6 +73,7 @@ var _place: Label
 var _prompt: Label
 var _warn: Label
 var _bar: HBoxContainer
+var _bar_backing: PanelContainer
 var _pad: GridContainer
 var _pad_backing: PanelContainer
 ## The top-down grid, which is what this screen used to be. Kept behind a key: it is the
@@ -282,14 +280,22 @@ func _ready() -> void:
 	# Where you are, said once on arrival and then gone. The reference does the same, and it
 	# is the only text a player needs on a field screen.
 	_place = Label.new()
-	_place.add_theme_font_size_override("font_size", 46)
+	_place.add_theme_font_size_override("font_size", 36)
 	_place.add_theme_color_override("font_color", Palette.ui_color("text"))
-	_place.add_theme_constant_override("shadow_offset_y", 2)
+	_place.add_theme_color_override("font_outline_color", Color(0.025, 0.035, 0.07, 0.92))
+	_place.add_theme_constant_override("outline_size", 8)
+	_place.add_theme_constant_override("shadow_offset_y", 3)
 	_place.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	_place.set_anchors_and_offsets_preset(Control.PRESET_CENTER_TOP)
+	_place.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	_place.set_anchors_and_offsets_preset(Control.PRESET_TOP_WIDE)
+	_place.anchor_left = 0.0
 	_place.anchor_right = 1.0
-	_place.offset_top = 90.0
+	_place.offset_left = 0.0
+	_place.offset_right = 0.0
+	_place.offset_top = 62.0
+	_place.offset_bottom = 122.0
 	_place.modulate.a = 0.0
+	_place.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	add_child(_place)
 
 	# What confirm would do, where the reference puts it: over the party's head, and only
@@ -382,12 +388,7 @@ func _open(index: int, spawn := "default") -> void:
 	_announce(def)
 
 
-## The 3D world: a camera, a sun, and somewhere for the scenery to hang.
-##
-## The environment is deliberately plain. The reference's look came from a toon and ink
-## post-processing chain built for primitive geometry, and this port exists to replace that
-## geometry — so what is here is Godot's own lighting on hand-made models, and the art
-## direction is the palette and the reference's own texture plates.
+## The 3D world: a camera, authored scenery, the painted atmosphere, and animated models.
 func _build_world() -> void:
 	_world = Node3D.new()
 	add_child(_world)
@@ -430,9 +431,9 @@ func _set_field_hud(showing: bool) -> void:
 		# The pad is the field's. A battle is a menu, and a d-pad over it would say the party
 		# can be walked around mid-fight.
 		_pad_backing.visible = showing and (_dialogue == null or not _dialogue.is_open)
-	if _bar != null:
+	if _bar_backing != null:
 		# Not over a conversation: the box is at the bottom of the screen and so is the bar.
-		_bar.visible = showing and not (_dialogue != null and _dialogue.is_open)
+		_bar_backing.visible = showing and not (_dialogue != null and _dialogue.is_open)
 	if _prompt != null:
 		_prompt.visible = showing
 	if _warn != null:
@@ -445,18 +446,30 @@ func _set_field_hud(showing: bool) -> void:
 ##
 ## The reference's control bar is the game's statement of what its controls *are* — the
 ## keys come from the same `input` table the bindings do, so a rebound key changes the bar
-## without anybody editing it. What is not ported is that its bar is clickable: it doubles
-## as a touch pad, and on a phone it is the only way to play. That is a real loss and it is
-## named rather than hidden; a Godot build with 37 MB of engine to download is a poor phone
-## game either way, and the web build is still at /js/ for anybody on one.
+## without anybody editing it. The bar and movement pad are clickable, because on a touch
+## device they are the controls rather than an explanation of them.
 func _build_control_bar() -> void:
+	_bar_backing = PanelContainer.new()
+	var style := StyleBoxFlat.new()
+	style.bg_color = Color(0.018, 0.026, 0.055, 0.86)
+	style.border_color = Color(Palette.ui_color("line"), 0.72)
+	style.set_border_width_all(1)
+	style.set_corner_radius_all(10)
+	style.set_content_margin_all(8)
+	style.shadow_color = Color(0.0, 0.0, 0.0, 0.32)
+	style.shadow_size = 8
+	_bar_backing.add_theme_stylebox_override("panel", style)
+	_bar_backing.set_anchors_and_offsets_preset(Control.PRESET_BOTTOM_WIDE)
+	_bar_backing.offset_left = 270.0
+	_bar_backing.offset_right = -30.0
+	_bar_backing.offset_top = -116.0
+	_bar_backing.offset_bottom = -24.0
+	add_child(_bar_backing)
+
 	_bar = HBoxContainer.new()
-	_bar.add_theme_constant_override("separation", 34)
-	_bar.set_anchors_and_offsets_preset(Control.PRESET_BOTTOM_WIDE)
+	_bar.add_theme_constant_override("separation", 26)
 	_bar.alignment = BoxContainer.ALIGNMENT_CENTER
-	_bar.offset_top = -104.0
-	_bar.offset_bottom = -34.0
-	add_child(_bar)
+	_bar_backing.add_child(_bar)
 
 	# The labels and the hints are the reference's, in its order, from `controls.json`. "Talk"
 	# for confirm and "Enter" rather than "Z" are decisions about how to explain the game to
@@ -497,6 +510,7 @@ func _build_control_bar() -> void:
 		if action.is_empty():
 			# `Move` is the pad's label, not a button: there is a pad for that.
 			var column := VBoxContainer.new()
+			column.custom_minimum_size = Vector2(92, 66)
 			column.add_theme_constant_override("separation", 0)
 			column.add_child(_bar_label(String(pair[0]), 20, Palette.ui_color("text")))
 			column.add_child(_bar_label(String(pair[1]), 16, Palette.ui_color("textDim")))
@@ -540,9 +554,9 @@ func _bar_button(label: String, hint: String, action: String, hold: bool) -> But
 	var button := Button.new()
 	button.flat = true
 	button.focus_mode = Control.FOCUS_NONE
-	button.custom_minimum_size = Vector2(96, 62)
+	button.custom_minimum_size = Vector2(92, 66)
 	button.text = "%s\n%s" % [label, hint]
-	button.add_theme_font_size_override("font_size", 20)
+	button.add_theme_font_size_override("font_size", 18)
 	button.add_theme_color_override("font_color", Palette.ui_color("text"))
 	button.add_theme_color_override("font_hover_color", Palette.ui_color("select"))
 	button.autowrap_mode = TextServer.AUTOWRAP_OFF
@@ -576,7 +590,7 @@ func _build_pad() -> void:
 	var backing := PanelContainer.new()
 	var style := StyleBoxFlat.new()
 	style.bg_color = Color(Palette.ink)
-	style.bg_color.a = 0.42
+	style.bg_color.a = 0.72
 	style.set_corner_radius_all(8)
 	style.set_content_margin_all(8)
 	backing.add_theme_stylebox_override("panel", style)
@@ -619,7 +633,8 @@ func _announce(def: Dictionary) -> void:
 		return
 	var name := String(def.get("name", ""))
 	var subtitle := String(def.get("subtitle", ""))
-	_place.text = name if subtitle.is_empty() else "%s — %s" % [name, subtitle]
+	_place.text = name.to_upper() if subtitle.is_empty() else "%s  ·  %s" % [
+		name.to_upper(), subtitle]
 	_place.modulate.a = 0.0
 	var tween := create_tween()
 	tween.tween_property(_place, "modulate:a", 1.0, 0.5)
@@ -860,6 +875,13 @@ func _follow_camera() -> void:
 		eye += Vector3(sin(beat * 1.7), cos(beat * 2.3), sin(beat * 3.1)) * _shake * 0.35
 	_camera.position = eye
 	_camera.look_at(_field.camera.look, Vector3.UP)
+	# A follower can walk between the camera and the leader after a turn. Hiding only that
+	# close model prevents its near-clipped triangles from filling the bottom of the screen;
+	# it becomes visible again as soon as it is a body-length away from the lens.
+	var flying := not _field.vehicle.is_empty()
+	for node in _followers:
+		if node != null:
+			node.visible = not flying and node.global_position.distance_to(_camera.global_position) > 2.4
 	if _walker != null:
 		_walker.position = Vector3(_field.player.x, 0.0, _field.player.z)
 		# Turned to face the way they are walking, plus half a turn: these models face -Z and

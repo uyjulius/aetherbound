@@ -322,44 +322,99 @@ func _report_fx_cost() -> void:
 	field.detach()
 
 
-## A slab of the ground the party was standing on. Scaled from the same block the world is
-## paved with, so a battle floor is the same asset and the same plate as a street.
+## A fixed arena of the ground the party was standing on. It uses the same imported generated
+## block and texture plate as the field, laid out at the field's two-metre cadence. Stretching
+## one chipped block across the whole arena magnified its facets into ravines; this fixed grid
+## keeps the model at its authored proportions and batches all 456 pieces in one draw call.
 func _lay_floor() -> void:
 	if not ResourceLoader.exists("res://assets/props/block.glb"):
 		return
 	var scene: PackedScene = load("res://assets/props/block.glb")
-	var slab: Node3D = scene.instantiate()
-	# Measured through the whole hierarchy: this model's mesh is two nodes down and two
-	# centimetres across, and a loop over the root's own children finds neither.
-	var box := _cast.bounds(slab)
-	if box.size.x <= 0.0001:
+	var root: Node3D = scene.instantiate()
+	var found := _first_mesh(root)
+	var box := _cast.bounds(root)
+	root.free()
+	if found.is_empty() or box.size.x <= 0.0001 or box.size.y <= 0.0001 \
+			or box.size.z <= 0.0001:
 		return
-	slab.scale = Vector3(44.0 / box.size.x, 0.6 / box.size.y, 34.0 / box.size.z)
-	# The slab's *top* at zero, which is where everybody's feet are. Putting its centre there
-	# instead buried the party to the knee, and a fight in a lawn is worse than no lawn.
-	slab.position.y = -(box.position.y + box.size.y) * slab.scale.y
+	var mesh: Mesh = found["mesh"]
+	var inner: Transform3D = found["transform"]
+	var tile := 2.0
+	var columns := 24
+	var rows := 19
+	var transforms: Array[Transform3D] = []
+	var tile_scale := Vector3(tile * 1.02 / box.size.x, 0.4 / box.size.y,
+		tile * 1.02 / box.size.z)
+	# The model bounds include its glTF hierarchy. Put every chipped block's top exactly at
+	# foot height and centre the fixed arena on the combat formation.
+	var top_offset := -(box.position.y + box.size.y) * tile_scale.y
+	for z in rows:
+		for x in columns:
+			var position := Vector3((float(x) - float(columns - 1) * 0.5) * tile,
+				top_offset, (float(z) - float(rows - 1) * 0.5) * tile - 1.0)
+			transforms.append(Transform3D(Basis().scaled(tile_scale), position) * inner)
+
 	var material := StandardMaterial3D.new()
 	var path := "res://assets/textures/%s" % _ground
 	if ResourceLoader.exists(path):
 		material.albedo_texture = load(path)
 		material.uv1_triplanar = true
-		material.uv1_scale = Vector3.ONE * 0.5
+		material.uv1_scale = Vector3.ONE * 0.25
 	else:
 		material.albedo_color = Palette.ramp_at("stone", 0.4)
+	material.texture_filter = BaseMaterial3D.TEXTURE_FILTER_LINEAR_WITH_MIPMAPS_ANISOTROPIC
+	_add_floor_batch(mesh, transforms, material, tile)
 
-	# The generated block has deliberately chipped edges. Enlarged to arena scale, those chips
-	# can expose bright sky through hairline gaps. A wider copy of the same authored mesh sits
-	# just below and slightly offset, so the chips read as earth and depth.
-	var underlay: Node3D = scene.instantiate()
-	underlay.scale = Vector3(46.0 / box.size.x, 0.8 / box.size.y, 36.0 / box.size.z)
-	underlay.position = Vector3(0.35, slab.position.y - 0.16, 0.25)
+	# A second batch just under the paving closes the irregular generated edges. Its wider,
+	# earth-tinted blocks read as soil through the small chips instead of bright sky.
+	var underlay_transforms: Array[Transform3D] = []
+	var underlay_scale := Vector3(tile * 1.08 / box.size.x, 0.55 / box.size.y,
+		tile * 1.08 / box.size.z)
+	var underlay_top := -(box.position.y + box.size.y) * underlay_scale.y - 0.18
+	for z in rows:
+		for x in columns:
+			var position := Vector3((float(x) - float(columns - 1) * 0.5) * tile + 0.17,
+				underlay_top, (float(z) - float(rows - 1) * 0.5) * tile - 0.87)
+			underlay_transforms.append(
+				Transform3D(Basis().scaled(underlay_scale), position) * inner)
 	var underlay_material := material.duplicate() as StandardMaterial3D
-	underlay_material.albedo_color = Color(0.33, 0.30, 0.24)
-	underlay_material.albedo_color.a = 1.0
-	_paint(underlay, underlay_material)
-	_stage.add_child(underlay)
-	_paint(slab, material)
-	_stage.add_child(slab)
+	underlay_material.albedo_color = Color(0.48, 0.43, 0.34)
+	_add_floor_batch(mesh, underlay_transforms, underlay_material, tile)
+
+
+func _add_floor_batch(mesh: Mesh, transforms: Array[Transform3D], material: Material,
+		tile: float) -> void:
+	var multi := MultiMesh.new()
+	multi.transform_format = MultiMesh.TRANSFORM_3D
+	multi.mesh = mesh
+	multi.instance_count = transforms.size()
+	var bounds := AABB(transforms[0].origin, Vector3.ZERO)
+	for i in transforms.size():
+		multi.set_instance_transform(i, transforms[i])
+		bounds = bounds.expand(transforms[i].origin)
+	var floor := MultiMeshInstance3D.new()
+	floor.multimesh = multi
+	floor.material_override = material
+	floor.custom_aabb = bounds.grow(tile * 2.0)
+	_stage.add_child(floor)
+
+
+## First mesh in an imported scene and its full transform from the scene root. The block mesh
+## lives two levels down under a glTF scale node, so the raw mesh without this transform would
+## be one hundredth of the intended size.
+func _first_mesh(root: Node) -> Dictionary:
+	var stack: Array = [[root, Transform3D.IDENTITY]]
+	while not stack.is_empty():
+		var entry: Array = stack.pop_back()
+		var node: Node = entry[0]
+		var world: Transform3D = entry[1]
+		if node is Node3D:
+			world = world * (node as Node3D).transform
+		if node is MeshInstance3D and (node as MeshInstance3D).mesh != null:
+			return {"mesh": (node as MeshInstance3D).mesh, "transform": world}
+		for child in node.get_children():
+			stack.append([child, world])
+	return {}
 
 
 ## Put one material on every surface under a node.
