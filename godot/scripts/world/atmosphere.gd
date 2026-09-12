@@ -24,27 +24,29 @@ extends RefCounted
 ##
 ## Sun direction in the tables is a vector *towards* the sun, as the reference's lights read
 ## it.
+const PAINTED_SKY := preload("res://shaders/painted_sky.gdshader")
+const SKY_PANORAMA := preload("res://assets/sky/aether-clouds.png")
+
+
 static func apply(environment: Environment, sun: DirectionalLight3D, map_def: Dictionary) -> void:
 	var sky_def: Dictionary = map_def.get("sky", {})
 	if sky_def.is_empty():
 		return
 
-	var material := ProceduralSkyMaterial.new()
-	material.sky_top_color = Color(String(sky_def.get("zenith", "#2f6494")))
-	material.sky_horizon_color = Color(String(sky_def.get("horizon", "#a6bcb8")))
-	material.ground_bottom_color = Color(String(sky_def.get("ground", "#565448")))
-	material.ground_horizon_color = material.sky_horizon_color
-	# Cloud cover thickens the horizon rather than drawing clouds: Godot's procedural sky has
-	# no cloud layer, and a flat grey band at the horizon is what an overcast day looks like
-	# from inside a village anyway.
+	var material := ShaderMaterial.new()
+	material.shader = PAINTED_SKY
+	material.set_shader_parameter("sky_panorama", SKY_PANORAMA)
+	material.set_shader_parameter("zenith_color",
+		Color(String(sky_def.get("zenith", "#2f6494"))))
+	material.set_shader_parameter("horizon_color",
+		Color(String(sky_def.get("horizon", "#a6bcb8"))))
+	material.set_shader_parameter("ground_color",
+		Color(String(sky_def.get("ground", "#565448"))))
+	# Clear days keep more of the map's clean authored gradient. Overcast maps reveal more of
+	# the generated cloud plate, without changing the colour script that identifies the map.
 	var cloud := float(sky_def.get("cloud", 0.0))
-	# How high up the dome the horizon's colour reaches. Cloud thickens the band, but not as far
-	# as it did: at 0.5 the pale horizon colour covered everything a field camera can see, so
-	# every authored zenith in the game — Harrowmere's deep blue included — was invisible and
-	# every sky was the same grey.
-	material.sky_curve = lerpf(0.08, 0.22, clampf(cloud, 0.0, 1.0))
-	material.sun_angle_max = 12.0
-	material.sun_curve = 0.12
+	material.set_shader_parameter("painted_strength",
+		lerpf(0.38, 0.70, clampf(cloud, 0.0, 1.0)))
 
 	var sky := Sky.new()
 	sky.sky_material = material
