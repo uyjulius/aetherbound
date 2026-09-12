@@ -1,373 +1,219 @@
 # Aetherbound
 
-A 3D turn-based RPG in the Final Fantasy VI tradition: hand-authored world, ATB
-combat, an ensemble cast where everyone plays differently, and a score built on
-a single recurring motif.
+Aetherbound is a complete, browser-playable 3D turn-based RPG built with Godot 4.7.1.
+It follows a fourteen-character ensemble through two continents, a broken second world,
+ATB battles, summons, an airship, and an ending.
+
+**Play:** [aetherbound.uy.sg](https://aetherbound.uy.sg)
+
+![Aetherbound title vista](godot/assets/ui/aetherbound-title-vista.png)
+
+The Godot build is published at the site root. The original JavaScript implementation remains
+available at [/js/](https://aetherbound.uy.sg/js/) as the executable reference used by the
+port's parity tests.
+
+## Run the Godot build
+
+Install Node.js 22 and Godot 4.7.1, then:
 
 ```bash
-npm install
-npm run textures     # paint the material plates (~6s)
-npm run build
-npm run serve        # → http://localhost:5177
+npm ci
+GODOT=/path/to/godot npm run export:web
+npm run smoke:web -- --timeout 420
 ```
 
-`npm run smoke` drives a real browser through the whole loop and fails on any
-console error.
+The export is written to `build/web`. To work in the editor, open
+`godot/project.godot` directly.
 
-**Controls** — arrows/WASD move, `Shift` run, `Enter`/`Z` confirm, `Esc`/`X`
-cancel, `C` menu, `Q`/`E` rotate camera, `P` pause, both shoulder buttons to
-flee a battle. Movement is relative to the camera, so the same key always
-walks the same way *on screen* however the camera is turned. Gamepads work.
-Everything is also on the control bar along the bottom of the screen, which
-doubles as the game's statement of what the controls are.
-Debug: `B` starts a random encounter, `N` starts a boss fight.
-
-**Getting into a town** — walk onto its entrance; there is no button to press.
-The name of whatever doorway, gate or road you are approaching appears above
-it as you get close.
-
-**The playable arc** — talk to Elder Sabbath in Harrowmere, leave by the south
-bridge, and follow the road. The Fen Barrow is south-west, Solmere east, the
-Ferran Outpost north, Ashenhall and the Cinderspine Pass north of that. The
-Standing Oak and the Toll Baron's barricade are off the road and optional.
-
----
-
-## What this is
-
-The engine is finished and verified, and the game is **completable start to
-finish** — five chapters, five mandatory bosses, an ending. The main line is
-about ninety minutes; the optional content either side of it is worth many
-times that. See [Honest state](#honest-state) at the bottom before reading
-anything else as a claim of completeness.
-
-### Rendering
-
-A custom post chain does most of the visual identity work:
-
-- **Toon shading with hue-shifted ramps.** Three samples the gradient at
-  `dotNL * 0.5 + 0.5`, so the terminator sits at the ramp's midpoint and
-  everything below it must stay at the deepest shadow value. Ramps shift *hue*
-  as they darken — shadows cool, lights warm — which is the difference between
-  painted-looking material and flat recoloured noise.
-- **Depth-normal ink outlines** whose weight varies with distance, so they read
-  as a drawn line rather than a uniform sticker. Characters get an extra
-  inverted-hull contour, the way a comic artist inks a figure more heavily than
-  its background.
-- **Tilt-shift depth of field** for the diorama look, restrained bloom, a
-  filmic tonemap that keeps mids linear so flat painted colour stays flat, and
-  split-toning applied as a zero-mean *multiply* after tonemapping so it shifts
-  hue without lifting blacks into grey.
-- **Grain stepped at 24fps.** Per-frame noise shimmers and reads as cheap;
-  24fps reads as film.
-
-### Art pipeline
-
-`tools/gen-textures.mjs` produces 21 seamless material plates. The important
-part is the *coherence pass* that every plate goes through regardless of where
-it came from: forced tiling, painterly brushwork, a low-frequency value glaze,
-hue shifting, and quantisation to one 40-ramp master palette.
-
-The pipeline is provider-agnostic. Drop a plate from any image model into
-`assets/raw/<name>.png` and it becomes the starting point for that material
-instead of the authored synthesiser — same coherence pass either way. That pass
-is the point: raw generated images each arrive with their own lighting, colour
-temperature and detail level, and the eye reads that inconsistency instantly.
-
-A relative seam metric (`edge difference ÷ 90th-percentile interior contrast`)
-flags real seams while tolerating materials whose structure legitimately puts a
-hard edge on the tile boundary. `npm run textures` prints it per plate and
-writes a 2×2-tiled contact sheet to `assets/contact-sheet.png`.
-
-### Characters
-
-Segmented rigid limbs on a joint hierarchy rather than skinned meshes — which
-is what PS1-era JRPG characters actually were, and reads as deliberate
-stylisation instead of a failed attempt at realism. Proportions follow a 5.5-head
-canon measured from the ground up. Faces are *painted marks* on a simple head
-shape: two eyes, a brow carrying the expression, and a small mouth. Nothing here
-can land in the uncanny valley.
-
-Animation is procedural — 14 clips (idle, walk, run, battle stance, attack,
-cast, hurt, victory, dead, sit, loiter, work…) computed from the clock and
-blended, so every character and NPC gets the full move set for free.
-
-### World
-
-Maps are hand-authored ASCII terrain grids plus explicit prop placements. The
-`LEGEND` maps characters to ground type and walkability; buildings, props and
-NPCs are placed by hand with explicit parameters. Nothing about a map is
-generated at runtime — the builder only translates the authored description
-into meshes and a collision grid.
-
-Ground is a base layer with other terrain types laid over it as **feathered
-decals** whose alpha falls off wherever they meet a different type, so paths get
-organic painted edges instead of hard tile boundaries.
-
-### Battle
-
-ATB with wait and active modes. SNES-style formulas — defence divides rather
-than subtracts, ±12.5% variance — because that is what makes a turn-based game
-feel the way players expect; additive defence produces flat numbers where every
-hit is identical. 25 statuses, elemental affinities including absorb, rows,
-crits, reflect. Enemy behaviour is a list of rules evaluated top to bottom, so
-bosses get real phases without a scripting language.
-
-### Spell effects
-
-One preallocated pool of 3,000 CPU-simulated particles, drawn as soft additive
-discs generated in the shader — no sprite textures, so no hard sprite edges.
-Nothing allocates during a battle; dead particles are swap-removed to keep the
-live range contiguous.
-
-Each element gets a **distinct silhouette of motion**, not a recoloured puff,
-because in a turn-based game the player watches these thousands of times and
-the read has to be instant:
-
-| | |
-|---|---|
-| fire | charge, detonate, embers rise and cool |
-| ice | shards converge, *hang*, shatter outward |
-| bolt | no wind-up — strikes downward in one frame |
-| earth | erupts from below, heavy high-gravity debris |
-| holy | pillar descends and widens, motes drift up |
-| shadow | collapses inward and stays dark |
-| heal | the only effect that rises gently rather than bursting |
-
-Effects are coroutines, so the battle script waits for the visual to land
-before applying damage — the hit should look like it *caused* the number.
-Magic circles, shockwaves, light pillars, swept slash arcs and chained
-lightning are mesh-based; everything else is particles.
-
-### Interiors
-
-Buildings carry an `enter` id; the builder places a doorway trigger just
-outside whichever face holds the door, rotated with the building. Walking into
-a door loads the interior — no prompt, no separate interaction, which is how
-this genre has always worked.
-
-Interiors are small hand-authored rooms rather than generated boxes, lit by the
-`interior` preset with the sky switched off, so stepping through a door gives an
-immediate and unmistakable change of register. Four rooms cover the buildings
-that matter; the cost per additional door is one screen of data.
-
-### Two worlds
-
-The story has a hinge: partway down the Ninth Well, Vhaine pulls it open and
-the world changes state. Everything after that is the **same continent, the
-same road, the same towns, wrong sky**.
-
-That is deliberately not a second set of maps. A map definition may carry a
-`ruin` block whose keys merge over the base — light, grade, fog, sky, music,
-encounter regions, plus lists of props and NPCs to add or remove *by id*:
-
-```js
-ruin: {
-  subtitle: 'What Is Left of the Silt Road',
-  light: 'dusk', grade: 'ruin', music: 'memory',
-  removeNpcs: ['kid1', 'kid2', 'wanderer'],
-  npcs: [ /* who stayed, and who they are now */ ],
-  props: [ /* dead trees, a chest that wasn't there before */ ],
-}
-```
-
-The terrain grid is untouched on purpose. The emotional point of the device is
-that the player recognises a street and finds it wrong, and duplicating the map
-would quietly destroy that — you would be walking somewhere new that merely
-resembled the old place. Party `worldState` is saved, so the two halves survive
-a reload.
-
-### Music
-
-The score is *composed* — note data performed at runtime by modelled
-instruments — not streamed audio. Loops are sample-accurate (a rendered loop
-always has a seam, and the player hears it the fortieth time round a town),
-tracks layer dynamically, and it costs kilobytes instead of megabytes.
-
-Everything is built on the **Aetherbound motif**: a rising minor sixth followed
-by a stepwise fall. It opens the Prelude, it is the world-map melody, it appears
-*inverted* under the boss theme (the villain's music is the world's music,
-corrupted), and it is quoted in the major for the opening village.
-
----
-
-## Layout
-
-```
-src/
-  engine/     renderer, post chain, input, scheduler, palette, assets, RNG
-  fx/         toon/water/sky/foliage materials, post-processing
-  world/      map format + builder, building kit, characters, field state
-  battle/     ATB engine, formulas, monster body plans, battle view + UI
-  ui/         window toolkit, dialogue, field menu
-  audio/      synthesiser + sequencer
-  data/       characters, enemies, items, spells, music, maps
-  game/       party/roster state, save manager
-tools/
-  build.mjs, serve.mjs, smoke.mjs
-  gen-textures.mjs, texgen/{raster,materials}.mjs
-```
-
-Some non-obvious decisions that took a while to get right and should not be
-casually undone:
-
-- **Input is polled per simulation tick, not per rendered frame.** Polling per
-  frame silently drops roughly half of all button presses when rendering
-  outruns the fixed step (120fps render against a 60Hz sim).
-- **The character animator must not capture a rest pose for the `root` joint.**
-  Root carries world placement, which the owning actor writes every frame;
-  snapshotting and restoring it drags the character back to the origin.
-- **Periodic noise only wraps when input scaling is integer.** Squashing an axis
-  with `fbm(u * 2.6, …)` lands the tile edge mid-cell. Ask for per-axis cell
-  counts instead.
-- **Bloom upsampling must read a different target than it writes.** Reading and
-  writing the same mip is the WebGL feedback loop the driver complains about.
-- **Contrast is a smoothstep S-curve, not pivot-and-scale.** Pivot-and-scale
-  clips everything below the pivot straight to black.
-
----
-
-## Honest state
-
-The brief was a complete ~40-hour game. What exists is a **finished engine and a
-verified vertical slice**, not a finished game. Concretely:
-
-| Area | State |
-|---|---|
-| Engine, rendering, post FX | Complete |
-| Art pipeline + 21 materials | Complete |
-| Characters, animation, field mode | Complete |
-| ATB battle system | Complete |
-| Particle + spell effect system | Complete |
-| Esper/magicite system + summons | Complete |
-| Menus, shops, inns, config, save/load | Complete |
-| Audio engine | Complete |
-| Cutscene / event / quest scripting | Complete |
-**The game has a beginning, a middle and an end, and can be finished.** The
-smoke test plays it through to the ending card. What it does not have is
-anything like forty hours of content.
-
-| Area | Count | Target |
-|---|---|---|
-| Score | **36 tracks** | 30+ — met |
-| Cast | **14, all recruitable, all mechanically distinct** | met |
-| Bestiary | **200 enemies, 45 bosses** | ~180 — met |
-| Items / spells / espers | **255 / 58 / 26** | ~250 — met |
-| Maps | **137 variants** across two continents | ~45 — met |
-| Quests and scenes | **124 events** | 60+ — met |
-| Shops | 19 | |
-| Second world state | **Done** — see [Two worlds](#two-worlds) | |
-| Airship | **Done** — the Gallowglass | |
-| Second continent | **Done** — the Meridian Reach, reachable only by air | |
-| Automated checks | **102/102**, including a playthrough to the ending | |
-| Reachability audit | **0 stranded** — `npm run audit` | |
-
-Playtime, stated honestly, is two numbers rather than one — this section used
-to give the larger of them here and the smaller one twice elsewhere, which is
-not an estimate, it is a contradiction:
-
-- **The main line is about ninety minutes.** Measured, not guessed: breadth-
-  first search over the real terrain grids gives the walking distance between
-  the story beats, and at the encounter tables' own rates that is on the order
-  of forty random battles and five bosses.
-- **Seeing everything is on the order of forty hours.** That counts both
-  continents, the hundred-odd sidequests, all 45 bosses and the encounter
-  regions that carry the level curve from 24 to 85.
-
-The gap between those two numbers was the game's central design problem, and
-`node tools/balance.mjs` now measures the join rather than each side
-separately: the main line's five mandatory bosses are checked against the
-level the road actually delivers, because they used to be written eleven
-levels above it and the game was unwinnable without grinding at one corridor.
-
-### `npm run audit`
-
-The bug this project kept producing was never a crash. It was content that
-existed, was correct, and could not be reached: a chest in a wall, a quest no
-NPC mentioned, a spell no esper taught, a relic whose effect nothing read, a
-boss no door led to. None of it throws and none of it shows up in a build.
-
-So there is a second test that checks the registry backwards — not "does
-everything referenced exist" but "is everything that exists referenced" — and
-fails the build while anything is stranded. It found 178 pieces of unreachable
-content on its first run. It now reports zero.
-
-The main line, all covered end-to-end by the smoke test:
-
-1. Harrowmere → the world map → the Fen Barrow → **the Bogfather** → Hollow King esper.
-2. Solmere → recruit Aurelian (gated on 1) → recruit Bastian (gated on Aurelian)
-   → the Ferran Outpost → **the Ferran Warden** → Maret defects.
-3. Ashenhall → **the Eighth Lantern** → the Ninth Lantern esper → Idris will
-   now stand up.
-4. The Cinderspine Pass → **the Cinder Wyrm**, two espers on the ledges.
-5. The Ninth Well → **the Warden of the Ninth Well** → the Well opens and
-   **the world breaks** → walk the ruined continent → **Vhaine, Unwound** →
-   ending.
-
-After the break, three more join: Tam on the road, Ilsabet painting in
-Harrowmere, Kestrel still filing in Solmere. Oda waits in a Harrowmere shop
-until someone asks him the useful question; Rusk has been standing against a
-wall in the Engine House for eleven years because nobody said stand down; and
-The Mask turns up at the shaft head only once the world has broken, and never
-explains itself.
-
-Optional, off the road: **the Standing Oak** (Greenmother esper), **the Toll
-Baron** ambush, the Weeping Wood (Idris, the Quiet Edge) and the Drowned Coast
-(Osric, the Saltwidow esper, the Tidecleaver).
-
-Recruitment is gated on story state rather than location, so the party you
-arrive at the Well with reflects what you actually did: Idris will not move
-until Ashenhall's last lamp goes out, and Maret will not defect until she has
-heard one of her own machines die.
-
-The continent is divided into six encounter regions — snowfield, forest, fen,
-coast, plains and the road — each rolling its own bestiary, so difficulty rises
-as the road pushes north and east.
-
-Walking the main line is on the order of ninety minutes. Everything past that
-is content against finished systems, and there is a great deal of it — see
-[Honest state](#honest-state) for both numbers and how they were measured.
-
-**Two things did not go as briefed.**
-
-*AI-generated textures.* All 21 materials are generated, and there is no
-procedural fallback in the shipping set. `npm run textures` prints `quilted`
-on every line.
-
-Getting there took abandoning the obvious approach. Asking an image model for
-a tileable texture does not work and cannot be made to work: asked for a stone
-wall it returns a photograph of a building, asked for a macro shot it returns
-one hero stone, asked for an orthophoto it returns a field with a vanishing
-point. All three tile into a kaleidoscope. Three rounds of prompt engineering
-moved the failure around without fixing it.
-
-What works is to stop using the image and start using it as a *bag of
-patches*. `tools/texgen/quilt.mjs` implements Efros & Freeman image quilting:
-lay down small overlapping blocks, search the source for the patch that best
-matches what is already committed in the overlap, and cut between them along
-the path of least difference. Composition cannot survive being reassembled
-from 128-pixel tiles; local material appearance survives perfectly, because
-every output pixel is a source pixel. Two additions to the classic algorithm:
-the tile is synthesised on a torus so it wraps by construction rather than by
-a blend applied afterwards, and patches are drawn from a shortlist of good
-matches rather than the single best, which stops the synthesiser reproducing
-one region of the source in stripes.
-
-The rest is selection. Ten candidates are generated per material and scored on
-two axes — `structureScore` (how much composition is in it, lower better) and
-`detailScore` (how much material, higher better). Optimising either alone
-picks badly: a photograph of a flat green field has no composition at all and
-is useless as grass. The winner is then de-lit, quilted, exposure-matched to
-the rest of the set, and hue-shifted lightly.
+Useful checks:
 
 ```bash
-npm run textures:raw -- --candidates 10   # keyless, via Pollinations
-npm run textures                          # quilt + coherence + contact sheet
+GODOT=/path/to/godot npm run port       # full Godot/reference parity suite
+npm run authored-assets                 # generated-model and runtime-geometry guard
+npm run smoke:web -- --timeout 420      # browser playthrough and all-map traversal
+npm run checks                          # reference content/reachability audits
 ```
 
-*Scale.* Forty hours of content is on the order of several hundred thousand words
-of writing, a few hundred hand-built maps, and a full balance pass. The
-foundation is deliberately built so that content is now *data entry* against
-finished systems — a new town is one file of ASCII and prop placements, a new
-enemy is one object, a new track is note data — but that content genuinely does
-not exist yet, and I would rather say so than imply otherwise.
+## Controls
+
+- **Move:** Arrow keys or WASD
+- **Run:** Shift
+- **Confirm:** Enter or Z
+- **Cancel:** Escape or X
+- **Menu:** C
+- **Rotate camera:** Q / E
+- **Pause:** P
+- **Flee:** both gamepad shoulder buttons
+
+Movement is camera-relative. Keyboard, gamepad, and touch controls are supported.
+
+## The game
+
+The main story starts in Harrowmere. Speak to Elder Sabbath, leave across the south bridge,
+and follow the road through the Fen Barrow, Solmere, the Ferran Outpost, Ashenhall, the
+Cinderspine Pass, and the Ninth Well. Five mandatory bosses lead to the world's break, the
+ruined continent, Vhaine, and the ending.
+
+The broader game contains:
+
+| Content | Shipping build |
+|---|---:|
+| Playable cast | 14 recruitable characters |
+| Bestiary | 200 enemies and 45 bosses |
+| World | 95 authored maps, 121 whole/ruin variants |
+| Story and side content | 124 verified event scenarios |
+| Score | 36 tracks |
+| Items / spells / espers | 275 / 58 / 26 |
+| Shops | 19 |
+| World states | Whole and ruin |
+| Traversal | Field, interiors, world map, airship |
+
+The direct story path is about ninety minutes. Completing the optional bosses, quests, second
+continent, and full bestiary is on the order of forty hours. Both figures are estimates derived
+from the real map distances, encounter rates, and content graph.
+
+## Generated 3D art
+
+Every shipping character, creature, and scenery model has generated provenance recorded in
+`godot/data/credits.json`. The current manifest contains 86 entries:
+
+- 14 party models
+- 9 crowd models
+- 36 bestiary models
+- 27 scenery models
+
+The 3D pipeline starts from a generated concept view, reconstructs it into a mesh, then cleans,
+decimates, rigs, animates, and exports the result as GLB. The concept views remain in
+`assets/concepts`, so every model can be traced to its source. The title vista and painted sky
+were generated for this project with OpenAI's built-in image generation tool; their prompts and
+provenance are recorded beside the assets in `godot/assets/ui` and `godot/assets/sky`.
+
+Party and crowd models carry baked skeletal animation clips in their GLBs. Creature clips are
+resolved from their own baked animation libraries. The automated probes currently verify 23
+character models with 202 clips and 36 creature models answering 252 gameplay animation
+requests. They sample bone movement as well as clip names, so a rigged model that does not
+actually deform fails the build.
+
+## Authored world
+
+Maps are authored terrain grids with explicit coordinates for buildings, props, NPCs,
+triggers, encounters, doors, chests, and events. Godot translates that data into imported GLB
+instances and collision cells. It does not generate terrain, buildings, foliage, dungeons, or
+placements at runtime.
+
+`npm run authored-assets` enforces that boundary. It scans every shipping GDScript for mesh
+and noise construction outside the FX renderer, then checks that every credited 3D model is
+marked as generated and points to an existing concept image. `MultiMesh` batches imported
+floor, wall, and prop meshes; it does not manufacture geometry. Short-lived spell arcs,
+shockwaves, light pillars, and particle quads are visual effects and are confined to
+`godot/scripts/fx`.
+
+Tree facing uses a fixed function of its authored tile coordinate. It never calls random noise,
+so the same map is visually identical between runs. Randomness is reserved for game rules such
+as encounter rolls, combat variance, and loot, with explicit saved RNG streams.
+
+## Presentation
+
+The Godot presentation combines authored map palettes with a generated panoramic cloud sky.
+Each location controls its own zenith, horizon, fog, ground, cloud strength, and grade, while
+the panorama supplies painted cloud detail. The title uses a generated cinematic vista with a
+slow camera drift and a restrained aether pulse.
+
+Battle presentation includes:
+
+- 3D party and enemy formations with baked idle, attack, cast, hurt, victory, and defeat motion
+- ATB in wait or active mode
+- 25 statuses, elemental affinities, rows, critical hits, reflect, and phased enemy AI
+- a centered encounter banner, combat narration, damage numbers, particles, and spell effects
+- rewards, bestiary recording, boss scenes, defeat rollback, and music restoration
+
+## Music and audio
+
+The score is composed as note data around the Aetherbound motif: a rising minor sixth followed
+by a stepwise fall. The Godot build ships 36 rendered OGG tracks and 10 sound effects. Rendering
+ahead of time gives the browser build predictable playback and preserves the composed
+arrangements.
+
+The audio parity test decodes every file, checks duration and loop seams, re-renders a sample
+through the JavaScript score engine, compares perceptual fingerprints, and verifies that every
+map and world state names a shipping cue. The browser test also confirms battle transitions,
+field restoration, configuration volume changes, and title audio initialization.
+
+## Systems
+
+The game includes:
+
+- ATB combat with character-specific commands, summons, magic learning, equipment, rows, and
+  status effects
+- menus, shops, inns, save points, chests, dialogue, scripted scenes, quests, and configuration
+- save compatibility between the JavaScript reference and Godot port
+- two world states with map-specific ruin changes
+- world-map airship boarding, flight, and landing
+- keyboard, gamepad, and touch input
+- optional privacy-respecting analytics, disabled unless configured
+
+The reference implementation remains the behavioral specification. The parity suite compares
+Godot with it across formulas, data, enemy decisions, RNG streams, growth, commands, maps,
+encounters, analytics, battles, events, effects, saves, audio, scenery, models, animation, and
+bestiary behavior.
+
+## Automated evidence
+
+The deployment workflow gates the live site on two independent jobs:
+
+1. **Port parity** imports the Godot project and runs the complete comparison suite.
+2. **Browser proof** exports WebAssembly and plays the real browser build through field
+   movement, the opening scene, battle, spells, menus, equipment, shops, inns, saves, legacy
+   save migration, defeat rollback, scene-driven boss combat, airship travel, touch controls,
+   all 95 maps, model credits, audio transitions, and analytics behavior.
+
+The browser run fails on console errors, engine warnings, missing network resources, absent
+models, broken animation, or a black canvas. GitHub Pages publishes only after both jobs
+succeed.
+
+## Project layout
+
+```text
+godot/
+  assets/
+    cast/       generated party and crowd GLBs
+    monsters/   generated creature GLBs
+    props/      generated scenery GLBs and placement plan
+    sky/        generated panoramic sky and provenance
+    textures/   authored material plates
+    ui/         generated title art and provenance
+  audio/        rendered music and sound effects
+  data/         game tables exported for Godot
+  scenes/       title and field scenes
+  scripts/      engine, world, battle, UI, FX, and game state
+  shaders/      painted sky and presentation shaders
+  tools/        headless Godot probes
+
+src/            JavaScript reference implementation
+tools/          exporters, audits, parity harnesses, and browser smoke tests
+.github/        gated GitHub Pages deployment
+```
+
+## Content integrity
+
+The project audits its content graph backward as well as forward. A valid reference proves that
+an item exists; the reachability audit also proves that players can obtain it. This catches
+unreachable chests, unmentioned quests, unteachable spells, unused relic effects, and bosses
+with no route.
+
+The main-line checks cover:
+
+1. Harrowmere to the Fen Barrow and the Bogfather
+2. Solmere, Aurelian and Bastian recruitment, the Ferran Outpost, and the Ferran Warden
+3. Ashenhall, the Eighth Lantern, and Idris's gate
+4. Cinderspine Pass and the Cinder Wyrm
+5. The Ninth Well, the world break, Vhaine, and the ending
+
+Optional routes include the Standing Oak, Toll Baron, Weeping Wood, Drowned Coast, additional
+recruitments, two continents, and 45 total bosses.
+
+## Deployment
+
+Pushes to `main` run `.github/workflows/pages.yml`. The workflow exports the Godot build,
+runs the browser and parity gates, publishes Godot at `/`, and keeps the JavaScript reference
+at `/js/`. A failed Godot gate cannot silently replace the root with an unverified build.
