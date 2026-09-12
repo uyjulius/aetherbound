@@ -229,7 +229,7 @@ func _build() -> void:
 		written, "yes" if not _saved.is_empty() else "no"])
 
 	column.add_child(_spacer(14))
-	var controls := _label("↑  ↓   CHOOSE        ENTER   CONFIRM", 18,
+	var controls := _label("W / S   CHOOSE        ENTER   CONFIRM", 18,
 		Color(0.78, 0.82, 0.89, 0.9))
 	controls.add_theme_constant_override("outline_size", 5)
 	controls.add_theme_color_override("font_outline_color", Color(0.01, 0.02, 0.05, 0.85))
