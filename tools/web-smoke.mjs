@@ -1,7 +1,7 @@
 /**
  * Load the exported Godot build in a real browser and prove it started.
  *
- *   node tools/web-smoke.mjs [--dir build/web] [--headed] [--port 5178] [--timeout 180]
+ *   node tools/web-smoke.mjs [--dir build/web] [--headed] [--port 5178] [--timeout 180] [--boot-only]
  *   node tools/web-smoke.mjs --url https://aetherbound.uy.sg/godot/
  *
  * With `--url` it checks a deployed build instead of a local export, which is
@@ -42,6 +42,13 @@ const dir = path.resolve(root, flag('dir', 'build/web'));
 const remote = flag('url', null);
 const port = Number(flag('port', 5178));
 const headed = args.includes('--headed');
+// Release CI only needs to prove the exported pack crosses the browser boundary:
+// canvas, data tables, input bindings, renderer, field scene and collision grid.
+// The exhaustive playthrough remains the default and is run locally before a
+// release. Under GitHub's software renderer that same playthrough takes about
+// three hours and can drop input while the page's main thread is busy, turning a
+// healthy build into a flaky deployment gate.
+const bootOnly = args.includes('--boot-only');
 // Generous, and adjustable: compiling 40 MB of wasm under a software rasteriser
 // takes a minute on this machine and longer on a shared CI runner. A timeout
 // that fails on a slow runner teaches people to re-run the job, which is how a
@@ -130,7 +137,7 @@ const server = remote ? null : http.createServer(async (req, res) => {
 });
 if (server) await new Promise((resolve) => server.listen(port, resolve));
 const targetUrl = new URL(remote ?? `http://localhost:${port}/`);
-targetUrl.searchParams.set('fx_cost', '1');
+if (!bootOnly) targetUrl.searchParams.set('fx_cost', '1');
 const target = targetUrl.href;
 
 const browser = await chromium.launch({
@@ -429,6 +436,22 @@ if (ready) {
     check('the starting party matches the reference', actual === expected,
       actual === expected ? actual : `port ${actual} · reference ${expected}`);
   }
+
+  if (bootOnly) {
+    check('nothing 404s', badResponses.length === 0, badResponses.slice(0, 3).join('; '));
+    check('no console errors', errors.length === 0, errors.slice(0, 3).join(' | '));
+    check('no engine warnings', warnings.length === 0,
+      warnings.slice(0, 3).map((w) => w.replace(/^WARNING:\s*/, '')).join(' | '));
+    await browser.close();
+    server?.close();
+    console.log();
+    if (failures) {
+      console.log(`\x1b[31mFAIL\x1b[0m — ${failures} check(s) failed; this build must not deploy.`);
+      process.exit(1);
+    }
+    console.log('\x1b[32mOK\x1b[0m — the exported build boots in a browser and finds its data.');
+    process.exit(0);
+  }
   const shot = path.join(root, '.renders',
     remote ? 'godot-web-field-live.png' : 'godot-web-field.png');
   fs.mkdirSync(path.dirname(shot), { recursive: true });
@@ -474,6 +497,17 @@ if (ready) {
     check('and at the speed the config says', /speed=3 wait=true/.test(battleStarted ?? ''),
       battleStarted ?? 'no BATTLE_START line');
     if (battleStarted) {
+      // `fx_cost=1` fills and advances the entire web particle pool once. On a normal GPU it
+      // completes before the first gauge fills; SwiftShader can hold Godot's main thread for
+      // minutes. Do not send menu input into that stall: Chromium may acknowledge the key
+      // events while Godot never sees them, leaving this test stranded in the first target
+      // picker. The benchmark is diagnostic, so wait for its own completion line first.
+      const costDeadline = Date.now() + Math.max(60_000, READY_TIMEOUT_MS * 3);
+      while (!fxCosts[0] && Date.now() < costDeadline) await page.waitForTimeout(250);
+      const cost = fxCosts[0];
+      check('the web particle pool reports its measured frame cost',
+        Boolean(cost) && Number.isFinite(Number(cost.match(/\bms_per_frame=([\d.]+)/)?.[1])),
+        cost ?? 'no FX_COST line in the build output');
       // Long enough for a gauge to fill and a command list to open, so the picture is of
       // a turn being taken rather than of two rats and a wait.
       await page.waitForTimeout(3500);
@@ -538,10 +572,6 @@ if (ready) {
       while (cast && !spellDrew() && Date.now() < fxDeadline) await page.waitForTimeout(200);
       check('a cast spell emits particles in the exported build', Boolean(spellDrew()),
         fx.length ? fx.join(' | ') : 'no FX completion line in the build output');
-      const cost = fxCosts[0];
-      check('the web particle pool reports its measured frame cost',
-        Boolean(cost) && Number.isFinite(Number(cost.match(/\bms_per_frame=([\d.]+)/)?.[1])),
-        cost ?? 'no FX_COST line in the build output');
       const battleShot = path.join(root, '.renders',
         remote ? 'godot-web-battle-live.png' : 'godot-web-battle.png');
       await capture(page, battleShot);
