@@ -380,7 +380,7 @@ check('the build reaches its readiness line', Boolean(ready),
   ready ?? `nothing in ${READY_TIMEOUT_MS / 1000}s`);
 
 if (ready) {
-  const read = (key) => Number(ready.match(new RegExp(`${key}=(\\d+)`))?.[1] ?? -1);
+	const read = (key) => Number(ready.match(new RegExp(`${key}=(\\d+)`))?.[1] ?? -1);
   check('the cast came out of the exported tables',
     read('cast') === manifest.cast_order,
     `reported ${read('cast')}, manifest says ${manifest.cast_order}`);
@@ -389,8 +389,17 @@ if (ready) {
   check('the input map was installed', read('actions') === ACTION_COUNT,
     `reported ${read('actions')}, expected ${ACTION_COUNT}`);
   const renderer = ready.match(/renderer=(\S+)/)?.[1];
-  check('the browser build runs Compatibility', renderer === 'gl_compatibility',
-    `renderer=${renderer}`);
+	check('the browser build runs Compatibility', renderer === 'gl_compatibility',
+		`renderer=${renderer}`);
+
+	// The workflow uploads this exact file for visual review, so take it while the title is
+	// actually on screen. This used to happen at the end of the playthrough, after the page had
+	// returned to the field, and the artifact named "title" therefore contained a town.
+	const titleShot = path.join(root, '.renders',
+		remote ? 'godot-web-title-live.png' : 'godot-web-title.png');
+	fs.mkdirSync(path.dirname(titleShot), { recursive: true });
+	await capture(page, titleShot);
+	console.log(`\n  title screenshot ${path.relative(root, titleShot)}`);
 }
 
 // Through the front door and into the field diagnostic. A scene change is where
@@ -1256,7 +1265,7 @@ check('the analytics stay out of the test suite',
 // Nothing leaves this machine: the ingestion host is intercepted and answered locally, and the
 // batch is decoded here to prove it carries real events for the right project.
 {
-  const posted = [];
+	const posted = [];
   // The main page goes first. Everything above is finished with it, and leaving it open costs
   // this check the thing it needs: two Godot instances in one browser means two WebGL contexts
   // and two copies of a hundred-megabyte pack, and Chromium starves or drops one of them. The
@@ -1264,12 +1273,7 @@ check('the analytics stay out of the test suite',
   // flush, no post, and a check that read as "the instrumentation is broken" when it was the
   // browser that had run out of room. It passed until the world became generated and the build
   // doubled; the check did not change, the weight did.
-  const shot = path.join(root, '.renders',
-    remote ? 'godot-web-title-live.png' : 'godot-web-title.png');
-  fs.mkdirSync(path.dirname(shot), { recursive: true });
-  await capture(page, shot);
-  console.log(`\n  screenshot ${path.relative(root, shot)}`);
-  await page.close();
+	await page.close();
   const probe = await browser.newPage({ viewport: { width: 900, height: 600 } });
   // In front, because a background tab in Chromium gets no animation frames — and a Godot build
   // runs its whole main loop on them. On CI the probe booted far enough to print its readiness

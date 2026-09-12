@@ -8,11 +8,9 @@
 # `npm run textures:raw` needs network access and an image model, and the
 # quilted plates are deterministic given their sources anyway.
 #
-# Two builds ship from one commit. The JS game is the product and holds the root.
-# The Godot port is published to /godot/ by a separate job that must pass its own
-# browser check — and if it does not, the site still deploys without it. The live
-# game does not go down because a port-in-progress broke, and a preview that
-# failed its check is absent rather than quietly stale.
+# Two builds ship from one commit. The Godot game holds the root after its parity
+# and browser checks pass; the earlier JavaScript build remains at /js/ as the
+# executable reference used by those parity checks.
 name: Deploy to Pages
 
 on:
