@@ -41,6 +41,7 @@ var _name_tags: EnemyTags
 var _commands: VBoxContainer
 var _commands_panel: PanelContainer
 var _banner: Label
+var _banner_tween: Tween
 var _log: Label
 var _popups: Control
 
@@ -113,11 +114,17 @@ func _build() -> void:
 
 	_banner = Label.new()
 	_banner.add_theme_font_size_override("font_size", 44)
-	_banner.add_theme_color_override("font_color", Palette.ui_color("select"))
+	_banner.add_theme_color_override("font_color", Palette.ui_color("text"))
+	_banner.add_theme_constant_override("outline_size", 10)
+	_banner.add_theme_color_override("font_outline_color", Color(Palette.ink, 0.86))
+	_banner.add_theme_constant_override("shadow_offset_y", 5)
+	_banner.add_theme_color_override("font_shadow_color", Color(0.0, 0.0, 0.02, 0.55))
 	_banner.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	_banner.set_anchors_and_offsets_preset(Control.PRESET_CENTER_TOP)
-	_banner.anchor_right = 1.0
-	_banner.offset_top = 48.0
+	_banner.set_anchors_and_offsets_preset(Control.PRESET_TOP_WIDE)
+	_banner.offset_left = 300.0
+	_banner.offset_right = -300.0
+	_banner.offset_top = 52.0
+	_banner.offset_bottom = 118.0
 	add_child(_banner)
 
 	# The enemies' names, on the enemies. A list in the corner made the player read a row and
@@ -155,8 +162,12 @@ func _build() -> void:
 	# Above the command panel, not behind it: the panel is as tall as its longest menu — Wick's
 	# runs to twelve rows — and the log used to sit inside that.
 	_log.position = Vector2(80, 400)
+	_log.size = Vector2(760, 132)
+	_log.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	_log.add_theme_font_size_override("font_size", 22)
 	_log.add_theme_color_override("font_color", Palette.ui_color("textDim"))
+	_log.add_theme_constant_override("outline_size", 7)
+	_log.add_theme_color_override("font_outline_color", Color(Palette.ink, 0.88))
 	add_child(_log)
 
 	_popups = Control.new()
@@ -184,7 +195,10 @@ func begin(party: Party, encounter: Dictionary, database, ground := "grass.png",
 	# the harness's scripted policies stand in for.
 	battle.command_policy = Callable()
 	_lines.clear()
-	_note("A fight begins: %s" % ", ".join(_enemy_names()))
+	var enemy_line := ", ".join(_enemy_names())
+	_note("A fight begins: %s" % enemy_line)
+	_show_battle_banner(("BOSS BATTLE" if battle.is_boss else "ENCOUNTER")
+		+ "  ·  " + enemy_line.to_upper())
 	# Nothing banked from whatever was on screen a moment ago.
 	_confirms = 0
 	_cancels = 0
@@ -332,6 +346,18 @@ func _lay_floor() -> void:
 		material.uv1_scale = Vector3.ONE * 0.5
 	else:
 		material.albedo_color = Palette.ramp_at("stone", 0.4)
+
+	# The generated block has deliberately chipped edges. Enlarged to arena scale, those chips
+	# can expose bright sky through hairline gaps. A wider copy of the same authored mesh sits
+	# just below and slightly offset, so the chips read as earth and depth.
+	var underlay: Node3D = scene.instantiate()
+	underlay.scale = Vector3(46.0 / box.size.x, 0.8 / box.size.y, 36.0 / box.size.z)
+	underlay.position = Vector3(0.35, slab.position.y - 0.16, 0.25)
+	var underlay_material := material.duplicate() as StandardMaterial3D
+	underlay_material.albedo_color = Color(0.33, 0.30, 0.24)
+	underlay_material.albedo_color.a = 1.0
+	_paint(underlay, underlay_material)
+	_stage.add_child(underlay)
 	_paint(slab, material)
 	_stage.add_child(slab)
 
@@ -401,6 +427,19 @@ func _enemy_names() -> Array:
 	for e in battle.enemies:
 		out.append(e.name)
 	return out
+
+
+## Announce the formation, then clear the view for the fight itself. Victory and
+## defeat reuse the same banner after stopping this entrance animation.
+func _show_battle_banner(text: String) -> void:
+	if _banner_tween != null and _banner_tween.is_valid():
+		_banner_tween.kill()
+	_banner.text = text
+	_banner.modulate.a = 0.0
+	_banner_tween = create_tween()
+	_banner_tween.tween_property(_banner, "modulate:a", 1.0, 0.18)
+	_banner_tween.tween_interval(1.35)
+	_banner_tween.tween_property(_banner, "modulate:a", 0.0, 0.65)
 
 
 func _process(delta: float) -> void:
@@ -1221,6 +1260,9 @@ func _note(line: String) -> void:
 
 func _end() -> void:
 	var rewards := battle.rewards
+	if _banner_tween != null and _banner_tween.is_valid():
+		_banner_tween.kill()
+	_banner.modulate.a = 1.0
 	match battle.result:
 		"victory":
 			# Victory is a track in the reference, not an effect, and the field puts the
