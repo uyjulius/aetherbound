@@ -105,9 +105,9 @@ placements at runtime.
 `npm run authored-assets` enforces that boundary. It scans every shipping GDScript for mesh
 and noise construction outside the FX renderer, then checks that every credited 3D model is
 marked as generated and points to an existing concept image. `MultiMesh` batches imported
-floor, wall, and prop meshes; it does not manufacture geometry. Short-lived spell arcs,
-shockwaves, light pillars, and particle quads are visual effects and are confined to
-`godot/scripts/fx`.
+floor and wall meshes in fixed 12×12-tile culling cells, so large authored maps do not submit
+distant geometry; it does not manufacture geometry. Short-lived spell arcs, shockwaves, light
+pillars, and particle quads are visual effects and are confined to `godot/scripts/fx`.
 
 Tree facing uses a fixed function of its authored tile coordinate. It never calls random noise,
 so the same map is visually identical between runs. Randomness is reserved for game rules such

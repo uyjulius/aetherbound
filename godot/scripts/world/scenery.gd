@@ -27,6 +27,10 @@ extends Node3D
 
 const PLAN := "res://assets/props/placement.json"
 const TEXTURES := "res://assets/textures/"
+## Fixed spatial batches for renderer culling. This groups authored placements; it does not
+## create or vary content. Twelve tiles span farther than the field camera can see at once,
+## while keeping a whole continent from becoming one always-visible draw.
+const CULL_CHUNK_TILES := 12
 
 var plan: Dictionary = {}
 ## Loaded scenes, by file name.
@@ -152,23 +156,34 @@ func _pave(map_def: Dictionary, built) -> void:
 
 
 func _add_multimesh(mesh: Mesh, transforms: Array, texture: String, tile: float) -> void:
+	var chunks: Dictionary = {}
+	var span := tile * float(CULL_CHUNK_TILES)
+	for transform: Transform3D in transforms:
+		var key := Vector2i(floori(transform.origin.x / span),
+			floori(transform.origin.z / span))
+		var chunk: Array = chunks.get(key, [])
+		chunk.append(transform)
+		chunks[key] = chunk
+	for key in chunks:
+		_add_multimesh_chunk(mesh, chunks[key], texture)
+
+
+func _add_multimesh_chunk(mesh: Mesh, transforms: Array, texture: String) -> void:
 	var multi := MultiMesh.new()
 	multi.transform_format = MultiMesh.TRANSFORM_3D
 	multi.mesh = mesh
 	multi.instance_count = transforms.size()
-	var bounds := AABB(transforms[0].origin, Vector3.ZERO)
+	var mesh_bounds := mesh.get_aabb()
+	var bounds: AABB = transforms[0] * mesh_bounds
 	for i in transforms.size():
 		multi.set_instance_transform(i, transforms[i])
-		bounds = bounds.expand(transforms[i].origin)
+		bounds = bounds.merge(transforms[i] * mesh_bounds)
 	var node := MultiMeshInstance3D.new()
 	node.multimesh = multi
-	node.material_override = _material(texture, tile)
-	# Given explicitly, and this is not an optimisation. A MultiMesh does not grow its own
-	# bounding box as instances are written into it, so the whole floor of every map was
-	# being culled as a zero-sized volume at the origin: the props drew, the ground did not,
-	# and the world looked like a village floating in the sky. Grown by a tile in every
-	# direction because the box measured here is of instance *origins*, not of their meshes.
-	node.custom_aabb = bounds.grow(tile * 2.0)
+	node.material_override = _material(texture, float(plan.get("tile", 2)))
+	# MultiMesh does not grow its own bounds as instances are written. Exact transformed mesh
+	# bounds both prevent zero-volume culling and let the renderer discard off-camera chunks.
+	node.custom_aabb = bounds.grow(0.05)
 	add_child(node)
 
 

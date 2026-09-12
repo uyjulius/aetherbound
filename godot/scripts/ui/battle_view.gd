@@ -323,9 +323,9 @@ func _report_fx_cost() -> void:
 
 
 ## A fixed arena of the ground the party was standing on. It uses the same imported generated
-## block and texture plate as the field, laid out at the field's two-metre cadence. Stretching
+## block and texture plate as the field, laid out as a fixed three-metre paving grid. Stretching
 ## one chipped block across the whole arena magnified its facets into ravines; this fixed grid
-## keeps the model at its authored proportions and batches all 456 pieces in one draw call.
+## keeps the model near its authored proportions and batches all 208 pieces in one draw call.
 func _lay_floor() -> void:
 	if not ResourceLoader.exists("res://assets/props/block.glb"):
 		return
@@ -339,9 +339,9 @@ func _lay_floor() -> void:
 		return
 	var mesh: Mesh = found["mesh"]
 	var inner: Transform3D = found["transform"]
-	var tile := 2.0
-	var columns := 24
-	var rows := 19
+	var tile := 3.0
+	var columns := 16
+	var rows := 13
 	var transforms: Array[Transform3D] = []
 	var tile_scale := Vector3(tile * 1.02 / box.size.x, 0.4 / box.size.y,
 		tile * 1.02 / box.size.z)
