@@ -1,46 +1,21 @@
 {
   "name": "aetherbound",
-  "version": "0.1.0",
+  "version": "2.0.0",
   "private": true,
   "type": "module",
-  "description": "Aetherbound \u2014 a 3D turn-based RPG in the tradition of Final Fantasy VI",
+  "description": "Aetherbound — a browser RPG rebuilt from a blank runtime",
   "scripts": {
-    "build": "node tools/build.mjs",
-    "watch": "node tools/build.mjs --watch",
-    "serve": "node tools/serve.mjs",
-    "dev": "node tools/build.mjs --watch & node tools/serve.mjs",
-    "textures": "node tools/gen-textures.mjs --size 512 --contact",
-    "textures:raw": "node tools/gen-raw-textures.mjs",
-    "smoke": "node tools/smoke.mjs",
-    "audit": "node tools/audit.mjs",
-    "geometry": "node tools/geometry.mjs",
-    "spells": "node tools/spells.mjs",
-    "quests": "node tools/quests.mjs",
-    "checks": "node tools/audit.mjs && node tools/geometry.mjs && node tools/spells.mjs && node tools/quests.mjs && node tools/events.mjs",
-    "export:godot": "node tools/to-godot.mjs",
-    "export:web": "node tools/export-web.mjs",
-    "smoke:web": "node tools/web-smoke.mjs",
-    "authored-assets": "node tools/authored-assets.mjs",
-    "port": "node tools/authored-assets.mjs && node tools/parity.mjs && node tools/data-parity.mjs && node tools/ai-parity.mjs && node tools/rng-parity.mjs && node tools/glue-parity.mjs && node tools/growth-parity.mjs && node tools/commands-parity.mjs && node tools/field-parity.mjs && node tools/danger-parity.mjs && node tools/analytics-parity.mjs && node tools/battle-parity.mjs && node tools/presentation-check.mjs && node tools/events-parity.mjs && node tools/effects-parity.mjs && node tools/saves-parity.mjs && node tools/audio-parity.mjs && node tools/scenery-parity.mjs && node tools/models-parity.mjs && node tools/cast-parity.mjs && node tools/fx-parity.mjs && node tools/bestiary-parity.mjs",
-    "start": "npm run textures && npm run build && npm run serve",
-    "balance": "node tools/balance.mjs",
-    "harvest": "node tools/harvest-reference.mjs",
-    "harvest:battles": "node tools/harvest-battles.mjs",
-    "harvest:events": "node tools/harvest-events.mjs",
-    "harvest:saves": "node tools/harvest-saves.mjs",
-    "render:music": "node tools/render-music.mjs",
-    "props": "node tools/fetch-props.mjs",
-    "scenery": "node tools/sync-textures.mjs && node tools/plan-scenery.mjs",
-    "sync:models": "node tools/sync-models.mjs",
-    "sheet": "node tools/contact-sheet.mjs"
+    "build": "node scripts/build.mjs",
+    "dev": "node scripts/dev.mjs",
+    "test": "node --test tests/*.test.js",
+    "smoke": "node scripts/smoke.mjs",
+    "check": "npm test && npm run build && npm run smoke"
   },
   "dependencies": {
     "three": "^0.180.0"
   },
   "devDependencies": {
     "esbuild": "^0.25.0",
-    "jpeg-js": "^0.4.4",
-    "playwright": "^1.62.1",
-    "pngjs": "^7.0.0"
+    "playwright": "^1.62.1"
   }
 }

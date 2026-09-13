@@ -1,0 +1,88 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+  <meta name="theme-color" content="#08111d">
+  <meta name="description" content="Aetherbound, a cinematic browser RPG.">
+  <title>Aetherbound</title>
+  <link rel="stylesheet" href="./style.css">
+</head>
+<body>
+  <main id="app" aria-label="Aetherbound">
+    <canvas id="game" tabindex="0" aria-label="Aetherbound game world"></canvas>
+
+    <section id="loading" class="screen loading-screen" aria-live="polite">
+      <div class="sigil" aria-hidden="true"><i></i><i></i><i></i></div>
+      <p class="eyebrow">The earth remembers</p>
+      <h1>Aetherbound</h1>
+      <p id="loading-label">Gathering the aether…</p>
+      <div class="load-track"><span id="load-bar"></span></div>
+    </section>
+
+    <section id="title" class="screen title-screen hidden" aria-label="Title screen">
+      <div class="title-art"></div>
+      <div class="title-vignette"></div>
+      <div class="title-copy">
+        <p class="eyebrow">A tale of buried engines</p>
+        <h1>Aetherbound</h1>
+        <p class="subtitle">The Warm Earth</p>
+        <nav id="title-menu" class="menu-stack" aria-label="Main menu"></nav>
+        <p class="title-hint">Enter to choose · Arrow keys to move</p>
+      </div>
+    </section>
+
+    <section id="field-ui" class="field-ui hidden" aria-live="polite">
+      <header class="location-card glass">
+        <p id="map-kind" class="eyebrow">Town</p>
+        <h2 id="map-name">Harrowmere</h2>
+        <p id="map-subtitle">Village on the Silt Road</p>
+      </header>
+      <aside class="quest-card glass">
+        <p class="eyebrow">Current thread</p>
+        <p id="quest-text">Speak with Elder Sabbath</p>
+      </aside>
+      <div id="party-hud" class="party-hud"></div>
+      <div id="interaction" class="interaction hidden"><kbd>Enter</kbd><span></span></div>
+      <div class="controls-bar glass">
+        <span><kbd>WASD</kbd> Move</span><span><kbd>Shift</kbd> Run</span>
+        <span><kbd>Enter</kbd> Speak</span><span><kbd>C</kbd> Menu</span>
+      </div>
+    </section>
+
+    <section id="dialogue" class="dialogue hidden" role="dialog" aria-modal="true">
+      <div class="dialogue-box glass">
+        <p id="dialogue-speaker" class="speaker"></p>
+        <p id="dialogue-text"></p>
+        <span class="continue-mark">◆</span>
+      </div>
+    </section>
+
+    <section id="game-menu" class="overlay hidden" role="dialog" aria-modal="true">
+      <div class="menu-panel glass">
+        <header><p class="eyebrow">Company</p><h2>Wayfarer’s Ledger</h2></header>
+        <div class="menu-layout">
+          <nav id="game-menu-nav" class="menu-stack"></nav>
+          <div id="menu-content" class="menu-content"></div>
+        </div>
+        <footer><kbd>Esc</kbd> Return to the road</footer>
+      </div>
+    </section>
+
+    <section id="battle-ui" class="battle-ui hidden" aria-live="polite">
+      <div id="battle-banner" class="battle-banner"></div>
+      <div id="enemy-hud" class="enemy-hud"></div>
+      <div id="battle-log" class="battle-log glass"></div>
+      <div id="command-panel" class="command-panel glass hidden">
+        <p id="turn-name" class="eyebrow"></p>
+        <nav id="battle-commands" class="menu-stack"></nav>
+      </div>
+      <div id="battle-party" class="battle-party glass"></div>
+    </section>
+
+    <div id="toast" class="toast hidden" aria-live="assertive"></div>
+    <div id="flash" class="flash"></div>
+  </main>
+  <script type="module" src="./app.js"></script>
+</body>
+</html>
