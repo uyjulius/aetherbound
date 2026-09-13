@@ -2,6 +2,7 @@ import assert from 'node:assert/strict';
 import { spawn } from 'node:child_process';
 import { mkdir } from 'node:fs/promises';
 import { chromium } from 'playwright';
+import { browserPage } from './browser-page.mjs';
 const port = 4207;
 const baseURL = process.env.BASE_URL || `http://127.0.0.1:${port}/`;
 const server = process.env.BASE_URL ? null : spawn(process.execPath, ['scripts/serve.mjs'], { env: { ...process.env, PORT: String(port) }, stdio: 'ignore' });
@@ -150,8 +151,7 @@ try {
   if (server) for (let i = 0; i < 50; i++) { try { if ((await fetch(baseURL)).ok) break; } catch {} await pause(100); }
   await mkdir('.renders', { recursive: true });
   browser = await chromium.launch({ headless: true });
-  page = await browser.newPage({ viewport: { width: 1440, height: 900 } });
-  page.setDefaultTimeout(30000);
+  page = await browserPage(browser, { viewport: { width: 1440, height: 900 } });
   page.on('pageerror', error => errors.push(error.message));
   page.on('console', message => { if (message.type() === 'error') errors.push(message.text()); });
   await page.goto(baseURL, { waitUntil: 'domcontentloaded' });

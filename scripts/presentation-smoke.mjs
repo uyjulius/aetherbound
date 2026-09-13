@@ -4,6 +4,7 @@ import { readFile, mkdir } from 'node:fs/promises';
 import assert from 'node:assert/strict';
 import { prepareCampaign } from '../src/campaign/content.js';
 import { newGame, makeMember } from '../src/core/state.js';
+import { browserPage } from './browser-page.mjs';
 const data = prepareCampaign(Object.fromEntries(await Promise.all(['characters','enemies','items','spells','legend'].map(async name => [name, JSON.parse(await readFile(`content/data/${name}.json`, 'utf8'))]))));
 const port = 4209, server = spawn(process.execPath, ['scripts/serve.mjs'], { env: { ...process.env, PORT: String(port) }, stdio: ['ignore','pipe','pipe'] });
 let browser;
@@ -27,7 +28,7 @@ try {
     const state = newGame(data); state.flags = ['opening','elder-briefing','root-bell','elder-return','foundry-mission','furnace-crown','launched'];
     state.roster = ['vesna','corvin','wick','kestrel','aurelian'].map(id => makeMember(data.characters[id], 14, data)); state.active = state.roster.map(h => h.id);
     state.mapId = mapId; state.position = position;
-    const page = await browser.newPage({ viewport: { width: 1440, height: 900 } }); page.setDefaultTimeout(45000);
+    const page = await browserPage(browser, { viewport: { width: 1440, height: 900 } });
     const errors = []; page.on('pageerror', error => errors.push(error.message)); page.on('console', message => { if (message.type() === 'error') errors.push(message.text()); });
     await page.addInitScript(value => localStorage.setItem('aetherbound.v2.save', JSON.stringify(value)), state);
     await page.goto(`http://127.0.0.1:${port}/?test`, { waitUntil: 'domcontentloaded' });

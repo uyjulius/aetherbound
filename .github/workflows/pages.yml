@@ -33,6 +33,13 @@ jobs:
           key: chromium-${{ runner.os }}-${{ hashFiles('package-lock.json') }}
       - run: npx playwright install chromium
       - run: npm run check:release
+      - name: Preserve browser verification captures
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: browser-verification
+          path: .renders/*.png
+          retention-days: 7
       - uses: actions/configure-pages@v5
       - uses: actions/upload-pages-artifact@v3
         with:

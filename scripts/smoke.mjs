@@ -2,6 +2,7 @@ import assert from 'node:assert/strict';
 import { spawn } from 'node:child_process';
 import { mkdir } from 'node:fs/promises';
 import { chromium } from 'playwright';
+import { browserPage } from './browser-page.mjs';
 
 const port = 4197;
 const server = spawn(process.execPath, ['scripts/serve.mjs'], { env: { ...process.env, PORT: String(port) }, stdio: ['ignore','pipe','pipe'] });
@@ -18,12 +19,11 @@ async function opening(page) {
   }
   throw new Error('Opening dialogue did not finish');
 }
-let browser;
+let browser, passed = false;
 try {
   await waitForServer(); await mkdir('.renders', { recursive: true });
   browser = await chromium.launch({ headless: true });
-  const page = await browser.newPage({ viewport: { width: 1440, height: 900 } });
-  page.setDefaultTimeout(30000);
+  const page = await browserPage(browser, { viewport: { width: 1440, height: 900 } });
   const errors = [];
   page.on('pageerror', error => errors.push(error.message));
   page.on('console', message => { if (message.type() === 'error') errors.push(message.text()); });
@@ -121,7 +121,7 @@ try {
   assert.ok(revived.hp > 0); assert.equal(revived.count, 1);
   console.log('Revival through the item and target menus verified');
   await page.close();
-  const recovery = await browser.newPage({ viewport: { width: 1440, height: 900 } });
+  const recovery = await browserPage(browser, { viewport: { width: 1440, height: 900 } });
   recovery.on('pageerror', error => errors.push(error.message));
   await recovery.goto(`http://127.0.0.1:${port}/?test`, { waitUntil: 'domcontentloaded' });
   await recovery.getByRole('button', { name: /New Journey/ }).click();
@@ -156,7 +156,7 @@ try {
   assert.equal(restored.map, 'harrowmere'); assert.deepEqual(restored.position, restored.checkpoint);
   assert.ok(restored.hp.every(([hp, max]) => hp === max));
   console.log('Lethal boss impact, held death poses and checkpoint recovery verified');
-  const touch = await browser.newPage({ viewport: { width: 390, height: 844 }, isMobile: true, hasTouch: true });
+  const touch = await browserPage(browser, { viewport: { width: 390, height: 844 }, isMobile: true, hasTouch: true });
   touch.on('pageerror', error => errors.push(error.message));
   await touch.goto(`http://127.0.0.1:${port}/`, { waitUntil: 'domcontentloaded' });
   await touch.getByRole('button', { name: /New Journey/ }).tap();
@@ -187,7 +187,7 @@ try {
   await touch.waitForFunction(() => !window.__AETHERBOUND__.world.locked);
   console.log('Touch dialogue, save, direction pad and responsive ledger verified');
 
-  const failedLoad = await browser.newPage({ viewport: { width: 1100, height: 750 } });
+  const failedLoad = await browserPage(browser, { viewport: { width: 1100, height: 750 } });
   await failedLoad.route('**/cast/vesna.glb', route => route.abort());
   await failedLoad.goto(`http://127.0.0.1:${port}/`, { waitUntil: 'domcontentloaded' });
   await failedLoad.getByRole('button', { name: /New Journey/ }).click();
@@ -199,5 +199,21 @@ try {
   await opening(failedLoad);
   console.log('Failed model load returns to title and retries without a poisoned asset cache');
   assert.deepEqual(errors, [], 'no browser runtime errors');
+  passed = true;
   console.log('Smoke passed: field interaction, skeletal walk, explicit target, delayed impact, victory, revival, defeat and checkpoint recovery');
-} finally { await browser?.close(); server.kill('SIGTERM'); }
+} finally {
+  if (!passed && browser) for (const [index, page] of browser.contexts().flatMap(context => context.pages()).entries()) {
+    try {
+      console.error('Smoke failure state:', await page.evaluate(() => {
+        const app = window.__AETHERBOUND__, battle = app?.battle;
+        return { mode: app?.mode, map: app?.state?.mapId, locked: app?.world?.locked,
+          awaiting: battle?.model?.awaiting?.id, pending: !!battle?.pending, result: battle?.result,
+          timeline: battle?.timeline && { elapsed: battle.timeline.elapsed, impacted: battle.timeline.impacted },
+          party: battle?.model?.party.map(hero => ({ id: hero.id, hp: hero.hp, atb: hero.atb })),
+          enemies: battle?.model?.enemies.map(enemy => ({ id: enemy.id, hp: enemy.hp, atb: enemy.atb })) };
+      }));
+      await page.screenshot({ path: `.renders/smoke-failure-${index}.png`, timeout: 10000 });
+    } catch (error) { console.error('Failure capture:', error.message); }
+  }
+  await browser?.close(); server.kill('SIGTERM');
+}
