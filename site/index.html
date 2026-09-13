@@ -43,10 +43,18 @@
         <p id="quest-text">Speak with Elder Sabbath</p>
       </aside>
       <div id="party-hud" class="party-hud"></div>
+      <button id="field-menu-button" class="field-menu-button glass" aria-label="Open the ledger">☷ Ledger</button>
       <div id="interaction" class="interaction hidden"><kbd>Enter</kbd><span></span></div>
       <div class="controls-bar glass">
         <span><kbd>WASD</kbd> Move</span><span><kbd>Shift</kbd> Run</span>
         <span><kbd>Enter</kbd> Speak</span><span><kbd>C</kbd> Menu</span>
+      </div>
+      <div class="touch-controls" aria-label="Movement controls">
+        <div class="direction-pad">
+          <button data-input="up" aria-label="Move north">↑</button><button data-input="left" aria-label="Move west">←</button>
+          <button data-input="right" aria-label="Move east">→</button><button data-input="down" aria-label="Move south">↓</button>
+        </div>
+        <div class="touch-actions"><button data-input="run">Run</button><button data-input="confirm" aria-label="Interact">Act</button></div>
       </div>
     </section>
 
@@ -65,7 +73,7 @@
           <nav id="game-menu-nav" class="menu-stack"></nav>
           <div id="menu-content" class="menu-content"></div>
         </div>
-        <footer><kbd>Esc</kbd> Return to the road</footer>
+        <footer><button id="close-ledger" class="back-button">Return to the road · Esc</button></footer>
       </div>
     </section>
 

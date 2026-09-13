@@ -10,6 +10,14 @@ async function waitForServer() {
   for (let i = 0; i < 40; i++) { try { if ((await fetch(`http://127.0.0.1:${port}`)).ok) return; } catch {} await wait(100); }
   throw new Error('Smoke server did not start');
 }
+async function opening(page) {
+  for (let i = 0; i < 20; i++) {
+    if (await page.evaluate(() => window.__AETHERBOUND__.state.flags.includes('opening'))) return;
+    await page.keyboard.press('Enter');
+    await page.waitForTimeout(90);
+  }
+  throw new Error('Opening dialogue did not finish');
+}
 let browser;
 try {
   await waitForServer(); await mkdir('.renders', { recursive: true });
@@ -19,10 +27,11 @@ try {
   const errors = [];
   page.on('pageerror', error => errors.push(error.message));
   page.on('console', message => { if (message.type() === 'error') errors.push(message.text()); });
-  await page.goto(`http://127.0.0.1:${port}/?test`, { waitUntil: 'networkidle' });
+  await page.goto(`http://127.0.0.1:${port}/?test`, { waitUntil: 'domcontentloaded' });
   await page.getByRole('button', { name: /New Journey/ }).click();
   await page.waitForFunction(() => window.__AETHERBOUND__?.mode === 'field');
   console.log('Field loaded');
+  await opening(page);
   await page.keyboard.press('Enter');
   await page.getByText('Party restored. Journey saved at the aether mark.').waitFor();
   assert.equal(await page.evaluate(() => window.__AETHERBOUND__.state.checkpoint.mapId), 'harrowmere');
@@ -36,6 +45,12 @@ try {
   await page.waitForFunction(() => window.__AETHERBOUND__.world.player.current?.label === 'walk');
   await page.waitForFunction(t => window.__AETHERBOUND__.world.player.mixer.time > t + .4, before.time);
   const moving = await pose();
+  await page.keyboard.down('Shift');
+  await page.waitForFunction(() => window.__AETHERBOUND__.world.player.current.label === 'run');
+  assert.equal(await page.evaluate(() => window.__AETHERBOUND__.world.player.current.action.getEffectiveTimeScale()), 1.75);
+  await page.keyboard.up('Shift');
+  await page.waitForFunction(() => window.__AETHERBOUND__.world.player.current.label === 'walk');
+  assert.equal(await page.evaluate(() => window.__AETHERBOUND__.world.player.current.action.getEffectiveTimeScale()), 1);
   await page.keyboard.up('a');
   assert.ok(moving.x < before.x, 'movement input moves the leader');
   assert.equal(moving.y, 0, 'actor root stays grounded');
@@ -82,6 +97,17 @@ try {
   assert.equal(await page.evaluate(() => window.__AETHERBOUND__.state.gold), gold);
   console.log('Victory hold, rewards and field return verified');
 
+  await page.evaluate(() => { window.__AETHERBOUND__.state.roster[0].hp = 1; });
+  const fieldPotionCount = await page.evaluate(() => window.__AETHERBOUND__.state.inventory.potion);
+  await page.keyboard.press('c');
+  await page.getByRole('button', { name: /^Inventory/ }).click();
+  await page.locator('[data-item="potion"]').click();
+  await page.locator('#field-choice').getByRole('button', { name: /^Vesna/ }).click();
+  assert.equal(await page.evaluate(() => window.__AETHERBOUND__.state.roster[0].hp), 121);
+  assert.equal(await page.evaluate(() => window.__AETHERBOUND__.state.inventory.potion), fieldPotionCount - 1);
+  await page.keyboard.press('Escape');
+  console.log('Field inventory target selection and consumption verified');
+
   // Seed a wounded party before entering the next encounter, then exercise revival using the real UI.
   await page.evaluate(() => { window.__AETHERBOUND__.state.roster[1].hp = 0; });
   await page.keyboard.press('b');
@@ -97,15 +123,20 @@ try {
   await page.close();
   const recovery = await browser.newPage({ viewport: { width: 1440, height: 900 } });
   recovery.on('pageerror', error => errors.push(error.message));
-  await recovery.goto(`http://127.0.0.1:${port}/?test`, { waitUntil: 'networkidle' });
+  await recovery.goto(`http://127.0.0.1:${port}/?test`, { waitUntil: 'domcontentloaded' });
   await recovery.getByRole('button', { name: /New Journey/ }).click();
   await recovery.waitForFunction(() => window.__AETHERBOUND__?.mode === 'field');
+  await opening(recovery);
   await recovery.keyboard.press('Enter');
   await recovery.getByText('Party restored. Journey saved at the aether mark.').waitFor();
-  await recovery.evaluate(async () => {
+  await recovery.evaluate(() => {
     const app = window.__AETHERBOUND__;
     app.state.roster.forEach(hero => { hero.hp = 1; });
-    await app.startBattle(['bogfather']);
+    void app.startBattle(['bogfather']);
+  });
+  await recovery.waitForFunction(() => window.__AETHERBOUND__.battle.actors.size === 4 && window.__AETHERBOUND__.battle.introTime != null);
+  await recovery.evaluate(() => {
+    const app = window.__AETHERBOUND__;
     app.battle.model.enemies[0].atb = 100;
     app.battle.model.enemies[0].turns = 2;
   });
@@ -125,6 +156,31 @@ try {
   assert.equal(restored.map, 'harrowmere'); assert.deepEqual(restored.position, restored.checkpoint);
   assert.ok(restored.hp.every(([hp, max]) => hp === max));
   console.log('Lethal boss impact, held death poses and checkpoint recovery verified');
+  const touch = await browser.newPage({ viewport: { width: 390, height: 844 }, isMobile: true, hasTouch: true });
+  touch.on('pageerror', error => errors.push(error.message));
+  await touch.goto(`http://127.0.0.1:${port}/`, { waitUntil: 'domcontentloaded' });
+  await touch.getByRole('button', { name: /New Journey/ }).tap();
+  await touch.waitForFunction(() => window.__AETHERBOUND__?.mode === 'field');
+  for (let i = 0; i < 20; i++) {
+    if (await touch.evaluate(() => window.__AETHERBOUND__.state.flags.includes('opening'))) break;
+    await touch.locator('.dialogue-box').tap(); await touch.waitForTimeout(90);
+  }
+  await touch.getByRole('button', { name: 'Interact', exact: true }).tap();
+  await touch.getByText('Party restored. Journey saved at the aether mark.').waitFor();
+  const initialX = await touch.evaluate(() => window.__AETHERBOUND__.world.player.root.position.x);
+  const pad = await touch.getByRole('button', { name: 'Move west' }).boundingBox();
+  await touch.mouse.move(pad.x + pad.width / 2, pad.y + pad.height / 2); await touch.mouse.down();
+  await touch.waitForFunction(x => window.__AETHERBOUND__.world.player.root.position.x < x - .6, initialX);
+  await touch.mouse.up();
+  await touch.screenshot({ path: '.renders/rewrite-mobile-field.png' });
+  await touch.getByRole('button', { name: 'Open the ledger' }).tap();
+  await touch.getByRole('button', { name: /^Journal/ }).tap();
+  await touch.screenshot({ path: '.renders/rewrite-mobile-journal.png' });
+  const menuBox = await touch.locator('.menu-panel').boundingBox();
+  assert.ok(menuBox.x >= 0 && menuBox.y >= 0 && menuBox.x + menuBox.width <= 391 && menuBox.y + menuBox.height <= 845, 'Mobile ledger stays in the viewport');
+  await touch.getByRole('button', { name: 'Return to the road · Esc' }).tap();
+  await touch.waitForFunction(() => !window.__AETHERBOUND__.world.locked);
+  console.log('Touch dialogue, save, direction pad and responsive ledger verified');
   assert.deepEqual(errors, [], 'no browser runtime errors');
   console.log('Smoke passed: field interaction, skeletal walk, explicit target, delayed impact, victory, revival, defeat and checkpoint recovery');
 } finally { await browser?.close(); server.kill('SIGTERM'); }

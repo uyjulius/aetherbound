@@ -78,11 +78,17 @@ export class Actor {
     const clip = this.findClip(label);
     if (!clip || !this.mixer) return false;
     const key = clip.uuid;
-    if (this.current?.key === key && !this.once.has(label)) return true;
+    if (this.current?.key === key && !this.once.has(label)) {
+      // Walk/run can share one authored clip. A gait change must still change
+      // its speed and semantic state, without restarting the skeleton pose.
+      this.current.action.setEffectiveTimeScale(label === 'run' ? 1.75 : 1);
+      this.current.label = label; this.root.userData.animation = label;
+      return true;
+    }
     const action = this.actions.get(key) ?? this.mixer.clipAction(clip);
     this.actions.set(key, action);
     action.enabled = true;
-    action.setEffectiveTimeScale(label === 'run' ? 1.35 : 1);
+    action.setEffectiveTimeScale(label === 'run' ? 1.75 : 1);
     action.setLoop(this.once.has(label) ? THREE.LoopOnce : THREE.LoopRepeat, this.once.has(label) ? 1 : Infinity);
     action.clampWhenFinished = this.once.has(label);
     action.reset().fadeIn(fade).play();

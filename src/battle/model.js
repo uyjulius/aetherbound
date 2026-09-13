@@ -73,7 +73,8 @@ export class BattleModel {
   definition(actor, choice) {
     if (!choice || !actor) return null;
     switch (choice.kind) {
-      case 'attack': return { name: 'Attack', target: 'oneEnemy', category: 'physical', power: 1, mp: 0 };
+      case 'attack': return { name: 'Attack', target: 'oneEnemy', category: 'physical', power: 1, mp: 0,
+        element: actor.side === 'party' ? this.data.items[actor.source.equipment?.weapon]?.element : undefined };
       case 'defend': return { name: 'Defend', target: 'self', category: 'defend', mp: 0 };
       case 'row': return { name: 'Change row', target: 'self', category: 'row', mp: 0 };
       case 'flee': return this.canFlee ? { name: 'Retreat', target: 'self', category: 'flee', mp: 0 } : null;
@@ -134,7 +135,7 @@ export class BattleModel {
   }
 
   enemyIntent(unit) {
-    if (unit.source.boss) return unit.turns % 3 === 2 ? 'Gathering aether · brace for a wave' : 'Watching the front line';
+    if (unit.source.boss) return unit.turns % 3 === 2 ? `Gathering aether · brace for a wave${unit.hp < unit.maxHp * .4 ? ' · ENRAGED' : ''}` : unit.hp < unit.maxHp * .4 ? 'Enraged · gathering strength' : 'Watching the front line';
     if (unit.id === 'mireslug') return unit.turns % 3 === 2 ? 'Venom gathering' : 'Closing in';
     if (unit.id === 'reedstalker') return unit.turns % 3 === 2 ? 'Sharpening its barbs' : 'Stalking';
     return 'Ready to strike';
@@ -145,8 +146,9 @@ export class BattleModel {
     if (!target) return null;
     let definition = this.definition(actor, { kind: 'attack' });
     if (actor.source.boss && actor.turns % 3 === 2) {
-      definition = { name: actor.hp < actor.maxHp * .4 ? 'Aether Rupture' : 'Rising Mire', target: 'allEnemies',
-        category: 'magic', power: actor.hp < actor.maxHp * .4 ? 38 : 20, element: 'water', mp: 0 };
+      const wave = actor.source.wave ?? { name: 'Rising Mire', enrage: 'Aether Rupture', power: 20, enragePower: 38, element: 'water' };
+      definition = { name: actor.hp < actor.maxHp * .4 ? wave.enrage : wave.name, target: 'allEnemies',
+        category: 'magic', power: actor.hp < actor.maxHp * .4 ? wave.enragePower : wave.power, element: wave.element, mp: 0 };
     } else if (['mireslug', 'reedstalker'].includes(actor.id) && actor.turns % 3 === 2) {
       definition = { name: 'Venom barb', target: 'oneEnemy', category: 'physical', power: .8, status: { poison: 100 }, mp: 0 };
     }

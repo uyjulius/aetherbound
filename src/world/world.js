@@ -2,7 +2,8 @@ import * as THREE from 'three';
 import { activeMapDefinition, isWalkable, tileAt } from '../core/data.js';
 import { createCharacter, loadPropModel } from '../render/actors.js';
 import { hash } from '../core/rng.js';
-import { restoreParty, saveGame } from '../core/state.js';
+import { restoreParty } from '../core/state.js';
+import { GROUND_TEXTURES, surfaceMaterial, surfaceTexture, groundTexture } from '../render/materials.js';
 
 const TILE = 2;
 const GROUND_COLORS = {
@@ -40,13 +41,14 @@ function makeBuilding(prop) {
   const width = prop.w ?? 5;
   const depth = prop.d ?? 4;
   const height = (prop.h ?? 3.2) + Math.max(0, (prop.storeys ?? 1) - 1) * 1.7;
-  const body = new THREE.Mesh(new THREE.BoxGeometry(width, height, depth), paletteMaterial(wall));
+  const wallTexture = { plaster: 'plaster_wall', stone: 'stone_wall', wood: 'wood_planks', brick: 'brick_wall', marble: 'stone_wall', magitek: 'magitek_panel' }[prop.style] ?? 'plaster_wall';
+  const body = new THREE.Mesh(new THREE.BoxGeometry(width, height, depth), surfaceMaterial(wallTexture, '#eee4d1'));
   body.position.y = height / 2;
   body.castShadow = body.receiveShadow = true;
   root.add(body);
 
   const roofHeight = prop.rise ?? 1.5;
-  const roofMesh = new THREE.Mesh(new THREE.ConeGeometry(Math.max(width, depth) * .72, roofHeight, prop.roof === 'slate' ? 4 : 4), paletteMaterial(roof));
+  const roofMesh = new THREE.Mesh(new THREE.ConeGeometry(Math.max(width, depth) * .72, roofHeight, 4), surfaceMaterial(prop.style === 'magitek' ? 'iron_plate' : 'roof_tile', roof));
   roofMesh.position.y = height + roofHeight / 2;
   roofMesh.rotation.y = Math.PI / 4;
   roofMesh.scale.z = depth / Math.max(width, depth);
@@ -59,6 +61,13 @@ function makeBuilding(prop) {
     prop.door === 'north' ? -depth / 2 - .045 : south ? depth / 2 + .045 : 0);
   door.rotation.y = prop.door === 'east' || prop.door === 'west' ? Math.PI / 2 : 0;
   root.add(door);
+  for (const side of [-1, 1]) {
+    const frame = new THREE.Mesh(new THREE.BoxGeometry(1.1, 1.3, .12), paletteMaterial('#3b302d'));
+    frame.position.set(side * width * .29, 1.8, depth / 2 + .06);
+    const pane = new THREE.Mesh(new THREE.PlaneGeometry(.85, 1.05), new THREE.MeshStandardMaterial({ color: '#dcb975', emissive: '#c99147', emissiveIntensity: .45, roughness: .5 }));
+    pane.position.set(frame.position.x, frame.position.y, depth / 2 + .13);
+    root.add(frame, pane);
+  }
   return root;
 }
 
@@ -94,8 +103,9 @@ function normalizeProp(model, prop) {
 }
 
 export class World {
-  constructor({ data, state, renderer, input, onDialogue, onEncounter, onToast, onHud }) {
-    Object.assign(this, { data, state, renderer, input, onDialogue, onEncounter, onToast, onHud });
+  constructor(options) {
+    Object.assign(this, options);
+    const { renderer } = options;
     this.root = renderer.worldRoot;
     this.actors = [];
     this.npcs = [];
@@ -111,6 +121,13 @@ export class World {
     this.lastTile = '';
     this.walkedTiles = 0;
     this.elapsed = 0;
+    this.trail = [];
+  }
+
+  dispose() {
+    for (const actor of this.actors) actor.dispose();
+    this.actors = []; this.npcs = []; this.followers = []; this.props = [];
+    disposeTree(this.root);
   }
 
   toWorld(at, y = 0) {
@@ -123,9 +140,8 @@ export class World {
 
   async load(mapId = this.state.mapId, spawnId = this.state.spawn, position = this.state.position) {
     this.locked = true;
-    for (const actor of this.actors) actor.dispose();
-    this.actors = []; this.npcs = []; this.followers = []; this.props = [];
-    disposeTree(this.root);
+    this.dispose();
+    this.nearby = null; this.walkedTiles = 0;
     this.mapId = mapId;
     this.map = activeMapDefinition(this.data, mapId, this.state.world);
     this.state.mapId = mapId;
@@ -137,6 +153,7 @@ export class World {
     await Promise.all([this.buildProps(), this.buildParty(position), this.buildNpcs()]);
     this.renderer.track(this.player.root.position, true);
     this.lastTile = this.tileKey(this.player.root.position);
+    this.trail = [this.player.root.position.clone()];
     this.locked = false;
     this.onHud?.(this.map);
     console.info(`FIELD_READY ${this.mapId} actors=${this.actors.length}`);
@@ -150,25 +167,30 @@ export class World {
         const legend = this.data.legend.glyphs[glyph];
         if (!legend || legend.void) continue;
         const ground = legend.g ?? this.map.base ?? 'grass';
-        if (!groups.has(ground)) groups.set(ground, []);
-        groups.get(ground).push({ x, z, wall: legend.wall || legend.cliff, water: legend.water });
+        const key = `${ground}:${legend.wall || legend.cliff ? 'wall' : 'floor'}`;
+        if (!groups.has(key)) groups.set(key, []);
+        groups.get(key).push({ x, z, wall: legend.wall || legend.cliff, water: legend.water });
       }
     }
     const matrix = new THREE.Matrix4();
-    for (const [ground, cells] of groups) {
+    for (const [key, cells] of groups) {
+      const ground = key.split(':')[0];
       const wallHeight = Number(this.map.wallHeight) || 2.8;
-      const geometry = new THREE.BoxGeometry(TILE, 1, TILE);
+      const walls = cells[0].wall;
+      const geometry = walls ? new THREE.BoxGeometry(TILE, 1, TILE) : new THREE.PlaneGeometry(TILE, TILE).rotateX(-Math.PI / 2);
       const material = new THREE.MeshStandardMaterial({
-        color: GROUND_COLORS[ground] ?? '#6f6b5d', roughness: ground === 'water' ? .3 : .95,
+        map: ground === 'water' ? null : walls ? surfaceTexture(GROUND_TEXTURES[ground] ?? 'rock_cliff') : groundTexture(ground),
+        color: ground === 'water' ? '#39778d' : ground === 'swamp' ? '#819773' : '#d0d3c8', roughness: ground === 'water' ? .3 : .95,
         metalness: ground === 'water' ? .08 : 0, transparent: ground === 'water', opacity: ground === 'water' ? .77 : 1,
       });
       const mesh = new THREE.InstancedMesh(geometry, material, cells.length);
       mesh.receiveShadow = true;
       cells.forEach((cell, index) => {
-        const yScale = cell.wall ? wallHeight : .18;
-        const position = this.toWorld([cell.x + .5, cell.z + .5], cell.wall ? wallHeight / 2 - .08 : -.1);
+        const yScale = cell.wall ? (cell.z === this.height - 1 || cell.x === this.width - 1 ? Math.min(.8, wallHeight) : wallHeight) : 1;
+        const position = this.toWorld([cell.x + .5, cell.z + .5], cell.wall ? yScale / 2 - .08 : cell.water ? -.16 : -.015);
         matrix.compose(position, new THREE.Quaternion(), new THREE.Vector3(1, yScale, 1));
         mesh.setMatrixAt(index, matrix);
+        mesh.setColorAt(index, new THREE.Color().setScalar(.94 + (hash(`${cell.x},${cell.z}`) % 60) / 1000));
       });
       mesh.instanceMatrix.needsUpdate = true;
       this.root.add(mesh);
@@ -193,12 +215,13 @@ export class World {
 
   async buildParty(savedPosition) {
     const spawn = this.map.spawns?.[this.state.spawn] ?? this.map.spawns?.default ?? { at: [1, 1], face: 'south' };
-    const start = savedPosition && this.state.mapId === this.mapId
+    let start = savedPosition && this.state.mapId === this.mapId
       ? this.toWorld(savedPosition) : this.toWorld(spawn.at);
+    if (!this.canStand(start)) start = this.toWorld(spawn.at);
     const party = this.state.active.map((id) => this.data.characters[id]).filter(Boolean);
     for (let i = 0; i < party.length; i += 1) {
       const actor = await createCharacter(party[i], this.data.char_models, { scale: i ? .94 : 1 });
-      actor.root.position.copy(start).add(new THREE.Vector3((i % 2 ? -1 : 1) * i * .55, 0, i * 1.25));
+      actor.root.position.copy(start);
       actor.root.rotation.y = FACE[spawn.face] ?? 0;
       actor.play('idle');
       this.root.add(actor.root);
@@ -208,7 +231,7 @@ export class World {
   }
 
   async buildNpcs() {
-    await Promise.all((this.map.npcs ?? []).map(async (npc, index) => {
+    await Promise.all((this.map.npcs ?? []).filter(npc => !npc.hideAfter || !this.state.flags.includes(npc.hideAfter)).map(async (npc, index) => {
       const actor = await createCharacter(npc, this.data.char_models, { scale: npc.look?.build === 'child' ? .88 : 1 });
       actor.root.position.copy(this.toWorld(npc.at));
       actor.root.rotation.y = FACE[npc.face] ?? 0;
@@ -249,11 +272,22 @@ export class World {
       if (distance < 3.15 && (!nearest || distance < nearest.distance)) nearest = { ...npc, kind: 'npc', distance };
     }
     for (const prop of this.props) {
-      const distance = point.distanceTo(prop.root.position);
-      const range = prop.definition.kit === 'building' ? Math.max(3, Math.min(6, (prop.definition.w ?? 5) * .65)) : 3;
+      const distance = point.distanceTo(this.interactionPoint(prop));
+      const range = 3;
       if (distance < range && (!nearest || distance < nearest.distance)) nearest = { ...prop, kind: 'prop', distance };
     }
     return nearest;
+  }
+
+  interactionPoint(prop) {
+    const def = prop.definition;
+    const point = prop.root.position.clone();
+    if (def.kit === 'building') {
+      const offset = new THREE.Vector3(def.door === 'east' ? (def.w ?? 5) / 2 : def.door === 'west' ? -(def.w ?? 5) / 2 : 0, 0,
+        def.door === 'north' ? -(def.d ?? 4) / 2 : ['east', 'west'].includes(def.door) ? 0 : (def.d ?? 4) / 2);
+      offset.applyAxisAngle(new THREE.Vector3(0, 1, 0), Number(def.rot) || 0); point.add(offset);
+    }
+    return point;
   }
 
   interactionLabel(target) {
@@ -270,34 +304,22 @@ export class World {
     if (target.kind === 'npc') {
       target.actor.face(this.player.root.position);
       const npc = target.definition;
-      let lines = [...(npc.talk ?? ['They have nothing to say.'])];
-      if (npc.id === 'elder' && this.state.quest.stage === 0) {
-        lines = [
-          'The warmth beneath Harrowmere is no spring thaw. Something old is turning below Fen Barrow.',
-          'Follow the Silt Road, Vesna. Find the surveyors’ camp, and do not let them wake what they have found.',
-          'Corvin knows the old mile stones. Wick knows when the earth is afraid. Trust them both.',
-        ];
-        this.state.quest = { id: 'warm-earth', stage: 1, text: 'Follow the Silt Road toward Fen Barrow' };
-        this.onHud?.(this.map);
-      }
-      if (npc.inn && this.state.gold >= npc.inn.price) {
-        lines.push(`${npc.inn.name} has a warm room ready. Your party rests for ${npc.inn.price} gil.`);
-        this.state.gold -= npc.inn.price;
-        for (const member of this.state.roster) { member.hp = member.maxHp; member.mp = member.maxMp; }
-      }
-      if (npc.shop) lines.push('The shelves are being inventoried for the road. Come back after the next caravan.');
-      this.onDialogue?.(npc.name, lines);
+      if (npc.event) { this.onEvent?.(npc.event); return; }
+      if (npc.shop) { this.onShop?.(npc.shop); return; }
+      if (npc.inn) { this.onInn?.(npc.inn); return; }
+      this.onDialogue?.(npc.name, npc.talk ?? ['Safe travels.']);
       return;
     }
     const prop = target.definition;
+    if (prop.event) { this.onEvent?.(prop.event); return; }
     if (prop.interact?.save) {
       restoreParty(this.state);
       const tile = this.toTile(this.player.root.position);
       this.state.position = [tile.x, tile.z];
       this.state.checkpoint = { mapId: this.mapId, spawn: this.state.spawn, position: [...this.state.position] };
-      saveGame(this.state);
+      const saved = this.onSave?.();
       this.onHud?.(this.map, this.interactionLabel(target));
-      this.onToast?.('Party restored. Journey saved at the aether mark.');
+      if (saved !== false) this.onToast?.('Party restored. Journey saved at the aether mark.');
       return;
     }
     if (prop.contains) {
@@ -306,7 +328,9 @@ export class World {
       this.state.opened.push(key);
       if (prop.contains.kind === 'gold') this.state.gold += prop.contains.amount ?? 0;
       if (prop.contains.kind === 'item') this.state.inventory[prop.contains.id] = (this.state.inventory[prop.contains.id] ?? 0) + (prop.contains.count ?? 1);
-      this.onToast?.(`Found ${prop.contains.label ?? 'something useful'}.`);
+      const label = prop.contains.kind === 'gold' ? `${prop.contains.amount} gil` : `${this.data.items[prop.contains.id]?.name ?? prop.contains.id} ×${prop.contains.count ?? 1}`;
+      this.onToast?.(`Found ${label}.`);
+      this.onHud?.(this.map, this.interactionLabel(target));
       return;
     }
     if (prop.enter && this.data.maps[prop.enter]) { this.onExit({ to: prop.enter, spawn: 'default' }); return; }
@@ -322,6 +346,9 @@ export class World {
 
   async onExit(exit) {
     if (this.locked || !this.data.maps[exit.to]) return;
+    if (exit.requires?.some(flag => !this.state.flags.includes(flag))) {
+      this.onDialogue?.('The way ahead', [exit.blocked]); return;
+    }
     this.state.position = null;
     this.state.spawn = exit.spawn ?? 'default';
     await this.load(exit.to, this.state.spawn);
@@ -344,7 +371,11 @@ export class World {
   update(dt, paused = false) {
     this.elapsed += dt;
     for (const actor of this.actors) actor.update(dt);
-    if (!this.player || this.locked || paused) return;
+    if (!this.player) return;
+    if (this.locked || paused) {
+      this.player.play('idle'); for (const follower of this.followers) follower.play('idle');
+      return;
+    }
     const axis = this.input.axis();
     const moving = Math.abs(axis.x) + Math.abs(axis.z) > .08;
     if (moving) {
@@ -365,19 +396,24 @@ export class World {
       this.player.root.userData.motion = 'idle';
     }
 
+    // Followers trace the actual walked route, including corners and narrow doors.
+    if (!this.trail.length || this.trail[0].distanceTo(this.player.root.position) > .08) {
+      this.trail.unshift(this.player.root.position.clone());
+      if (this.trail.length > 220) this.trail.pop();
+    }
     for (let i = 0; i < this.followers.length; i += 1) {
       const follower = this.followers[i];
-      const angle = this.player.root.rotation.y;
-      const lateral = i % 2 ? -.72 : .72;
-      const back = 1.25 + i * .75;
-      const target = this.player.root.position.clone().add(new THREE.Vector3(
-        Math.sin(angle) * -back + Math.cos(angle) * lateral, 0,
-        Math.cos(angle) * -back - Math.sin(angle) * lateral,
-      ));
+      let remaining = 1.35 * (i + 1), target = this.trail.at(-1).clone();
+      for (let p = 1; p < this.trail.length; p++) {
+        const segment = this.trail[p - 1].distanceTo(this.trail[p]);
+        if (segment >= remaining) { target.copy(this.trail[p - 1]).lerp(this.trail[p], remaining / segment); break; }
+        remaining -= segment;
+      }
       const distance = follower.root.position.distanceTo(target);
       if (distance > .12) {
         follower.face(target);
-        follower.root.position.lerp(target, 1 - Math.exp(-dt * 5));
+        const next = follower.root.position.clone().lerp(target, 1 - Math.exp(-dt * 12));
+        if (this.canStand(next)) follower.root.position.copy(next);
         follower.play(distance > 2.8 ? 'run' : 'walk');
       } else follower.play('idle');
     }
@@ -388,7 +424,8 @@ export class World {
       const target = npc.origin.clone().add(new THREE.Vector3(Math.sin(this.elapsed * .22 + npc.phase) * radius, 0, Math.cos(this.elapsed * .18 + npc.phase) * radius));
       if (npc.actor.root.position.distanceTo(target) > .35) {
         npc.actor.face(target);
-        npc.actor.root.position.lerp(target, dt * .28);
+        const next = npc.actor.root.position.clone().lerp(target, dt * .28);
+        if (this.canStand(next)) npc.actor.root.position.copy(next);
         npc.actor.play('walk');
       }
     }
@@ -401,6 +438,7 @@ export class World {
       const exit = this.findExit(this.player.root.position);
       if (exit) { this.onExit(exit); return; }
       this.maybeEncounter();
+      if (this.locked) return;
     }
     const nearby = this.nearestInteraction();
     if (nearby?.definition !== this.nearby?.definition) {

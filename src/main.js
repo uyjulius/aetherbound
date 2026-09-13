@@ -7,6 +7,8 @@ import { Effects } from './render/effects.js';
 import { World } from './world/world.js';
 import { BattleController } from './battle/controller.js';
 import { Interface } from './ui/interface.js';
+import { trade, restAtInn } from './core/commerce.js';
+import { eventPlan, applyEvent, updateJournal } from './campaign/story.js';
 
 const renderer = new GameRenderer(document.getElementById('game'));
 const input = new Input();
@@ -21,33 +23,102 @@ let battle;
 let mode = 'loading';
 let previous = performance.now();
 let fatal = null;
+let battleDone = null;
+let eventRunning = false;
 
-function fieldHud(map, prompt = '') {
+function fieldHud(map, prompt = world?.interactionLabel(world?.nearby) ?? '') {
   ui.fieldStatus(map, state, prompt);
   if (mode !== 'battle') audio.play(map.music ?? 'overworld');
 }
 
 function showDialogue(speaker, lines) {
-  if (!world || !lines?.length) return;
+  if (!world || !lines?.length) return Promise.resolve();
   world.locked = true;
   audio.sfx('text');
-  ui.dialogue(speaker, lines, () => {
+  return new Promise(resolve => ui.dialogue(speaker, lines, () => {
     world.locked = false;
     fieldHud(world.map, world.interactionLabel(world.nearby));
-  });
+    resolve();
+  }));
 }
 
-async function beginBattle(enemyIds) {
-  if (mode !== 'field' || battle.active) return;
+async function beginBattle(enemyIds, options = {}) {
+  if (mode !== 'field' || battle.active) return null;
   mode = 'battle';
   world.locked = true;
-  audio.play('battle');
+  audio.play(enemyIds.includes('thefirstengine') ? 'boss_final' : enemyIds.some(id => data.enemies[id]?.boss) ? 'boss' : 'battle');
   ui.flash();
-  await battle.start(enemyIds, { battleMode: config.battleMode, environment: world.map });
+  const finished = new Promise(resolve => { battleDone = resolve; });
+  await battle.start(enemyIds, { battleMode: config.battleMode, environment: world.map, ...options });
+  return finished;
+}
+
+function recordJourney(message) {
+  try { saveGame(state); if (message) ui.toast(message); return true; }
+  catch { ui.toast('This browser could not store the save. Allow site storage to keep your journey.'); return false; }
+}
+
+async function scenes(entries = []) {
+  for (const entry of entries) await showDialogue(entry.speaker, entry.lines);
+}
+
+async function campaignEvent(id) {
+  if (eventRunning) return;
+  const plan = eventPlan(state, id);
+  if (!plan) return;
+  eventRunning = true; world.locked = true;
+  try {
+    await scenes(plan.scenes);
+    if (plan.battle && await beginBattle(plan.battle, { canFlee: false }) !== 'victory') return;
+    const changed = applyEvent(data, state, plan);
+    if (plan.recruit && changed) await world.load(state.mapId, state.spawn, state.position);
+    await scenes(plan.after);
+    if (plan.travel) {
+      state.position = null;
+      await world.load(...plan.travel, null);
+    }
+    fieldHud(world.map);
+    if (plan.flag || plan.travel || plan.stage != null) recordJourney();
+    if (plan.ending) {
+      audio.play('hope');
+      await ui.choose('The Warm Earth · Complete', `Five travellers gave the world back its tomorrow. ${state.victories} victories · ${Math.floor(state.playTime / 60)} minutes travelled. Your completed journey has been recorded.`, [{ label: 'Return to Harrowmere', detail: 'Continue exploring the world you saved', value: 'home' }]);
+      await world.load('harrowmere', 'default', null); recordJourney();
+    }
+  } catch (error) { console.error(error); ui.toast('The road could not be loaded. Your last saved journey is safe.'); }
+  finally { eventRunning = false; world.locked = false; input.flush(); fieldHud(world.map); }
+}
+
+async function visitShop(shopId) {
+  world.locked = true;
+  let operation = 'buy';
+  while (true) {
+    const shop = data.shops[shopId];
+    const stock = operation === 'buy' ? shop.stock : Object.keys(state.inventory).filter(id => state.inventory[id] > 0 && data.items[id]?.sell > 0);
+    const choice = await ui.choose(shop.name, `${state.gold} gil · ${operation === 'buy' ? 'Buy supplies and equipment. Equip purchases through Party in the ledger.' : 'Sell items from your pack. Equipped items stay with their owner.'}`, [
+      ...stock.map(id => { const item = data.items[id]; return { label: `${operation === 'buy' ? 'Buy' : 'Sell'} ${item.name} · ${operation === 'buy' ? item.price : item.sell} gil`, detail: `${item.desc || ''} · Pack ×${state.inventory[id] ?? 0}`, value: id,
+        disabled: operation === 'buy' && (item.price > state.gold || (state.inventory[id] ?? 0) >= 99) }; }),
+      { label: operation === 'buy' ? 'Sell from pack' : 'Browse goods', value: 'switch' }, { label: 'Leave', value: null },
+    ]);
+    if (!choice) break;
+    if (choice === 'switch') { operation = operation === 'buy' ? 'sell' : 'buy'; continue; }
+    const result = trade(data, state, shopId, choice, operation); ui.toast(result.message);
+  }
+  world.locked = false; input.flush(); fieldHud(world.map);
+}
+
+async function visitInn(inn) {
+  world.locked = true;
+  const choice = await ui.choose(inn.name, `A room for the whole company costs ${inn.price} gil. Rest restores everyone’s HP and MP and clears ailments. You have ${state.gold} gil.`, [
+    { label: `Rest · ${inn.price} gil`, value: 'rest', disabled: state.gold < inn.price }, { label: 'Leave', value: null },
+  ]);
+  if (choice === 'rest') { const result = restAtInn(state, inn.price); audio.sfx('confirm'); ui.toast(result.message); }
+  world.locked = false; input.flush(); fieldHud(world.map);
 }
 
 async function startGame(nextState) {
+  world?.dispose();
   state = nextState;
+  updateJournal(state);
   mode = 'loading-field';
   renderer.showBattle(false);
   ui.showField(true);
@@ -58,6 +129,7 @@ async function startGame(nextState) {
     onEncounter: beginBattle,
     onToast: (message) => ui.toast(message),
     onHud: fieldHud,
+    onEvent: campaignEvent, onShop: visitShop, onInn: visitInn, onSave: recordJourney,
   });
   battle = new BattleController({
     data, state, renderer, input, audio, effects, ui,
@@ -75,6 +147,7 @@ async function startGame(nextState) {
       fieldHud(world.map, world.interactionLabel(world.nearby));
       audio.play(world.map.music ?? 'overworld');
       mode = 'field';
+      const done = battleDone; battleDone = null; done?.(result);
     },
   });
   await world.load(state.mapId, state.spawn, state.position);
@@ -82,6 +155,15 @@ async function startGame(nextState) {
   audio.play(world.map.music ?? 'overworld');
   mode = 'field';
   input.flush();
+  if (!state.flags.includes('opening')) {
+    await scenes([
+      { speaker: 'Harrowmere · Before the thaw', lines: ['At dawn, the village bell rang from somewhere beneath the earth. No one had touched the rope.'] },
+      { speaker: 'Vesna', lines: ['I heard it in my sleep. A note that kept asking for another note.'] },
+      { speaker: 'Corvin', lines: ['Sabbath is waiting in the northern square. Let us ask him before we start talking back to the ground.'] },
+      { speaker: 'The road ahead', lines: ['Move with WASD, the arrow keys or the direction pad. Enter or Act speaks, opens chests and works mechanisms. C or Ledger opens your supplies, equipment and journal.', 'The glowing aether mark beside you restores the party and records a safe return point. Begin there, then follow the stone road north.'] },
+    ]);
+    state.flags.push('opening');
+  }
 }
 
 function titleScreen() {
@@ -99,8 +181,9 @@ function titleScreen() {
 function openLedger() {
   world.locked = true;
   ui.openMenu(state, data, {
-    save: () => saveGame(state),
-    title: () => { saveGame(state); titleScreen(); },
+    close: closeLedger,
+    save: () => recordJourney(),
+    title: () => { if (recordJourney()) titleScreen(); },
     config,
     setting: (key, value) => {
       config[key] = value; saveConfig(config); audio.setVolumes();
@@ -108,9 +191,14 @@ function openLedger() {
   });
 }
 
+document.getElementById('field-menu-button').addEventListener('click', () => {
+  if (mode === 'field' && !world.locked && !ui.menuOpen && !ui.choiceActive && !ui.dialogueActive) openLedger();
+});
+
 function closeLedger() {
   ui.closeMenu();
   world.locked = false;
+  fieldHud(world.map, world.interactionLabel(world.nearby));
   input.flush();
 }
 
@@ -122,6 +210,13 @@ function controls() {
     return;
   }
   if (mode !== 'field') return;
+  if (ui.choiceActive) {
+    if (input.take('up')) ui.moveChoice(-1);
+    if (input.take('down')) ui.moveChoice(1);
+    if (input.take('confirm')) ui.acceptChoice();
+    if (input.take('cancel')) ui.acceptChoice(null);
+    return;
+  }
   if (ui.dialogueActive) {
     if (input.take('confirm') || input.take('cancel')) { audio.sfx('text'); ui.advanceDialogue(); }
     return;
@@ -144,7 +239,7 @@ function frame(now) {
     if (document.hidden) { input.flush(); requestAnimationFrame(frame); return; }
     if (state && ['field', 'battle'].includes(mode)) state.playTime += dt;
     controls();
-    if (mode === 'field') world?.update(dt, ui.dialogueActive || ui.menuOpen);
+    if (mode === 'field') world?.update(dt, ui.dialogueActive || ui.menuOpen || ui.choiceActive || eventRunning);
     if (mode === 'battle') battle?.update(dt);
     effects.update(dt);
     renderer.update(dt);

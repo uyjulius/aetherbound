@@ -171,3 +171,74 @@ select { background: var(--ink); border: 1px solid var(--line); padding: .5rem; 
   .hero-detail { font-size: .55rem; }
   .battle-result { top: 14%; }
 }
+
+/* The ledger and field choices share the same keyboard/pointer language. */
+#field-choice { z-index: 35; }
+.choice-panel { width: min(650px, 94vw); max-height: 88vh; padding: 1.4rem; border-radius: .6rem; display: flex; flex-direction: column; gap: .7rem; }
+.choice-panel h2 { margin: 0; color: var(--gold-pale); }
+.choice-panel > p { line-height: 1.5; font-size: .9rem; }
+.choice-panel nav { overflow-y: auto; min-height: 0; overscroll-behavior: contain; padding: .25rem; }
+.choice-panel .menu-button.selected { transform: none; }
+.choice-panel > small { color: var(--muted); font-size: .7rem; }
+.menu-panel { display: flex; flex-direction: column; }
+.menu-layout { flex: 1; min-height: 0; overflow: hidden; }
+#game-menu-nav { align-self: start; }
+.roster-card { flex-wrap: wrap; }
+.equipment-list { width: 100%; display: grid; grid-template-columns: 1fr 1fr; gap: .55rem; }
+.equipment-list > p { grid-column: 1 / -1; margin: 0; }
+.equipment-list label { display: flex; flex-direction: column; gap: .3rem; color: var(--muted); font-size: .7rem; min-width: 0; }
+.equipment-list select { width: 100%; font: inherit; font-size: .75rem; }
+.equipment-list .row-toggle { grid-column: 1 / -1; margin: 0 0 .5rem; }
+.inventory-row { align-items: center; }
+.inventory-row .action-button { margin: 0; }
+@media (max-width: 720px) {
+  .menu-panel { height: 94vh; padding: .8rem; }
+  .menu-layout { display: flex; flex-direction: column; gap: .5rem; }
+  #game-menu-nav { display: flex; flex-wrap: wrap; gap: .25rem; }
+  #game-menu-nav button { width: auto; padding: .4rem .55rem; font-size: .75rem; }
+  #game-menu-nav small { display: none; }
+  .menu-content { padding: .5rem; flex: 1; }
+  .equipment-list { grid-template-columns: 1fr; }
+  .choice-panel { padding: 1rem; }
+}
+
+.field-menu-button { position: absolute; right: 2rem; top: 7.2rem; padding: .65rem .9rem; border-radius: .45rem; pointer-events: auto; cursor: pointer; }
+.touch-controls { display: none; }
+@media (pointer: coarse), (max-width: 900px) {
+  .touch-controls { display: flex; position: absolute; bottom: max(12px, env(safe-area-inset-bottom)); left: max(12px, env(safe-area-inset-left)); right: max(12px, env(safe-area-inset-right)); justify-content: space-between; align-items: end; pointer-events: none; }
+  .touch-controls button { touch-action: none; user-select: none; -webkit-user-select: none; pointer-events: auto; border: 1px solid #e4bd6270; background: #0a1a2bdd; box-shadow: 0 3px 12px #0005; border-radius: 14px; min-width: 48px; min-height: 48px; font-size: 1.15rem; }
+  .touch-controls button.pressed { background: #a58035; }
+  .direction-pad { display: grid; grid-template: repeat(3, 46px) / repeat(3, 46px); gap: 3px; }
+  .direction-pad [data-input="up"] { grid-area: 1 / 2; }
+  .direction-pad [data-input="left"] { grid-area: 2 / 1; }
+  .direction-pad [data-input="right"] { grid-area: 2 / 3; }
+  .direction-pad [data-input="down"] { grid-area: 3 / 2; }
+  .touch-actions { display: flex; align-items: end; gap: 10px; padding-bottom: 16px; }
+  .touch-actions [data-input="confirm"] { width: 64px; height: 64px; border-radius: 50%; color: var(--gold-pale); }
+  .controls-bar { display: none; }
+  .party-hud { bottom: 170px; right: 12px; width: min(240px, 45vw); }
+  .field-menu-button { right: 12px; top: 100px; }
+  .interaction { bottom: 160px; max-width: 85vw; }
+}
+@media (max-width: 550px) {
+  .location-card { max-width: 58vw; padding: .7rem .8rem; }
+  .location-card h2 { font-size: 1.15rem; }
+  .location-card > p:last-child { font-size: .62rem; }
+  .field-menu-button { top: 18px; }
+  .party-hud { bottom: 170px; width: 44vw; }
+  .party-hud .hero-row { padding: .35rem .5rem; }
+  .party-hud .hero-head { font-size: .65rem; flex-wrap: wrap; gap: .15rem; }
+  .party-hud .hero-head span { font-size: .6rem; }
+  .dialogue { bottom: 1rem; width: calc(100vw - 1.5rem); }
+  .toast { max-width: 90vw; width: max-content; font-size: .75rem; text-align: center; }
+}
+@media (pointer: coarse), (max-width: 900px) {
+  .interaction { top: 112px; bottom: auto; width: max-content; max-width: calc(100vw - 24px); padding: .55rem .8rem; font-size: .8rem; }
+  .interaction kbd { font-size: 0; }
+  .interaction kbd::after { content: 'Act'; font-size: .65rem; }
+}
+@media (max-width: 720px) {
+  #game-menu-nav { flex-direction: row; width: 100%; }
+  #game-menu-nav button { flex: 1 1 28%; min-width: 0; text-align: center; }
+  #game-menu-nav .selected { transform: none; }
+}

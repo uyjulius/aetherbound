@@ -1,4 +1,7 @@
 import { roleFor } from '../core/classes.js';
+import { SLOTS, canEquip, equipItem } from '../core/equipment.js';
+import { fieldTargets, useFieldItem } from '../core/commerce.js';
+import { CHAPTERS } from '../campaign/story.js';
 const element = (id) => document.getElementById(id);
 const pct = (value, maximum) => `${Math.max(0, Math.min(100, maximum ? value / maximum * 100 : 0))}%`;
 
@@ -28,6 +31,15 @@ export class Interface {
     this.menuOptions = [];
     this.menuOpen = false;
     this.toastTimer = 0;
+    this.choiceBox = document.createElement('section');
+    this.choiceBox.className = 'overlay hidden';
+    this.choiceBox.id = 'field-choice';
+    this.choiceBox.setAttribute('role', 'dialog');
+    this.choiceBox.setAttribute('aria-modal', 'true');
+    document.getElementById('app').append(this.choiceBox);
+    this.choiceOptions = [];
+    this.choiceSelected = 0;
+    this.dialogueBox.addEventListener('click', () => this.advanceDialogue());
   }
 
   loadProgress(progress, label) {
@@ -112,11 +124,45 @@ export class Interface {
 
   get dialogueActive() { return !this.dialogueBox.classList.contains('hidden'); }
 
+  get choiceActive() { return !this.choiceBox.classList.contains('hidden'); }
+
+  choose(title, description, options) {
+    this.choiceOptions = options;
+    this.choiceSelected = Math.max(0, options.findIndex(option => !option.disabled));
+    this.choiceBox.classList.remove('hidden');
+    this.choiceBox.innerHTML = `<div class="choice-panel glass"><p class="eyebrow">Aetherbound</p><h2 id="choice-title">${title}</h2><p>${description}</p><nav class="menu-stack" aria-label="Choices"></nav><small>↑ ↓ Choose · Enter Confirm · Esc Leave</small></div>`;
+    this.choiceBox.setAttribute('aria-labelledby', 'choice-title');
+    this.renderChoice();
+    return new Promise(resolve => { this.choiceDone = resolve; });
+  }
+
+  renderChoice() {
+    const nav = this.choiceBox.querySelector('nav');
+    nav.innerHTML = this.choiceOptions.map((option, index) => buttonMarkup(option, index, this.choiceSelected)).join('');
+    nav.querySelectorAll('button').forEach(button => button.addEventListener('click', () => this.acceptChoice(Number(button.dataset.index))));
+    nav.querySelector('.selected')?.scrollIntoView({ block: 'nearest' });
+  }
+
+  moveChoice(direction) {
+    let next = this.choiceSelected;
+    do next = (next + direction + this.choiceOptions.length) % this.choiceOptions.length;
+    while (this.choiceOptions[next].disabled && next !== this.choiceSelected);
+    this.choiceSelected = next; this.renderChoice();
+  }
+
+  acceptChoice(index = this.choiceSelected) {
+    if (index != null && this.choiceOptions[index]?.disabled) return;
+    const value = index == null ? null : this.choiceOptions[index]?.value;
+    this.choiceBox.classList.add('hidden');
+    const done = this.choiceDone; this.choiceDone = null; done?.(value);
+  }
+
   openMenu(state, data, actions) {
+    element('close-ledger').onclick = actions.close;
     this.menuOpen = true;
     this.menuSelected = 0;
     this.menuOptions = [
-      { label: 'Party', detail: 'Condition and calling', view: () => this.partyView(state) },
+      { label: 'Party', detail: 'Equipment and formation', view: () => this.partyView(state, data) },
       { label: 'Inventory', detail: 'Road supplies', view: () => this.inventoryView(state, data) },
       { label: 'Journal', detail: 'The Warm Earth', view: () => this.journalView(state) },
       { label: 'Save', detail: 'Record this journey', view: () => this.saveView(state, actions.save) },
@@ -148,31 +194,48 @@ export class Interface {
 
   closeMenu() { this.menuOpen = false; this.gameMenu.classList.add('hidden'); }
 
-  partyView(state) {
+  partyView(state, data) {
     element('menu-content').innerHTML = `<p class="eyebrow">Active company</p>${state.roster.map((member) => `
       <article class="roster-card"><div><h3>${member.name}</h3><p class="role">${member.title} · ${member.role}</p></div>
-      <div><b>Lv ${member.level}</b><br><small>HP ${member.hp}/${member.maxHp} · MP ${member.mp}/${member.maxMp}</small></div></article>`).join('')}`;
+      <div><b>Lv ${member.level}</b><br><small>HP ${member.hp}/${member.maxHp} · MP ${member.mp}/${member.maxMp}</small></div>
+      <div class="equipment-list"><p class="role">Strength ${member.vig} · Magic ${member.mag} · Defence ${member.sta} · Resistance ${member.res} · Speed ${member.spd}</p>
+      <button class="action-button row-toggle" data-member="${member.id}">${member.row === 'front' ? 'Front' : 'Back'} row · change</button>
+      ${Object.entries(SLOTS).map(([slot, label]) => `<label>${label}<select data-member="${member.id}" data-slot="${slot}"><option value="">Unequipped</option>${Object.values(data.items).filter(item => canEquip(data, member, item, slot) && (state.inventory[item.id] > 0 || member.equipment?.[slot] === item.id)).map(item => `<option value="${item.id}" ${member.equipment?.[slot] === item.id ? 'selected' : ''}>${item.name} · ${Object.entries(item.stats ?? {}).map(([key, value]) => `${key.toUpperCase()} ${value > 0 ? '+' : ''}${value}`).join(' / ')}</option>`).join('')}</select></label>`).join('')}
+      </div></article>`).join('')}`;
+    element('menu-content').querySelectorAll('select').forEach(select => select.addEventListener('change', () => {
+      this.toast(equipItem(data, state, select.dataset.member, select.dataset.slot, select.value).message);
+      this.partyView(state, data);
+    }));
+    element('menu-content').querySelectorAll('.row-toggle').forEach(button => button.addEventListener('click', () => {
+      const member = state.roster.find(hero => hero.id === button.dataset.member);
+      member.row = member.row === 'front' ? 'back' : 'front'; this.partyView(state, data);
+    }));
   }
 
   inventoryView(state, data) {
     const rows = Object.entries(state.inventory).filter(([, count]) => count > 0);
     element('menu-content').innerHTML = `<p class="eyebrow">${state.gold} gil</p><h3>Supplies</h3>${rows.length ? rows.map(([id, count]) => {
       const item = data.items[id] ?? { name: id, desc: '' };
-      return `<div class="inventory-row"><div><b>${item.name}</b><small>${item.desc ?? ''}</small></div><span>× ${count}</span></div>`;
+      return `<div class="inventory-row"><div><b>${item.name}</b><small>${item.desc ?? ''}</small></div><span>× ${count}</span>${fieldTargets(data, state, id).length ? `<button class="action-button" data-item="${id}">Use</button>` : ''}</div>`;
     }).join('') : '<p>The pack is empty.</p>'}`;
+    element('menu-content').querySelectorAll('[data-item]').forEach(button => button.addEventListener('click', async () => {
+      const id = button.dataset.item, item = data.items[id];
+      const options = item.target === 'allAllies' ? [{ label: 'Entire party', value: 'all' }] : fieldTargets(data, state, id).map(hero => ({ label: hero.name, detail: `${hero.hp}/${hero.maxHp} HP · ${hero.mp}/${hero.maxMp} MP`, value: hero.id }));
+      const target = await this.choose(item.name, item.desc, [...options, { label: 'Cancel', value: null }]);
+      if (target) this.toast(useFieldItem(data, state, id, target).message);
+      this.inventoryView(state, data);
+    }));
   }
 
   journalView(state) {
-    const text = state.quest?.stage === 0
-      ? 'Elder Sabbath asked to speak beneath the lanterns of Harrowmere.'
-      : 'The earth under the northern ridge is warm. Ferran surveyors are searching for an Engine beneath Fen Barrow.';
-    element('menu-content').innerHTML = `<p class="eyebrow">Current thread</p><h3>${state.quest?.text}</h3><p>${text}</p><p class="role">Steps ${state.steps} · Victories ${state.victories}</p>`;
+    const chapter = CHAPTERS[state.quest?.stage ?? 0];
+    element('menu-content').innerHTML = `<p class="eyebrow">${chapter.title}</p><h3>${chapter.objective}</h3><p>${chapter.text}</p><p class="role">Steps ${state.steps} · Victories ${state.victories}</p><h3>Road notes</h3><p>Move with WASD or the arrow keys. Hold Shift to run. Press Enter near people, chests, doors and mechanisms. North is the top of the world; roads at map edges lead onward.</p><p>Aether marks restore everyone and record your defeat return point. Save from the ledger to record your current position. The pack can be used outside battle; equipment and rows are changed under Party.</p><h3>In battle</h3><p>Choose an action, then a target. Escape cancels a selection. Front rows deal and receive more physical damage. Back rows suit spellcasters. Cover intercepts physical attacks; Prayer restores standing allies without MP. Phoenix Tears and Reprise revive fallen allies. Defend when a boss gathers a wave.</p>`;
   }
 
   saveView(state, save) {
     const content = element('menu-content');
     content.innerHTML = `<p class="eyebrow">Aether record</p><h3>Record your journey</h3><p>Save in ${state.mapId.replaceAll('_', ' ')} with ${state.gold} gil.</p><button class="action-button">Save now</button>`;
-    content.querySelector('button').addEventListener('click', () => { save(); this.toast('Journey saved.'); });
+    content.querySelector('button').addEventListener('click', () => { if (save() !== false) this.toast('Journey saved.'); });
   }
 
   settingsView(actions) {
@@ -189,7 +252,7 @@ export class Interface {
 
   titleView(goTitle) {
     const content = element('menu-content');
-    content.innerHTML = '<p class="eyebrow">End session</p><h3>Return to the title screen?</h3><p>Save first if you want to keep your progress.</p><button class="action-button">Return to title</button>';
+    content.innerHTML = '<p class="eyebrow">End session</p><h3>Return to the title screen?</h3><p>Your current journey will be saved before you leave.</p><button class="action-button">Save and return to title</button>';
     content.querySelector('button').addEventListener('click', goTitle);
   }
 

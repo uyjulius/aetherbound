@@ -40,3 +40,23 @@ Implemented on `feature/iv-inspired-rewrite` after f55cda7:
 - `npm run check`: 12 model/state/data tests pass. Chromium exercises real savepoint input, actual skeleton pose changes while walking, keyboard target cancellation/selection, pre-impact HP preservation, selected-target damage, victory hold/reward/return, item-menu revival, a lethal boss wave, held death clips and checkpoint recovery. Screenshots captured under `.renders/rewrite-*.png` and inspected.
 
 The broader goal remains incomplete. Current battle environments are an initial textured stage, not finished art. The existing campaign still stops after the elder conversation; shops, equipment, quest triggers, navigation polish and mobile controls remain release work. No new main/production deployment is claimed by these checks.
+
+## Campaign and progression implementation
+
+The prototype's unrelated map collection is replaced at runtime by 16 authored, connected locations across three chapters. The story now includes the two-sluice barrow, the ordered foundry shutdown, an airship crossing, the observatory's chart/resonator, a guardian duel and the First Engine ending. Story outcomes recruit Kestrel and Aurelian, unlock routes, update the journal and save progress. Defeat does not complete a boss event; completed event rewards cannot be claimed again. Objectives derive from saved milestone flags so prototype stage counters cannot strand continued games.
+
+Merchants buy and sell actual pack inventory. Inns offer a priced choice before spending gil. Five equipment slots change derived combat stats, return removed gear to the pack, survive growth/save normalization and cannot generate healing. Field inventory supports targeted healing, MP restoration, ailment cures and revival. The ledger provides formation changes, equipment stats, road notes and battle instructions.
+
+Field doors interact at their visible thresholds. Followers trace recorded movement, map-owned models/materials are disposed on transitions, and current map positions are validated against collision. Terrain uses periodic surface patterns; buildings have textured walls/roofs and lit windows. Touch controls, pointer dialogue and an explicit ledger return button are implemented.
+
+Validation added: seven campaign/progression tests alongside the twelve combat/state tests; a full browser campaign runner that navigates through keyboard input and UI actions without setting flags, teleporting or boosting stats; expanded smoke checks for field item use and touch controls. `npm run check:release` includes the campaign runner and is the deployment workflow gate. Final run results and visual limitations are recorded below after verification.
+
+Visual review of the campaign captures confirms useful progress and specific remaining work: town/road/inn/dungeon locations render with textured geometry and readable menus, but several retained prop meshes do not fit their new story roles. The airship is still a rectangular deck; valve mechanisms look like village wells; cave and foundry wall treatments are too similar; party members overlap immediately after a map load; battle stages still use an oversized rock backdrop. These are the next presentation tasks, not accepted final art. Full five-member mobile battle framing and a final deployed-domain journey also remain required.
+
+### Campaign verification results
+
+- The complete Chromium journey passed: New Journey → elder briefing → both sluices → Root Bell → Kestrel → report home → Solmere → coolant/exhaust/governor → Furnace Warden → Aurelian → airship → observatory → sentinel → First Engine → ending → Harrowmere → reload/Continue. The run finished 16 battles through UI commands, including the four bosses, without editing game state. The ending retained all five party members and completion after reload; no browser errors were recorded.
+- Desktop smoke passes actual skeleton movement, walk/run clip speed changes, target selection/cancellation, delayed damage, victory rewards, field Potion targeting/consumption, battle revival and defeat recovery. Phone-sized Chromium passes pointer dialogue, aether-mark saving, held direction-pad movement and the ledger. Screen captures exposed a prompt/HP overlap and an overly tall mobile navigation stack; both received layout fixes.
+- Captures are under `.renders/campaign-*.png` and `.renders/rewrite-*.png`. The full campaign gate is callable with `npm run campaign` and required by the GitHub Pages release workflow.
+
+The full rewrite is still active. This checkpoint establishes a complete playable story and progression loop. It does not close the presentation limitations listed above or claim a new production deployment.

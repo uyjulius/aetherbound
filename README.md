@@ -9,7 +9,7 @@ npm install
 npm run dev
 ```
 
-Open `http://localhost:4173`. Use WASD or the arrow keys to move, Shift to run, Enter to interact, C to open the ledger. Add `?test` to the URL to enable B for a test encounter.
+Open `http://localhost:4173`. Use WASD or the arrow keys to move, Shift to run, Enter to interact, and C to open the ledger. Touch screens have a direction pad, Run, Act and Ledger controls. Add `?test` to the URL to enable B for a test encounter.
 
 ## Verify
 
@@ -17,6 +17,8 @@ Open `http://localhost:4173`. Use WASD or the arrow keys to move, Shift to run, 
 npm run check
 ```
 
-The check covers combat targeting, roles, formation, revival, resources, statuses, reward integrity and save growth. Chromium then exercises field interaction, skeletal movement, keyboard target selection and cancellation, timed battle impacts, victory, revival and defeat/checkpoint recovery.
+The check covers combat, campaign gates, reachable maps, equipment, trading, field items, boss balance, save migration and resource integrity. Chromium exercises skeletal movement, explicit targets, timed impacts, victory, revival, field healing, checkpoint recovery and touch controls.
 
-The full rewrite is in progress. Campaign, merchants, equipment and environment polish are tracked with release requirements in [docs/REWRITE.md](docs/REWRITE.md). Passing the current checks does not establish a complete campaign.
+Run `npm run check:release` for the complete gate, including a browser journey through all three chapters, purchases, recruitment, four bosses, the ending and save/continue. The campaign runner uses ordinary keyboard movement and UI commands; it does not teleport, change combat stats or set story flags. `npm run campaign` runs that journey against an existing build.
+
+The fresh campaign has 16 connected locations, a party that grows from three to five, permanent character roles, usable inventory, equipment, merchants and inns. The full rewrite remains in progress; visual presentation, navigation and release evidence are tracked in [docs/REWRITE.md](docs/REWRITE.md).

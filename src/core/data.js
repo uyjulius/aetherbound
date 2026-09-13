@@ -1,3 +1,4 @@
+import { prepareCampaign } from '../campaign/content.js';
 const TABLES = [
   'maps', 'legend', 'characters', 'enemies', 'encounters', 'items', 'spells', 'espers',
   'shops', 'quests', 'statuses', 'char_models', 'monster_models', 'palette', 'tracks',
@@ -13,7 +14,7 @@ export async function loadGameData(onProgress = () => {}) {
     onProgress(complete / TABLES.length, name);
     return [name, value];
   }));
-  return Object.fromEntries(entries);
+  return prepareCampaign(Object.fromEntries(entries));
 }
 
 export const tileAt = (map, x, z) => map.terrain[Math.floor(z)]?.[Math.floor(x)] ?? ' ';

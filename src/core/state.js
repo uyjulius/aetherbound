@@ -1,24 +1,23 @@
 import { learnedSpells, roleFor } from './classes.js';
+import { STATS, statAt, canEquip, equipmentStats } from './equipment.js';
+export { statAt } from './equipment.js';
 const SAVE_KEY = 'aetherbound.v2.save';
 const CONFIG_KEY = 'aetherbound.v2.config';
 const clamp = (value, low, high) => Math.max(low, Math.min(high, value));
 const number = (value, fallback, low = 0, high = 9999999) => Number.isFinite(value) ? clamp(value, low, high) : fallback;
-const STATS = ['vig', 'mag', 'sta', 'res', 'spd', 'lck'];
-
-export function statAt(character, key, level) {
-  return Math.max(key === 'mp' ? 0 : 1, Math.round((character.base?.[key] ?? 1)
-    + (character.growth?.[key] ?? 0) * Math.max(0, level - 1)));
-}
-export function makeMember(character, level = 6) {
+export function makeMember(character, level = 6, data) {
   const role = roleFor(character.id);
-  return { id: character.id, name: character.name, title: character.title, role: role.name,
+  const member = { id: character.id, name: character.name, title: character.title, role: role.name,
     level, exp: 0, hp: statAt(character, 'hp', level), mp: statAt(character, 'mp', level),
     maxHp: statAt(character, 'hp', level), maxMp: statAt(character, 'mp', level),
     ...Object.fromEntries(STATS.map(key => [key, statAt(character, key, level)])),
+    equipment: { ...(data?.startingEquipment?.[character.id] ?? {}) },
     row: role.row, spells: learnedSpells(character.id, level), statuses: {}, defending: false };
+  if (data) { Object.assign(member, equipmentStats(data, member)); member.hp = member.maxHp; member.mp = member.maxMp; }
+  return member;
 }
 export function newGame(data) {
-  const roster = ['vesna', 'corvin', 'wick'].map(id => makeMember(data.characters[id]));
+  const roster = ['vesna', 'corvin', 'wick'].map(id => makeMember(data.characters[id], 6, data));
   return { version: 2, createdAt: Date.now(), updatedAt: Date.now(), playTime: 0,
     world: 'whole', mapId: 'harrowmere', spawn: 'default', position: null,
     checkpoint: { mapId: 'harrowmere', spawn: 'default', position: null },
@@ -36,6 +35,8 @@ export function normalizeState(data, raw) {
     seen.add(member.id); return true;
   }).map(member => {
     const basis = makeMember(data.characters[member.id], Math.floor(number(member.level, 6, 1, 99)));
+    basis.equipment = Object.fromEntries(Object.entries(member.equipment ?? {}).filter(([slot, id]) => canEquip(data, basis, data.items[id], slot)));
+    Object.assign(basis, equipmentStats(data, basis));
     return { ...basis, exp: number(member.exp, 0), hp: number(member.hp, basis.maxHp, 0, basis.maxHp),
       mp: number(member.mp, basis.maxMp, 0, basis.maxMp), row: ['front', 'back'].includes(member.row) ? member.row : basis.row,
       spells: [...new Set([...basis.spells, ...(Array.isArray(member.spells) ? member.spells.filter(id => data.spells?.[id]) : [])])],
@@ -80,7 +81,7 @@ export function grantExp(state, amount, data) {
     member.exp += Math.max(0, amount);
     while (member.exp >= expNeeded(member.level) && member.level < 99) {
       member.exp -= expNeeded(member.level); member.level += 1;
-      const grown = makeMember(data.characters[member.id], member.level);
+      const grown = { ...makeMember(data.characters[member.id], member.level), ...equipmentStats(data, member) };
       // Growth grants the capacity gained, not a free full heal or resurrection.
       if (member.hp > 0) member.hp += grown.maxHp - member.maxHp;
       member.mp += grown.maxMp - member.maxMp;
