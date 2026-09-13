@@ -37,7 +37,7 @@ export const CAMPAIGN_MAPS = Object.fromEntries([
   }),
   area('harrow_inn', 'The Lantern & Reed', 'Interior', 15, 13, 'o', [[6, 12, 3, 1, 'o']], {
     subtitle: 'A room above the quiet river', music: 'inn', cameraDistance: 13,
-    props: [prop('bench', 'table', [5, 5]), prop('barrel', 'barrel', [12, 3]), prop('lamppost', 'hearth', [3, 3])],
+    props: [prop('bench', 'table', [5, 5]), prop('barrel', 'barrel', [12, 3]), prop('lamppost', 'hearth', [3, 10])],
     npcs: [npc('innkeeper', 'Nella', [9, 4], { inn: { name: 'The Lantern & Reed', price: 60 } })],
     exits: [{ at: [6, 12], size: [3, 1], to: 'harrowmere', spawn: 'inn' }],
   }),
@@ -138,3 +138,21 @@ export const CAMPAIGN_MAPS = Object.fromEntries([
 CAMPAIGN_MAPS.harrowmere.spawns.inn = { at: [6, 10.5], face: 'south' };
 CAMPAIGN_MAPS.solmere.spawns.inn = { at: [6, 10.5], face: 'south' };
 CAMPAIGN_MAPS.solmere.spawns.dock = { at: [23, 24], face: 'west' };
+
+// Scenery keeps its footprint in the same definitions used by collision.
+for (const map of Object.values(CAMPAIGN_MAPS)) {
+  map.wallHeight = map.kind === 'Interior' ? 1.4 : map.base === 'magitek' ? 1.55 : map.kind === 'Road' ? .7 : map.kind === 'Mountain' ? 2.2 : map.wallHeight;
+  for (const prop of map.props) {
+    if (prop.id === 'root-bell') prop.radius = 1.3;
+    if (['first-engine', 'furnace-crown', 'resonator'].includes(prop.id)) prop.radius = 1.65;
+    if (prop.id === 'bridge-guardian') { prop.enemy = 'enginewarden'; prop.radius = .95; }
+    if (['turbine-left', 'turbine-right'].includes(prop.id)) { prop.kit = 'pipe'; prop.radius = .65; }
+  }
+  if (map.kind === 'Interior') map.props.push(
+    prop('bed', 'bed-west', [3, 3.5], { radius: 1.4 }), prop('bed', 'bed-east', [map.terrain[0].length - 3, 7], { radius: 1.4 }),
+    prop('table', 'common-table', [5, 8], { radius: 1.1 }));
+}
+CAMPAIGN_MAPS.airship_deck.terrain = Array.from({ length: 25 }, (_, z) => Array.from({ length: 17 }, (_, x) => {
+  const inset = z < 5 ? (5 - z) * 2 : z > 20 ? (z - 20) * 2 : 1;
+  return z > 0 && z < 24 && x >= inset && x < 17 - inset ? 'o' : ' ';
+}).join(''));

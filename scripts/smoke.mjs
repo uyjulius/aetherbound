@@ -180,7 +180,24 @@ try {
   assert.ok(menuBox.x >= 0 && menuBox.y >= 0 && menuBox.x + menuBox.width <= 391 && menuBox.y + menuBox.height <= 845, 'Mobile ledger stays in the viewport');
   await touch.getByRole('button', { name: 'Return to the road · Esc' }).tap();
   await touch.waitForFunction(() => !window.__AETHERBOUND__.world.locked);
+  await touch.getByRole('button', { name: 'Open the area map' }).tap();
+  await touch.getByRole('img', { name: /Area map of Harrowmere/ }).waitFor();
+  await touch.screenshot({ path: '.renders/rewrite-mobile-atlas.png' });
+  await touch.locator('#field-choice').getByRole('button', { name: 'Return to the road', exact: true }).tap();
+  await touch.waitForFunction(() => !window.__AETHERBOUND__.world.locked);
   console.log('Touch dialogue, save, direction pad and responsive ledger verified');
+
+  const failedLoad = await browser.newPage({ viewport: { width: 1100, height: 750 } });
+  await failedLoad.route('**/cast/vesna.glb', route => route.abort());
+  await failedLoad.goto(`http://127.0.0.1:${port}/`, { waitUntil: 'domcontentloaded' });
+  await failedLoad.getByRole('button', { name: /New Journey/ }).click();
+  await failedLoad.getByRole('heading', { name: 'The road could not load' }).waitFor();
+  await failedLoad.unroute('**/cast/vesna.glb');
+  await failedLoad.getByRole('button', { name: 'Return to title', exact: true }).click();
+  await failedLoad.getByRole('button', { name: /New Journey/ }).click();
+  await failedLoad.waitForFunction(() => window.__AETHERBOUND__?.mode === 'field');
+  await opening(failedLoad);
+  console.log('Failed model load returns to title and retries without a poisoned asset cache');
   assert.deepEqual(errors, [], 'no browser runtime errors');
   console.log('Smoke passed: field interaction, skeletal walk, explicit target, delayed impact, victory, revival, defeat and checkpoint recovery');
 } finally { await browser?.close(); server.kill('SIGTERM'); }

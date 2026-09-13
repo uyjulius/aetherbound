@@ -46,7 +46,7 @@ export function prepareCampaign(data) {
       ferranwarden: enemy('ferranwarden', 'ferranwarden', 'The Furnace Warden', 11, 2400, 58, 56, 30, 1300, 2000, { boss: true, drops: [{ id: 'crownplate', chance: 1 }], wave: { name: 'Lance Battery', element: 'bolt', power: 20, enrage: 'Cinder Protocol', enragePower: 30 } }),
       sky_revenant: enemy('sky_revenant', 'reedstalker', 'Sky Revenant', 12, 420, 55, 50, 32, 150, 100, { look: { plan: 'avian', scale: 1.2 }, affinity: { fire: 'weak', ice: 'resist' }, immune: [] }),
       enginewarden: enemy('enginewarden', 'enginewarden', 'The Oathbound Sentinel', 13, 2500, 65, 65, 36, 1700, 1200, { boss: true, affinity: { bolt: 'weak' }, drops: [{ id: 'elixir', chance: 1 }], wave: { name: 'Oath of Silence', element: 'aether', power: 24, enrage: 'Broken Oath', enragePower: 34 } }),
-      thefirstengine: enemy('thefirstengine', 'thefirstengine', 'The First Engine', 16, 4400, 72, 70, 44, 2400, 2500, { boss: true, affinity: { bolt: 'weak', aether: 'absorb' }, drops: [], wave: { name: 'Borrowed Tomorrow', element: 'aether', power: 25, enrage: 'The Last Horizon', enragePower: 38 } }),
+      thefirstengine: enemy('thefirstengine', 'thefirstengine', 'The First Engine', 16, 4400, 72, 70, 44, 2400, 2500, { look: { plan: 'construct', model: 'construct_robotenemylarge', scale: 2.2 }, boss: true, affinity: { bolt: 'weak', aether: 'absorb' }, drops: [], wave: { name: 'Borrowed Tomorrow', element: 'aether', power: 25, enrage: 'The Last Horizon', enragePower: 38 } }),
     },
   };
 }

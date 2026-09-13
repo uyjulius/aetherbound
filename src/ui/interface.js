@@ -126,6 +126,36 @@ export class Interface {
 
   get choiceActive() { return !this.choiceBox.classList.contains('hidden'); }
 
+  atlas(world) {
+    const map = world.map, scale = 10, width = world.width * scale, height = world.height * scale;
+    const result = this.choose(map.name, 'North is at the top. Gold: your company · Cyan: aether marks · Violet: mechanisms · Pink: people · Green: open routes · Grey: locked routes.', [{ label: 'Return to the road', value: null }]);
+    const panel = this.choiceBox.querySelector('.choice-panel');
+    const ns = 'http://www.w3.org/2000/svg', svg = document.createElementNS(ns, 'svg');
+    svg.setAttribute('viewBox', `-12 -24 ${width + 24} ${height + 36}`); svg.setAttribute('class', 'atlas-map'); svg.setAttribute('role', 'img'); svg.setAttribute('aria-label', `Area map of ${map.name}, with current party position, people and exits`);
+    const add = (tag, attributes, text) => { const node = document.createElementNS(ns, tag); for (const [key,value] of Object.entries(attributes)) node.setAttribute(key, value); if (text) node.textContent = text; svg.append(node); return node; };
+    add('rect', { x:0,y:0,width,height,fill:'#102332',rx:3 });
+    for (let z = 0; z < world.height; z++) for (let x = 0; x < world.width; x++) {
+      const glyph = map.terrain[z][x], def = world.data.legend.glyphs[glyph]; if (!def || def.void) continue;
+      add('rect', { x:x * scale,y:z * scale,width:scale,height:scale,fill:def.water ? '#315d76' : def.walk ? '#839080' : '#384852' });
+    }
+    for (const prop of map.props) {
+      if (prop.kit === 'building') add('rect', { x:prop.at[0] * scale - (prop.w ?? 5) * 2.5, y:prop.at[1] * scale - (prop.d ?? 4) * 2.5, width:(prop.w ?? 5) * 5,height:(prop.d ?? 4) * 5,fill:'#34424c',stroke:'#b0aaa0','stroke-width':.7 });
+      else if (prop.event || prop.interact?.save || prop.contains) {
+        const circle = add('circle', { cx:prop.at[0] * scale,cy:prop.at[1] * scale,r:3.1,fill:prop.interact?.save ? '#72e3e2' : prop.contains ? '#d7b570' : '#ce8fe0',stroke:'#16212c','stroke-width':1 });
+        const title = document.createElementNS(ns, 'title'); title.textContent = prop.interact?.prompt ?? 'Treasure chest'; circle.append(title);
+      }
+    }
+    for (const npc of world.npcs) { const at = world.toTile(npc.actor.root.position); add('circle', { cx:at.x * scale,cy:at.z * scale,r:3,fill:'#f29db1' }); }
+    for (const exit of map.exits) {
+      const locked = exit.requires?.some(flag => !world.state.flags.includes(flag));
+      add('rect', { x:exit.at[0] * scale,y:exit.at[1] * scale,width:exit.size[0] * scale,height:exit.size[1] * scale,fill:locked ? '#61717e' : '#85dda6' });
+    }
+    const at = world.toTile(world.player.root.position);
+    add('circle', { cx:at.x * scale,cy:at.z * scale,r:4.5,fill:'#ffdd7f',stroke:'#192737','stroke-width':1.5 });
+    add('text', { x:width / 2,y:-10,fill:'#ffe0a0','text-anchor':'middle','font-size':10 }, 'N ↑');
+    panel.insertBefore(svg, panel.querySelector('nav')); return result;
+  }
+
   choose(title, description, options) {
     this.choiceOptions = options;
     this.choiceSelected = Math.max(0, options.findIndex(option => !option.disabled));

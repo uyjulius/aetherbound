@@ -7,7 +7,11 @@ const loader = new GLTFLoader();
 const cache = new Map();
 
 function getGLTF(url) {
-  if (!cache.has(url)) cache.set(url, loader.loadAsync(url));
+  if (!cache.has(url)) {
+    let timer;
+    const timeout = new Promise((resolve, reject) => { timer = setTimeout(() => reject(new Error('The model download took too long.')), 45000); });
+    cache.set(url, Promise.race([loader.loadAsync(url), timeout]).catch(error => { cache.delete(url); throw error; }).finally(() => clearTimeout(timer)));
+  }
   return cache.get(url);
 }
 

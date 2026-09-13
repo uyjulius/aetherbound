@@ -3,6 +3,7 @@ const binds = {
   left: ['ArrowLeft', 'KeyA'], right: ['ArrowRight', 'KeyD'],
   run: ['ShiftLeft', 'ShiftRight'], confirm: ['Enter', 'Space', 'KeyZ'],
   cancel: ['Escape', 'KeyX', 'Backspace'], menu: ['KeyC'],
+  map: ['KeyM'],
   debugBattle: ['KeyB'],
 };
 

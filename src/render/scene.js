@@ -28,6 +28,9 @@ const ENVIRONMENTS = {
   snow: ['#55738f', '#b7cad4', '#f4e7c2'],
   dusk: ['#202239', '#a06a66', '#f0bd78'],
   day: ['#346b8c', '#a5cad2', '#ffe3a1'],
+  industrial: ['#26333c', '#81786b', '#f3cf9e'],
+  interior: ['#29242a', '#65544c', '#ffd6a4'],
+  aether: ['#111b39', '#566e8e', '#addfe8'],
 };
 
 export class GameRenderer {
@@ -76,7 +79,7 @@ export class GameRenderer {
     this.sun.shadow.camera.left = this.sun.shadow.camera.bottom = -24;
     this.sun.shadow.camera.right = this.sun.shadow.camera.top = 24;
     this.sun.shadow.camera.far = 80;
-    this.scene.add(this.ambient, this.sun);
+    this.scene.add(this.ambient, this.sun, this.sun.target);
 
     this.followTarget = new THREE.Vector3();
     this.cameraAim = new THREE.Vector3();
@@ -92,7 +95,8 @@ export class GameRenderer {
   }
 
   setEnvironment(map = {}) {
-    const key = map.light === 'night' ? 'night'
+    const key = map.kind === 'Interior' ? 'interior' : map.base === 'cave' ? 'cave' : map.base === 'magitek' ? 'industrial'
+      : map.base === 'aether' || map.id === 'observatory' ? 'aether' : map.light === 'night' ? 'night'
       : map.grade === 'snow' || map.base === 'snow' ? 'snow'
         : map.light === 'dusk' ? 'dusk'
           : map.grade === 'ruin' || map.kind === 'dungeon' ? 'ruin' : 'day';
@@ -103,9 +107,10 @@ export class GameRenderer {
     this.scene.fog.color.set(edge);
     this.scene.fog.density = map.kind === 'dungeon' ? .026 : .011;
     this.sun.color.set(sun);
-    this.sun.intensity = key === 'night' ? 1.4 : key === 'cave' ? .8 : 3.3;
-    this.ambient.intensity = key === 'night' ? 1.15 : 1.9;
-    const distance = Number(map.cameraDistance) || 17;
+    this.sun.intensity = key === 'night' ? 1.4 : ['cave', 'interior'].includes(key) ? 1.5 : 2.8;
+    this.ambient.intensity = key === 'night' ? 1.6 : 2.05;
+    this.ambient.color.set(['cave', 'interior', 'industrial'].includes(key) ? '#d3d2c6' : '#c4e1ed');
+    const distance = Number(map.cameraDistance) || (map.kind === 'Airship' ? 20 : 17);
     this.cameraOffset.set(distance * .58, distance * .62, distance * .78);
   }
 
@@ -129,6 +134,8 @@ export class GameRenderer {
     this.camera.position.lerp(desired, smoothing);
     this.camera.lookAt(this.cameraAim.x, this.cameraAim.y + .9, this.cameraAim.z);
     this.sky.position.copy(this.camera.position);
+    this.sun.position.copy(this.followTarget).add(new THREE.Vector3(-18, 28, 12));
+    this.sun.target.position.copy(this.followTarget); this.sun.target.updateMatrixWorld();
   }
 
   render() { this.renderer.render(this.scene, this.camera); }

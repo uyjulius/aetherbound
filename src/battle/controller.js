@@ -2,6 +2,7 @@ import * as THREE from 'three';
 import { BattleModel, supportsSpell } from './model.js';
 import { ABILITIES, roleFor } from '../core/classes.js';
 import { createCharacter, createEnemy } from '../render/actors.js';
+import { buildBattleStage } from '../render/scenery.js';
 
 const SPELL_COLORS = { fire: '#ff9960', ice: '#b6eeff', bolt: '#d0b4ff', aether: '#84e5ed', water: '#5fb7e5' };
 const mix = (a, b, t) => a.clone().lerp(b, Math.min(1, Math.max(0, t)));
@@ -21,25 +22,25 @@ export class BattleController {
     this.model = new BattleModel(this.data, this.state, enemyIds, options);
     this.renderer.battleRoot.clear(); this.renderer.showBattle(true);
     this.renderer.setEnvironment(options.environment ?? {});
-    this.renderer.cameraOffset.set(.5, 6.7, 17);
-    this.renderer.track(new THREE.Vector3(0, 0, -.6), true);
+    this.frameStage();
     this.ui.showBattle(true); this.ui.battleResult(); this.ui.commands();
     this.ui.banner(this.model.canFlee ? 'ENCOUNTER' : 'A FOE STIRS');
     this.addArena(options.environment ?? {});
     try {
-      await Promise.all(this.model.combatants.map(async unit => {
+      const loaded = await Promise.allSettled(this.model.combatants.map(async unit => {
         const actor = unit.side === 'party'
           ? await createCharacter(this.data.characters[unit.id], this.data.char_models)
           : await createEnemy(unit.source, this.data.monster_models, unit.index);
-        // Bosses must remain legible and inside the frame, regardless of authored scale.
-        if (actor.height > 3.3) actor.root.scale.setScalar(3.3 / actor.height);
         this.actors.set(unit.uid, actor);
         const home = this.homeFor(unit);
         actor.root.position.copy(home); this.homes.set(unit.uid, home);
         actor.root.rotation.y = unit.side === 'party' ? Math.PI / 2 : -Math.PI / 2;
+        this.fitActor(unit, actor);
         actor.play(unit.hp > 0 ? 'idle' : 'dead', 0);
         this.renderer.battleRoot.add(actor.root);
       }));
+      const failed = loaded.find(result => result.status === 'rejected');
+      if (failed) throw failed.reason;
     } catch (error) {
       this.cleanup();
       this.ui.toast(`The encounter could not load: ${error.message}`);
@@ -52,27 +53,32 @@ export class BattleController {
 
   homeFor(unit) {
     const count = unit.side === 'party' ? this.model.party.length : this.model.enemies.length;
-    return new THREE.Vector3(unit.side === 'party' ? (unit.row === 'back' ? -5.2 : -3.8) : 3.7,
-      0, (unit.index - (count - 1) / 2) * (count > 3 ? 1.65 : 2.2));
+    const portrait = innerWidth < 720 && innerHeight > innerWidth;
+    return new THREE.Vector3(unit.side === 'party' ? (unit.row === 'back' ? portrait ? -2.3 : -4.4 : (portrait ? -1.5 : -3.2) + (unit.index % 2 ? .5 : 0)) : portrait ? 1.8 : 3.3,
+      0, (unit.index - (count - 1) / 2) * (count > 3 ? 1.5 : 2));
+  }
+
+  frameStage() {
+    const portrait = innerWidth < 720 && innerHeight > innerWidth;
+    this.viewport = `${innerWidth}:${innerHeight}`;
+    this.renderer.cameraOffset.set(portrait ? 0 : .5, portrait ? 15 : 7.8, portrait ? 20 : 18);
+    this.renderer.track(new THREE.Vector3(0, portrait ? -3.2 : -1.2, -.8), true);
+    for (const unit of this.model.combatants) {
+      const home = this.homeFor(unit); this.homes.set(unit.uid, home);
+      const actor = this.actors.get(unit.uid); if (actor) { actor.root.position.copy(home); this.fitActor(unit, actor); }
+    }
+  }
+
+  fitActor(unit, actor) {
+    if (unit.side === 'party') return;
+    actor.root.scale.setScalar(1); actor.root.updateMatrixWorld(true);
+    const size = new THREE.Box3().setFromObject(actor.root).getSize(new THREE.Vector3());
+    const portrait = innerWidth < 720 && innerHeight > innerWidth;
+    actor.root.scale.setScalar(Math.min(1, 3.3 / size.y, (portrait ? 2.6 : 5.2) / size.x, 4.5 / size.z));
   }
 
   addArena(environment) {
-    const cave = environment.kind === 'dungeon';
-    const base = environment.base ?? 'grass';
-    const textureFile = cave ? 'cave_rock' : base === 'snow' ? 'snow' : base === 'sand' ? 'sand' : 'grass';
-    const texture = new THREE.TextureLoader().load(`./content/assets/textures/${textureFile}.png`);
-    texture.colorSpace = THREE.SRGBColorSpace; texture.wrapS = texture.wrapT = THREE.RepeatWrapping;
-    texture.repeat.set(12, 12); this.resources.push(texture);
-    const ground = new THREE.Mesh(new THREE.PlaneGeometry(100, 100), new THREE.MeshStandardMaterial({ map: texture, color: cave ? '#888087' : '#afbea4', roughness: 1 }));
-    ground.rotation.x = -Math.PI / 2; ground.position.y = -.025; ground.receiveShadow = true;
-    this.renderer.battleRoot.add(ground);
-    const stone = new THREE.MeshStandardMaterial({ color: cave ? '#3a3646' : '#526158', roughness: 1 });
-    for (let i = 0; i < 22; i += 1) {
-      const rock = new THREE.Mesh(new THREE.DodecahedronGeometry(1.1 + i % 4, 0), stone);
-      rock.position.set((i - 11) * 2.5, .1 + i % 3, -8 - (i % 3) * 2);
-      rock.rotation.set(i * .6, i, 0); rock.scale.y = cave ? 1.8 : 1;
-      rock.castShadow = true; this.renderer.battleRoot.add(rock);
-    }
+    this.resources.push(...buildBattleStage(this.renderer.battleRoot, environment));
     this.cursor = new THREE.Mesh(new THREE.RingGeometry(.58, .67, 40), new THREE.MeshBasicMaterial({ color: '#ffe6a3', transparent: true, opacity: .9, side: THREE.DoubleSide, depthWrite: false }));
     this.cursor.rotation.x = -Math.PI / 2; this.cursor.visible = false;
     this.renderer.battleRoot.add(this.cursor);
@@ -238,6 +244,7 @@ export class BattleController {
   refresh() { this.ui.battleStatus(this.model); }
   update(dt) {
     if (!this.active) return;
+    if (!this.timeline && this.viewport !== `${innerWidth}:${innerHeight}`) { this.frameStage(); if (this.model.awaiting) this.renderCommands(); }
     for (const actor of this.actors.values()) actor.update(dt);
     this.statusClock += dt;
     if (this.statusClock >= .15) { this.statusClock = 0; this.refresh(); }

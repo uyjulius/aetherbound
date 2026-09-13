@@ -1,9 +1,10 @@
 import * as THREE from 'three';
 import { activeMapDefinition, isWalkable, tileAt } from '../core/data.js';
-import { createCharacter, loadPropModel } from '../render/actors.js';
+import { createCharacter, createEnemy, loadPropModel } from '../render/actors.js';
 import { hash } from '../core/rng.js';
 import { restoreParty } from '../core/state.js';
 import { GROUND_TEXTURES, surfaceMaterial, surfaceTexture, groundTexture } from '../render/materials.js';
+import { createScenery, createBackdrop, createAirship } from '../render/scenery.js';
 
 const TILE = 2;
 const GROUND_COLORS = {
@@ -18,9 +19,17 @@ const PROP_HEIGHT = {
 };
 const FACE = { north: 0, east: Math.PI / 2, south: Math.PI, west: -Math.PI / 2 };
 
+async function finishSceneLoads(tasks) {
+  // A failed model must not leave sibling downloads adding objects after a retry.
+  const results = await Promise.allSettled(tasks);
+  const failed = results.find(result => result.status === 'rejected');
+  if (failed) throw failed.reason;
+}
+
 function disposeTree(root) {
   root.traverse((object) => {
     object.geometry?.dispose?.();
+    object.userData.ownedTexture?.dispose();
     if (Array.isArray(object.material)) object.material.forEach((material) => material.dispose?.());
     else object.material?.dispose?.();
   });
@@ -122,11 +131,13 @@ export class World {
     this.walkedTiles = 0;
     this.elapsed = 0;
     this.trail = [];
+    this.scenery = []; this.occluders = [];
   }
 
   dispose() {
     for (const actor of this.actors) actor.dispose();
     this.actors = []; this.npcs = []; this.followers = []; this.props = [];
+    this.scenery = []; this.occluders = [];
     disposeTree(this.root);
   }
 
@@ -149,11 +160,13 @@ export class World {
     this.width = Math.max(...this.map.terrain.map((row) => row.length));
     this.height = this.map.terrain.length;
     this.renderer.setEnvironment(this.map);
+    const backdrop = createBackdrop(this.map, this.width, this.height);
+    this.root.add(backdrop); this.scenery.push({ root: backdrop });
     this.buildTerrain();
-    await Promise.all([this.buildProps(), this.buildParty(position), this.buildNpcs()]);
+    await finishSceneLoads([this.buildProps(), this.buildParty(position), this.buildNpcs()]);
     this.renderer.track(this.player.root.position, true);
     this.lastTile = this.tileKey(this.player.root.position);
-    this.trail = [this.player.root.position.clone()];
+    this.trail = [this.player, ...this.followers].map(actor => actor.root.position.clone());
     this.locked = false;
     this.onHud?.(this.map);
     console.info(`FIELD_READY ${this.mapId} actors=${this.actors.length}`);
@@ -166,6 +179,7 @@ export class World {
         const glyph = tileAt(this.map, x, z);
         const legend = this.data.legend.glyphs[glyph];
         if (!legend || legend.void) continue;
+        if (this.map.kind === 'Airship' && (legend.wall || legend.cliff)) continue;
         const ground = legend.g ?? this.map.base ?? 'grass';
         const key = `${ground}:${legend.wall || legend.cliff ? 'wall' : 'floor'}`;
         if (!groups.has(key)) groups.set(key, []);
@@ -175,12 +189,12 @@ export class World {
     const matrix = new THREE.Matrix4();
     for (const [key, cells] of groups) {
       const ground = key.split(':')[0];
-      const wallHeight = Number(this.map.wallHeight) || 2.8;
+      const wallHeight = this.map.wallHeight ?? 1.6;
       const walls = cells[0].wall;
       const geometry = walls ? new THREE.BoxGeometry(TILE, 1, TILE) : new THREE.PlaneGeometry(TILE, TILE).rotateX(-Math.PI / 2);
       const material = new THREE.MeshStandardMaterial({
-        map: ground === 'water' ? null : walls ? surfaceTexture(GROUND_TEXTURES[ground] ?? 'rock_cliff') : groundTexture(ground),
-        color: ground === 'water' ? '#39778d' : ground === 'swamp' ? '#819773' : '#d0d3c8', roughness: ground === 'water' ? .3 : .95,
+        map: ground === 'water' ? null : walls ? groundTexture(this.map.base === 'magitek' ? 'magitek' : this.map.kind === 'Interior' ? 'wood' : this.map.base === 'aether' ? 'marble' : 'rock') : groundTexture(ground),
+        color: ground === 'water' ? '#39778d' : walls && this.map.base === 'cave' ? '#a69c86' : '#d0d3c8', roughness: ground === 'water' ? .3 : .95,
         metalness: ground === 'water' ? .08 : 0, transparent: ground === 'water', opacity: ground === 'water' ? .77 : 1,
       });
       const mesh = new THREE.InstancedMesh(geometry, material, cells.length);
@@ -194,23 +208,47 @@ export class World {
       });
       mesh.instanceMatrix.needsUpdate = true;
       this.root.add(mesh);
+      if (walls) {
+        const industrial = this.map.base === 'magitek';
+        const pillarMat = new THREE.MeshStandardMaterial({ color: industrial ? '#73828b' : '#9a967f', roughness: .7, metalness: industrial ? .55 : 0 });
+        for (const cell of cells) {
+          if ((cell.x + cell.z) % 6 !== 0 || ![[1,0],[-1,0],[0,1],[0,-1]].some(([dx,dz]) => isWalkable(this.data, this.map, cell.x + dx, cell.z + dz))) continue;
+          const column = new THREE.Mesh(new THREE.CylinderGeometry(.28, .4, wallHeight + .4, 8), pillarMat);
+          column.position.copy(this.toWorld([cell.x + .5, cell.z + .5], (wallHeight + .4) / 2)); column.castShadow = true; this.root.add(column);
+        }
+      }
     }
   }
 
   async buildProps() {
     const work = (this.map.props ?? []).map(async (prop) => {
       let model;
-      if (prop.kit === 'building') model = makeBuilding(prop);
-      else model = normalizeProp(await loadPropModel(prop.kit) ?? makeFallbackProp(prop), prop);
+      const completed = this.state.flags.includes(prop.event) || this.state.opened.includes(`${this.mapId}:${prop.id}`);
+      if (prop.enemy && !completed) {
+        const actor = await createEnemy(this.data.enemies[prop.enemy], this.data.monster_models);
+        if (actor.height > 3.1) actor.root.scale.setScalar(3.1 / actor.height);
+        actor.play('idle'); this.actors.push(actor); model = actor.root;
+      } else if (prop.kit === 'building') model = makeBuilding(prop);
+      else model = createScenery(prop, completed) ?? normalizeProp(await loadPropModel(prop.kit) ?? makeFallbackProp(prop), prop);
       model.position.add(this.toWorld(prop.at, Number(prop.y) || 0));
       model.rotation.y += Number(prop.rot) || 0;
       model.userData.kind = 'prop';
       model.userData.definition = prop;
       this.root.add(model);
+      this.scenery.push({ root: model, definition: prop });
+      if (prop.kit === 'building') {
+        model.updateMatrixWorld(true);
+        const materials = []; model.traverse(object => { if (object.material) materials.push(...(Array.isArray(object.material) ? object.material : [object.material])); });
+        this.occluders.push({ bounds: new THREE.Box3().setFromObject(model), materials });
+      }
       if (prop.interact || prop.contains || prop.enter) this.props.push({ root: model, definition: prop });
       return model;
     });
-    await Promise.all(work);
+    await finishSceneLoads(work);
+    if (this.mapId === 'solmere') {
+      const ship = createAirship(12, 21); ship.position.set(this.width + 8, -1, 17); ship.rotation.y = -.15;
+      this.root.add(ship); this.scenery.push({ root: ship });
+    }
   }
 
   async buildParty(savedPosition) {
@@ -222,6 +260,15 @@ export class World {
     for (let i = 0; i < party.length; i += 1) {
       const actor = await createCharacter(party[i], this.data.char_models, { scale: i ? .94 : 1 });
       actor.root.position.copy(start);
+      if (i) {
+        // Place companions separately on valid ground before the first step.
+        const previous = i === 1 ? this.player.root.position : this.followers[i - 2].root.position;
+        const towardCentre = start.z > 0 ? -1 : 1;
+        for (const [dx, dz] of [[0, towardCentre * 1.35], [1.35, 0], [-1.35, 0], [0, -towardCentre * 1.35]]) {
+          const candidate = previous.clone().add(new THREE.Vector3(dx, 0, dz));
+          if (this.canStand(candidate) && [this.player, ...this.followers].every(other => other.root.position.distanceTo(candidate) > 1)) { actor.root.position.copy(candidate); break; }
+        }
+      }
       actor.root.rotation.y = FACE[spawn.face] ?? 0;
       actor.play('idle');
       this.root.add(actor.root);
@@ -231,7 +278,7 @@ export class World {
   }
 
   async buildNpcs() {
-    await Promise.all((this.map.npcs ?? []).filter(npc => !npc.hideAfter || !this.state.flags.includes(npc.hideAfter)).map(async (npc, index) => {
+    await finishSceneLoads((this.map.npcs ?? []).filter(npc => !npc.hideAfter || !this.state.flags.includes(npc.hideAfter)).map(async (npc, index) => {
       const actor = await createCharacter(npc, this.data.char_models, { scale: npc.look?.build === 'child' ? .88 : 1 });
       actor.root.position.copy(this.toWorld(npc.at));
       actor.root.rotation.y = FACE[npc.face] ?? 0;
@@ -351,7 +398,8 @@ export class World {
     }
     this.state.position = null;
     this.state.spawn = exit.spawn ?? 'default';
-    await this.load(exit.to, this.state.spawn);
+    try { await this.load(exit.to, this.state.spawn); }
+    catch (error) { this.onError?.(error); }
   }
 
   maybeEncounter() {
@@ -370,8 +418,17 @@ export class World {
 
   update(dt, paused = false) {
     this.elapsed += dt;
+    for (const entry of this.scenery) entry.root.userData.update?.(dt, this.elapsed,
+      entry.definition && (this.state.flags.includes(entry.definition.event) || this.state.opened.includes(`${this.mapId}:${entry.definition.id}`)));
     for (const actor of this.actors) actor.update(dt);
     if (!this.player) return;
+    const aim = this.player.root.position.clone().add(new THREE.Vector3(0, 1, 0));
+    const ray = new THREE.Ray(this.renderer.camera.position.clone(), aim.clone().sub(this.renderer.camera.position).normalize());
+    for (const entry of this.occluders) {
+      const hit = ray.intersectBox(entry.bounds, new THREE.Vector3());
+      const opacity = hit && hit.distanceTo(this.renderer.camera.position) < aim.distanceTo(this.renderer.camera.position) - .5 ? .22 : 1;
+      for (const material of entry.materials) { material.transparent = opacity < 1; material.opacity = opacity; material.depthWrite = opacity === 1; }
+    }
     if (this.locked || paused) {
       this.player.play('idle'); for (const follower of this.followers) follower.play('idle');
       return;
@@ -412,8 +469,9 @@ export class World {
       const distance = follower.root.position.distanceTo(target);
       if (distance > .12) {
         follower.face(target);
-        const next = follower.root.position.clone().lerp(target, 1 - Math.exp(-dt * 12));
-        if (this.canStand(next)) follower.root.position.copy(next);
+        // The sample is on the leader's actual trail. Copying it avoids cutting
+        // corners through walls when a follower interpolates across a turn.
+        if (this.canStand(target)) follower.root.position.copy(target);
         follower.play(distance > 2.8 ? 'run' : 'walk');
       } else follower.play('idle');
     }

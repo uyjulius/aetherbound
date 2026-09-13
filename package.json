@@ -11,7 +11,8 @@
     "smoke": "node scripts/smoke.mjs",
     "check": "npm test && npm run build && npm run smoke",
     "campaign": "node scripts/campaign-smoke.mjs",
-    "check:release": "npm run check && npm run campaign"
+    "check:release": "npm run check && npm run presentation && npm run campaign",
+    "presentation": "node scripts/presentation-smoke.mjs"
   },
   "dependencies": {
     "three": "^0.180.0"

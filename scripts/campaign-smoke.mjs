@@ -3,7 +3,9 @@ import { spawn } from 'node:child_process';
 import { mkdir } from 'node:fs/promises';
 import { chromium } from 'playwright';
 const port = 4207;
-const server = spawn(process.execPath, ['scripts/serve.mjs'], { env: { ...process.env, PORT: String(port) }, stdio: 'ignore' });
+const baseURL = process.env.BASE_URL || `http://127.0.0.1:${port}/`;
+const server = process.env.BASE_URL ? null : spawn(process.execPath, ['scripts/serve.mjs'], { env: { ...process.env, PORT: String(port) }, stdio: 'ignore' });
+const capturePrefix = process.env.BASE_URL ? 'live-campaign' : 'campaign';
 const pause = ms => new Promise(resolve => setTimeout(resolve, ms));
 let browser, page;
 const errors = [];
@@ -142,17 +144,17 @@ async function route(target) {
 const interact = id => route({ kind: 'prop', id });
 const talk = id => route({ kind: 'npc', id });
 const go = id => route({ kind: 'exit', id });
-async function capture(name) { await page.screenshot({ path: `.renders/campaign-${name}.png` }); }
+async function capture(name) { await page.screenshot({ path: `.renders/${capturePrefix}-${name}.png` }); }
 
 try {
-  for (let i = 0; i < 50; i++) { try { if ((await fetch(`http://127.0.0.1:${port}`)).ok) break; } catch {} await pause(100); }
+  if (server) for (let i = 0; i < 50; i++) { try { if ((await fetch(baseURL)).ok) break; } catch {} await pause(100); }
   await mkdir('.renders', { recursive: true });
   browser = await chromium.launch({ headless: true });
   page = await browser.newPage({ viewport: { width: 1440, height: 900 } });
   page.setDefaultTimeout(30000);
   page.on('pageerror', error => errors.push(error.message));
   page.on('console', message => { if (message.type() === 'error') errors.push(message.text()); });
-  await page.goto(`http://127.0.0.1:${port}/`, { waitUntil: 'domcontentloaded' });
+  await page.goto(baseURL, { waitUntil: 'domcontentloaded' });
   await page.getByRole('button', { name: /New Journey/ }).click();
   await page.waitForFunction(() => window.__AETHERBOUND__?.mode === 'field'); await settle();
   await interact('aether-mark'); await talk('elder'); assert.equal((await snapshot()).stage, 1);
@@ -197,4 +199,4 @@ try {
   assert.deepEqual(errors, [], 'No browser errors throughout the journey');
   console.log('CAMPAIGN PASSED: New Journey → all three chapters → ending → reload/continue, using keyboard movement and UI commands only');
 } catch (error) { if (page) { await keys([]); await capture('failure'); console.error('Failure state:', await snapshot()); } throw error; }
-finally { await browser?.close(); server.kill('SIGTERM'); }
+finally { await browser?.close(); server?.kill('SIGTERM'); }

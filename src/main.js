@@ -49,8 +49,22 @@ async function beginBattle(enemyIds, options = {}) {
   audio.play(enemyIds.includes('thefirstengine') ? 'boss_final' : enemyIds.some(id => data.enemies[id]?.boss) ? 'boss' : 'battle');
   ui.flash();
   const finished = new Promise(resolve => { battleDone = resolve; });
-  await battle.start(enemyIds, { battleMode: config.battleMode, environment: world.map, ...options });
+  try { await battle.start(enemyIds, { battleMode: config.battleMode, environment: world.map, ...options }); }
+  catch (error) {
+    battle.cleanup(); mode = 'field'; world.locked = false;
+    const done = battleDone; battleDone = null; done?.('error');
+    await recoverRoad(error);
+  }
   return finished;
+}
+
+async function recoverRoad(error) {
+  console.warn('Aetherbound load recovery:', error.message);
+  mode = 'error'; if (world) world.locked = true;
+  const choice = await ui.choose('The road could not load', 'A game asset could not be downloaded. You can reload the game or return to the title screen and continue your last record.', [
+    { label: 'Reload game', value: 'reload' }, ...(data ? [{ label: 'Return to title', value: 'title' }] : []),
+  ]);
+  if (choice === 'reload' || !data) location.reload(); else titleScreen();
 }
 
 function recordJourney(message) {
@@ -78,14 +92,14 @@ async function campaignEvent(id) {
       await world.load(...plan.travel, null);
     }
     fieldHud(world.map);
-    if (plan.flag || plan.travel || plan.stage != null) recordJourney();
+    const recorded = plan.flag || plan.travel || plan.stage != null ? recordJourney() : false;
     if (plan.ending) {
       audio.play('hope');
-      await ui.choose('The Warm Earth · Complete', `Five travellers gave the world back its tomorrow. ${state.victories} victories · ${Math.floor(state.playTime / 60)} minutes travelled. Your completed journey has been recorded.`, [{ label: 'Return to Harrowmere', detail: 'Continue exploring the world you saved', value: 'home' }]);
+      await ui.choose('The Warm Earth · Complete', `Five travellers gave the world back its tomorrow. ${state.victories} victories · ${Math.floor(state.playTime / 60)} minutes travelled. ${recorded ? 'Your completed journey has been recorded.' : 'Browser storage is unavailable, so this journey is held in this session only.'}`, [{ label: 'Return to Harrowmere', detail: 'Continue exploring the world you saved', value: 'home' }]);
       await world.load('harrowmere', 'default', null); recordJourney();
     }
-  } catch (error) { console.error(error); ui.toast('The road could not be loaded. Your last saved journey is safe.'); }
-  finally { eventRunning = false; world.locked = false; input.flush(); fieldHud(world.map); }
+  } catch (error) { await recoverRoad(error); }
+  finally { eventRunning = false; world.locked = false; input.flush(); if (mode === 'field') fieldHud(world.map); }
 }
 
 async function visitShop(shopId) {
@@ -130,24 +144,29 @@ async function startGame(nextState) {
     onToast: (message) => ui.toast(message),
     onHud: fieldHud,
     onEvent: campaignEvent, onShop: visitShop, onInn: visitInn, onSave: recordJourney,
+    onError: recoverRoad,
   });
   battle = new BattleController({
     data, state, renderer, input, audio, effects, ui,
     onFinish: async (result) => {
-      mode = 'loading-field';
-      if (result === 'defeat') {
-        restoreParty(state);
-        const checkpoint = state.checkpoint;
-        state.position = checkpoint.position;
-        await world.load(checkpoint.mapId, checkpoint.spawn, checkpoint.position);
+      try {
+        mode = 'loading-field';
+        if (result === 'defeat') {
+          restoreParty(state);
+          const checkpoint = state.checkpoint;
+          state.position = checkpoint.position;
+          await world.load(checkpoint.mapId, checkpoint.spawn, checkpoint.position);
+        }
+        renderer.setEnvironment(world.map);
+        renderer.track(world.player.root.position, true);
+        world.locked = false;
+        fieldHud(world.map, world.interactionLabel(world.nearby));
+        audio.play(world.map.music ?? 'overworld');
+        mode = 'field';
+        const done = battleDone; battleDone = null; done?.(result);
+      } catch (error) {
+        const done = battleDone; battleDone = null; done?.('error'); await recoverRoad(error);
       }
-      renderer.setEnvironment(world.map);
-      renderer.track(world.player.root.position, true);
-      world.locked = false;
-      fieldHud(world.map, world.interactionLabel(world.nearby));
-      audio.play(world.map.music ?? 'overworld');
-      mode = 'field';
-      const done = battleDone; battleDone = null; done?.(result);
     },
   });
   await world.load(state.mapId, state.spawn, state.position);
@@ -160,7 +179,7 @@ async function startGame(nextState) {
       { speaker: 'Harrowmere · Before the thaw', lines: ['At dawn, the village bell rang from somewhere beneath the earth. No one had touched the rope.'] },
       { speaker: 'Vesna', lines: ['I heard it in my sleep. A note that kept asking for another note.'] },
       { speaker: 'Corvin', lines: ['Sabbath is waiting in the northern square. Let us ask him before we start talking back to the ground.'] },
-      { speaker: 'The road ahead', lines: ['Move with WASD, the arrow keys or the direction pad. Enter or Act speaks, opens chests and works mechanisms. C or Ledger opens your supplies, equipment and journal.', 'The glowing aether mark beside you restores the party and records a safe return point. Begin there, then follow the stone road north.'] },
+      { speaker: 'The road ahead', lines: ['Move with WASD, the arrow keys or the direction pad. Enter or Act speaks, opens chests and works mechanisms. C or Ledger opens your supplies, equipment and journal. M or Map shows nearby people, mechanisms and routes.', 'The glowing aether mark beside you restores the party and records a safe return point. Begin there, then follow the stone road north.'] },
     ]);
     state.flags.push('opening');
   }
@@ -173,8 +192,8 @@ function titleScreen() {
   renderer.battleRoot.visible = false;
   audio.play('prelude');
   ui.showTitle([
-    { label: 'New Journey', detail: 'Begin in Harrowmere', action: () => startGame(newGame(data)) },
-    { label: 'Continue', detail: hasSave() ? 'Return to your last record' : 'No journey recorded', disabled: !hasSave(), action: () => startGame(loadSave(data) ?? newGame(data)) },
+    { label: 'New Journey', detail: 'Begin in Harrowmere', action: () => startGame(newGame(data)).catch(recoverRoad) },
+    { label: 'Continue', detail: hasSave() ? 'Return to your last record' : 'No journey recorded', disabled: !hasSave(), action: () => startGame(loadSave(data) ?? newGame(data)).catch(recoverRoad) },
   ]);
 }
 
@@ -186,7 +205,8 @@ function openLedger() {
     title: () => { if (recordJourney()) titleScreen(); },
     config,
     setting: (key, value) => {
-      config[key] = value; saveConfig(config); audio.setVolumes();
+      config[key] = value; audio.setVolumes();
+      try { saveConfig(config); } catch { ui.toast('Settings apply for this session. Browser storage is unavailable.'); }
     },
   });
 }
@@ -194,6 +214,14 @@ function openLedger() {
 document.getElementById('field-menu-button').addEventListener('click', () => {
   if (mode === 'field' && !world.locked && !ui.menuOpen && !ui.choiceActive && !ui.dialogueActive) openLedger();
 });
+
+async function openAtlas() {
+  if (mode !== 'field' || world.locked || ui.menuOpen || ui.choiceActive || ui.dialogueActive) return;
+  world.locked = true;
+  await ui.atlas(world);
+  world.locked = false; input.flush();
+}
+document.getElementById('field-map-button').addEventListener('click', openAtlas);
 
 function closeLedger() {
   ui.closeMenu();
@@ -209,7 +237,7 @@ function controls() {
     if (input.take('confirm')) { audio.sfx('confirm'); ui.chooseTitle(); }
     return;
   }
-  if (mode !== 'field') return;
+  if (mode !== 'field' && mode !== 'error') return;
   if (ui.choiceActive) {
     if (input.take('up')) ui.moveChoice(-1);
     if (input.take('down')) ui.moveChoice(1);
@@ -217,6 +245,7 @@ function controls() {
     if (input.take('cancel')) ui.acceptChoice(null);
     return;
   }
+  if (mode !== 'field') return;
   if (ui.dialogueActive) {
     if (input.take('confirm') || input.take('cancel')) { audio.sfx('text'); ui.advanceDialogue(); }
     return;
@@ -229,6 +258,7 @@ function controls() {
     return;
   }
   if (input.take('menu')) { audio.sfx('confirm'); openLedger(); return; }
+  if (input.take('map')) { openAtlas(); return; }
   if (input.take('debugBattle') && new URLSearchParams(location.search).has('test')) beginBattle(['fenrat', 'mireslug']);
 }
 
@@ -265,9 +295,7 @@ async function boot() {
     };
     console.info(`AETHERBOUND_READY maps=${Object.keys(data.maps).length} enemies=${Object.keys(data.enemies).length}`);
   } catch (error) {
-    fatal = error;
-    console.error(error);
-    ui.loadingLabel.textContent = `The thread could not be gathered: ${error.message}`;
+    ui.ready(); await recoverRoad(error);
   }
 }
 
