@@ -12,12 +12,14 @@ export class Input {
     this.pressed = new Set();
     this.blocked = new Set(['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', 'Space', 'Tab']);
     target.addEventListener('keydown', (event) => {
+      if (['INPUT', 'SELECT', 'TEXTAREA'].includes(event.target?.tagName)) return;
+      if (event.target?.closest?.('button') && ['Enter', 'Space'].includes(event.code)) return;
       if (this.blocked.has(event.code)) event.preventDefault();
       if (!event.repeat) this.pressed.add(event.code);
       this.down.add(event.code);
     });
     target.addEventListener('keyup', (event) => this.down.delete(event.code));
-    target.addEventListener('blur', () => this.down.clear());
+    target.addEventListener('blur', () => { this.down.clear(); this.pressed.clear(); });
   }
 
   isDown(action) { return binds[action]?.some((code) => this.down.has(code)) ?? false; }

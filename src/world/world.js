@@ -2,6 +2,7 @@ import * as THREE from 'three';
 import { activeMapDefinition, isWalkable, tileAt } from '../core/data.js';
 import { createCharacter, loadPropModel } from '../render/actors.js';
 import { hash } from '../core/rng.js';
+import { restoreParty, saveGame } from '../core/state.js';
 
 const TILE = 2;
 const GROUND_COLORS = {
@@ -290,8 +291,13 @@ export class World {
     }
     const prop = target.definition;
     if (prop.interact?.save) {
-      for (const member of this.state.roster) { member.hp = member.maxHp; member.mp = member.maxMp; }
-      this.onToast?.('The aether settles. Party restored — open the ledger to save.');
+      restoreParty(this.state);
+      const tile = this.toTile(this.player.root.position);
+      this.state.position = [tile.x, tile.z];
+      this.state.checkpoint = { mapId: this.mapId, spawn: this.state.spawn, position: [...this.state.position] };
+      saveGame(this.state);
+      this.onHud?.(this.map, this.interactionLabel(target));
+      this.onToast?.('Party restored. Journey saved at the aether mark.');
       return;
     }
     if (prop.contains) {
@@ -397,10 +403,12 @@ export class World {
       this.maybeEncounter();
     }
     const nearby = this.nearestInteraction();
-    if (nearby !== this.nearby) {
+    if (nearby?.definition !== this.nearby?.definition) {
       this.nearby = nearby;
       this.onHud?.(this.map, this.interactionLabel(nearby));
     }
-    if (this.input.take('interact')) this.interact();
+    const location = this.toTile(this.player.root.position);
+    this.state.position = [location.x, location.z];
+    if (this.input.take('confirm')) this.interact();
   }
 }

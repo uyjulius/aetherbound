@@ -137,3 +137,37 @@ kbd { border: 1px solid rgba(255,255,255,.24); border-bottom-width: 2px; border-
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { animation-duration: .01ms !important; transition-duration: .01ms !important; }
 }
+
+/* Battle commands stay below the stage and scroll independently of the page. */
+.command-panel { width: min(315px, 29vw); min-width: 0; max-height: 48vh; padding: .8rem; }
+#battle-commands { max-height: 34vh; overflow-y: auto; overscroll-behavior: contain; }
+#battle-commands .menu-button { min-width: 0; width: 100%; padding: .48rem .7rem; }
+#battle-commands .menu-button.selected { transform: none; }
+#battle-commands .menu-button small { font-size: .65rem; line-height: 1.35; }
+.back-button { border: 0; background: transparent; margin-top: .6rem; padding: .4rem .6rem; color: var(--gold); cursor: pointer; }
+.enemy-chip small { display: block; margin-top: .4rem; color: #bbc6cd; font-size: .65rem; }
+.battle-log { top: 7.8rem; width: 270px; max-width: 25vw; min-height: 0; padding: .65rem .8rem; background: #071321a8; }
+.battle-party { width: min(360px, 31vw); padding: .6rem; gap: .35rem; }
+.battle-party .hero-row { padding: .5rem .7rem; }
+.hero-detail { display: flex; justify-content: space-between; gap: .35rem; font-size: .62rem; color: #bfc7cf; }
+.status-label { display: block; margin-top: .25rem; color: var(--gold); font-size: .62rem; }
+.battle-clock { font-size: .6rem; margin: .2rem .3rem; }
+.current-turn { border-color: var(--gold); background: #293444d9; }
+.battle-result { position: absolute; top: 17%; left: 50%; transform: translateX(-50%); width: min(420px, 90vw); padding: 1.4rem 1.7rem; border-radius: .6rem; text-align: center; pointer-events: auto; z-index: 20; }
+.battle-result h2 { font-size: 2.5rem; margin-bottom: .7rem; color: var(--gold-pale); }
+.battle-result p { line-height: 1.5; font-size: .82rem; }
+.battle-result small { display: block; margin-top: .7rem; color: var(--muted); }
+.reward-grid { display: flex; justify-content: center; gap: 2.4rem; }
+.reward-grid strong { display: block; color: var(--gold-pale); font-size: 1.65rem; }
+select { background: var(--ink); border: 1px solid var(--line); padding: .5rem; color: var(--text); }
+@media (max-width: 720px) {
+  .command-panel { left: .6rem; bottom: .6rem; width: 44vw; max-height: 40vh; }
+  #battle-commands { max-height: 29vh; }
+  .battle-party { right: .6rem; bottom: .6rem; width: 48vw; }
+  .battle-log { top: 1rem; left: .6rem; width: 90vw; max-width: 90vw; font-size: .66rem; }
+  .enemy-hud { top: 5.5rem; }
+  .enemy-chip { min-width: 0; width: 30vw; }
+  .enemy-chip small { display: none; }
+  .hero-detail { font-size: .55rem; }
+  .battle-result { top: 14%; }
+}

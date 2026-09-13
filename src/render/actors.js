@@ -43,8 +43,8 @@ export class Actor {
       node.castShadow = true;
       node.receiveShadow = true;
       if (node.material) {
-        node.material = node.material.clone();
-        node.material.roughness = Math.max(.55, node.material.roughness ?? .75);
+        const copy = material => { const owned = material.clone(); owned.roughness = Math.max(.55, owned.roughness ?? .75); return owned; };
+        node.material = Array.isArray(node.material) ? node.material.map(copy) : copy(node.material);
       }
     });
 
@@ -56,6 +56,10 @@ export class Actor {
     const grounded = new THREE.Box3().setFromObject(this.model);
     this.model.position.y -= grounded.min.y;
     this.height = grounded.max.y - grounded.min.y;
+    this.baseOffset = this.model.position.y;
+    this.poseBounds = new THREE.Box3();
+    this.rootWorld = new THREE.Vector3();
+    this.rootScale = new THREE.Vector3();
     this.play('idle', 0);
   }
 
@@ -83,7 +87,9 @@ export class Actor {
     action.clampWhenFinished = this.once.has(label);
     action.reset().fadeIn(fade).play();
     if (this.current?.action && this.current.action !== action) this.current.action.fadeOut(fade);
+    if (this.current?.label === 'dead' && label !== 'dead') this.model.position.y = this.baseOffset;
     this.current = { key, action, label };
+    this.groundClock = 0;
     this.root.userData.animation = label;
     return true;
   }
@@ -94,10 +100,28 @@ export class Actor {
     if (dx * dx + dz * dz > .0001) this.root.rotation.y = Math.atan2(dx, dz);
   }
 
-  update(dt) { this.mixer?.update(dt); }
+  update(dt) {
+    this.mixer?.update(dt);
+    if (this.current?.label !== 'dead') return;
+    this.groundClock += dt;
+    if (this.groundClock < .05) return;
+    this.groundClock = 0;
+    // The death clip changes the skeleton's lowest point. Its bind-pose offset
+    // cannot keep the final body on the floor, so ground the evaluated pose.
+    this.root.updateWorldMatrix(true, true);
+    this.model.traverse(node => { if (node.isSkinnedMesh) node.computeBoundingBox(); });
+    this.poseBounds.setFromObject(this.model);
+    this.root.getWorldPosition(this.rootWorld);
+    this.root.getWorldScale(this.rootScale);
+    this.model.position.y -= (this.poseBounds.min.y - this.rootWorld.y) / this.rootScale.y;
+  }
 
   dispose() {
     this.mixer?.stopAllAction();
+    this.model.traverse(node => {
+      node.skeleton?.dispose();
+      if (Array.isArray(node.material)) node.material.forEach(material => material.dispose()); else node.material?.dispose();
+    });
     this.root.removeFromParent();
   }
 }
@@ -148,7 +172,11 @@ export async function loadPropModel(name) {
     const gltf = await getGLTF(`./content/assets/props/${name}.glb`);
     const model = clone(gltf.scene);
     model.traverse((node) => {
-      if (node.isMesh) { node.castShadow = true; node.receiveShadow = true; }
+      if (node.isMesh) {
+        node.castShadow = true; node.receiveShadow = true;
+        node.geometry = node.geometry.clone();
+        node.material = Array.isArray(node.material) ? node.material.map(material => material.clone()) : node.material.clone();
+      }
     });
     return model;
   } catch { return null; }

@@ -1,3 +1,4 @@
+import { roleFor } from '../core/classes.js';
 const element = (id) => document.getElementById(id);
 const pct = (value, maximum) => `${Math.max(0, Math.min(100, maximum ? value / maximum * 100 : 0))}%`;
 
@@ -179,8 +180,11 @@ export class Interface {
     const content = element('menu-content');
     content.innerHTML = `<p class="eyebrow">Settings</p><h3>Sound</h3>
       <label class="setting">Music <input data-key="music" type="range" min="0" max="1" step=".05" value="${config.music}"></label>
-      <label class="setting">Effects <input data-key="sound" type="range" min="0" max="1" step=".05" value="${config.sound}"></label>`;
+      <label class="setting">Effects <input data-key="sound" type="range" min="0" max="1" step=".05" value="${config.sound}"></label>
+      <h3>Battle clock</h3><label class="setting">Mode <select id="battle-mode"><option value="wait" ${config.battleMode === 'wait' ? 'selected' : ''}>Wait</option><option value="active" ${config.battleMode === 'active' ? 'selected' : ''}>Active</option></select></label>
+      <p>Wait pauses gauges while you choose. Active lets enemies act during command selection. Action animations always finish before the next impact.</p>`;
     content.querySelectorAll('input').forEach((input) => input.addEventListener('input', () => actions.setting(input.dataset.key, Number(input.value))));
+    content.querySelector('select').addEventListener('change', event => actions.setting('battleMode', event.target.value));
   }
 
   titleView(goTitle) {
@@ -215,23 +219,45 @@ export class Interface {
   battleLog(lines) { element('battle-log').innerHTML = lines.map((line) => `<div>${line}</div>`).join(''); }
 
   battleStatus(model) {
-    element('enemy-hud').innerHTML = model.enemies.map((enemy) => `<div class="enemy-chip${enemy.hp <= 0 ? ' fallen' : ''}">
-      <b>${enemy.name}</b><div class="meter"><i style="--value:${pct(enemy.hp, enemy.maxHp)}"></i></div></div>`).join('');
-    element('battle-party').innerHTML = model.party.map((hero) => `<div class="hero-row${hero.hp <= 0 ? ' fallen' : ''}">
-      <div class="hero-head"><b>${hero.name}</b><span>${hero.hp}/${hero.maxHp}</span></div>
+    element('enemy-hud').innerHTML = model.enemies.map(enemy => `<div class="enemy-chip${enemy.hp <= 0 ? ' fallen' : ''}">
+      <b>${enemy.name}</b><div class="meter"><i style="--value:${pct(enemy.hp, enemy.maxHp)}"></i></div>
+      <small>${enemy.hp <= 0 ? 'Defeated' : model.enemyIntent(enemy)}</small></div>`).join('');
+    element('battle-party').innerHTML = `<p class="eyebrow battle-clock">${model.battleMode === 'wait' && model.awaiting ? 'WAIT · Choose your action' : 'ACTIVE TIME BATTLE'}</p>` + model.party.map(hero => `<div class="hero-row${hero.hp <= 0 ? ' fallen' : ''}${model.awaiting === hero ? ' current-turn' : ''}" data-hero="${hero.id}">
+      <div class="hero-head"><b>${hero.name}</b><span>${hero.hp} / ${hero.maxHp} HP</span></div>
+      <div class="hero-detail"><span>${roleFor(hero.id).name} · ${hero.row}</span><span>${hero.mp} / ${hero.maxMp} MP</span></div>
       <div class="meter"><i style="--value:${pct(hero.hp, hero.maxHp)}"></i></div>
       <div class="meter mp"><i style="--value:${pct(hero.mp, hero.maxMp)}"></i></div>
-      <div class="meter atb"><i style="--value:${pct(hero.atb, 100)}"></i></div></div>`).join('');
+      <div class="meter atb"><i style="--value:${pct(hero.atb, 100)}"></i></div>
+      <small class="status-label">${hero.hp <= 0 ? 'Fallen · use Reprise or a Phoenix Tear' : Object.keys(hero.statuses).join(' · ') || (hero.defending ? 'Guarding' : hero.cover ? 'Covering an ally' : hero.atb >= 100 ? 'Ready' : 'Charging')}</small></div>`).join('');
   }
 
-  commands(name, commands, selected = 0, choose) {
+  commands(name, commands, selected = 0, choose, back, canBack = false) {
     const panel = element('command-panel');
     if (!commands) { panel.classList.add('hidden'); return; }
     panel.classList.remove('hidden');
-    element('turn-name').textContent = `${name} · Choose an action`;
+    element('turn-name').textContent = name;
     const nav = element('battle-commands');
     nav.innerHTML = commands.map((command, index) => buttonMarkup(command, index, selected)).join('');
-    nav.querySelectorAll('button').forEach((button) => button.addEventListener('click', () => choose(Number(button.dataset.index))));
+    nav.querySelectorAll('button').forEach(button => button.addEventListener('click', () => {
+      button.blur(); choose(Number(button.dataset.index));
+    }));
+    const cancel = element('battle-back');
+    cancel.classList.toggle('hidden', !canBack);
+    cancel.onclick = () => { cancel.blur(); back?.(); };
+    nav.querySelector('.selected')?.scrollIntoView({ block: 'nearest' });
+  }
+
+  battleResult(result, rewards, leave) {
+    const panel = element('battle-result');
+    if (!result) { panel.classList.add('hidden'); return; }
+    panel.classList.remove('hidden');
+    panel.innerHTML = `<p class="eyebrow">${result === 'victory' ? 'The company prevails' : result === 'escape' ? 'A path to safety' : 'The company falls'}</p>
+      <h2>${result === 'victory' ? 'Victory' : result === 'escape' ? 'Escaped' : 'The thread holds'}</h2>
+      ${rewards ? `<div class="reward-grid"><p><strong>${rewards.exp}</strong> EXP each</p><p><strong>${rewards.gold}</strong> gil</p></div>
+        ${rewards.items.length ? `<p>Found ${rewards.items.join(', ')}</p>` : ''}${rewards.levels.length ? `<p>${rewards.levels.join(', ')} gained a level.</p>` : ''}`
+        : `<p>${result === 'defeat' ? 'Return to the last aether mark with your party restored. Your supplies and completed quests are kept.' : 'You leave without rewards.'}</p>`}
+      <button class="action-button">${result === 'defeat' ? 'Return to checkpoint' : 'Continue journey'}</button><small>Enter to continue</small>`;
+    panel.querySelector('button').addEventListener('click', leave);
   }
 
   damage(worldPosition, amount, healing = false, emphasis = false) {

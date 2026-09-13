@@ -75,9 +75,11 @@
       <div id="battle-log" class="battle-log glass"></div>
       <div id="command-panel" class="command-panel glass hidden">
         <p id="turn-name" class="eyebrow"></p>
-        <nav id="battle-commands" class="menu-stack"></nav>
+        <nav id="battle-commands" class="menu-stack" aria-label="Battle commands"></nav>
+        <button id="battle-back" class="back-button hidden">← Back · Esc</button>
       </div>
       <div id="battle-party" class="battle-party glass"></div>
+      <section id="battle-result" class="battle-result glass hidden" role="dialog" aria-label="Battle result"></section>
     </section>
 
     <div id="toast" class="toast hidden" aria-live="assertive"></div>

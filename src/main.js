@@ -1,7 +1,7 @@
 import { loadGameData } from './core/data.js';
 import { Input } from './core/input.js';
 import { AudioDirector } from './core/audio.js';
-import { hasSave, loadConfig, loadSave, newGame, saveConfig, saveGame } from './core/state.js';
+import { hasSave, loadConfig, loadSave, newGame, saveConfig, saveGame, restoreParty } from './core/state.js';
 import { GameRenderer } from './render/scene.js';
 import { Effects } from './render/effects.js';
 import { World } from './world/world.js';
@@ -22,7 +22,10 @@ let mode = 'loading';
 let previous = performance.now();
 let fatal = null;
 
-function fieldHud(map, prompt = '') { ui.fieldStatus(map, state, prompt); }
+function fieldHud(map, prompt = '') {
+  ui.fieldStatus(map, state, prompt);
+  if (mode !== 'battle') audio.play(map.music ?? 'overworld');
+}
 
 function showDialogue(speaker, lines) {
   if (!world || !lines?.length) return;
@@ -40,7 +43,7 @@ async function beginBattle(enemyIds) {
   world.locked = true;
   audio.play('battle');
   ui.flash();
-  await battle.start(enemyIds);
+  await battle.start(enemyIds, { battleMode: config.battleMode, environment: world.map });
 }
 
 async function startGame(nextState) {
@@ -58,7 +61,14 @@ async function startGame(nextState) {
   });
   battle = new BattleController({
     data, state, renderer, input, audio, effects, ui,
-    onFinish: () => {
+    onFinish: async (result) => {
+      mode = 'loading-field';
+      if (result === 'defeat') {
+        restoreParty(state);
+        const checkpoint = state.checkpoint;
+        state.position = checkpoint.position;
+        await world.load(checkpoint.mapId, checkpoint.spawn, checkpoint.position);
+      }
       renderer.setEnvironment(world.map);
       renderer.track(world.player.root.position, true);
       world.locked = false;
@@ -124,19 +134,22 @@ function controls() {
     return;
   }
   if (input.take('menu')) { audio.sfx('confirm'); openLedger(); return; }
-  if (input.take('debugBattle')) beginBattle(['fenrat', 'mireslug']);
+  if (input.take('debugBattle') && new URLSearchParams(location.search).has('test')) beginBattle(['fenrat', 'mireslug']);
 }
 
 function frame(now) {
   const dt = Math.min(.05, (now - previous) / 1000);
   previous = now;
   if (!fatal) {
+    if (document.hidden) { input.flush(); requestAnimationFrame(frame); return; }
+    if (state && ['field', 'battle'].includes(mode)) state.playTime += dt;
     controls();
     if (mode === 'field') world?.update(dt, ui.dialogueActive || ui.menuOpen);
     if (mode === 'battle') battle?.update(dt);
     effects.update(dt);
     renderer.update(dt);
     renderer.render();
+    input.flush();
   }
   requestAnimationFrame(frame);
 }
