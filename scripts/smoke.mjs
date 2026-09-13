@@ -106,6 +106,7 @@ try {
   assert.equal(await page.evaluate(() => window.__AETHERBOUND__.state.roster[0].hp), 121);
   assert.equal(await page.evaluate(() => window.__AETHERBOUND__.state.inventory.potion), fieldPotionCount - 1);
   await page.keyboard.press('Escape');
+  await page.waitForFunction(() => !window.__AETHERBOUND__.world.locked && document.getElementById('game-menu').classList.contains('hidden'));
   console.log('Field inventory target selection and consumption verified');
 
   // Seed a wounded party before entering the next encounter, then exercise revival using the real UI.
