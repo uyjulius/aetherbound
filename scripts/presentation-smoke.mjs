@@ -57,6 +57,9 @@ try {
         await page.setViewportSize({ width:844, height:390 }); await page.waitForTimeout(500);
         await assertPartyPanel(page);
         await page.screenshot({ path: '.renders/presentation-battle-landscape.png' });
+        await page.setViewportSize({ width:320, height:568 }); await page.waitForTimeout(500);
+        await page.screenshot({ path: '.renders/presentation-battle-small-phone.png' });
+        await assertPartyPanel(page);
       }
     }
     assert.deepEqual(errors, [], `${name}: no browser errors`); console.log(`Presentation passed: ${name}`); await page.close();

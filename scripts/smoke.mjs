@@ -156,6 +156,7 @@ try {
   assert.equal(restored.map, 'harrowmere'); assert.deepEqual(restored.position, restored.checkpoint);
   assert.ok(restored.hp.every(([hp, max]) => hp === max));
   console.log('Lethal boss impact, held death poses and checkpoint recovery verified');
+  await recovery.close();
   const touch = await browserPage(browser, { viewport: { width: 390, height: 844 }, isMobile: true, hasTouch: true });
   touch.on('pageerror', error => errors.push(error.message));
   await touch.goto(`http://127.0.0.1:${port}/`, { waitUntil: 'domcontentloaded' });
@@ -186,6 +187,7 @@ try {
   await touch.locator('#field-choice').getByRole('button', { name: 'Return to the road', exact: true }).tap();
   await touch.waitForFunction(() => !window.__AETHERBOUND__.world.locked);
   console.log('Touch dialogue, save, direction pad and responsive ledger verified');
+  await touch.close();
 
   const failedLoad = await browserPage(browser, { viewport: { width: 1100, height: 750 } });
   await failedLoad.route('**/cast/vesna.glb', route => route.abort());

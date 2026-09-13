@@ -153,7 +153,8 @@ try {
   browser = await chromium.launch({ headless: true });
   page = await browserPage(browser, { viewport: { width: 1440, height: 900 } });
   page.on('pageerror', error => errors.push(error.message));
-  page.on('console', message => { if (message.type() === 'error') errors.push(message.text()); });
+  page.on('console', message => { if (message.type() === 'error') errors.push(`${message.text()} (${message.location().url})`); });
+  page.on('response', response => { if (response.status() >= 400) console.error(`Campaign resource ${response.status()}: ${response.url()}`); });
   await page.goto(baseURL, { waitUntil: 'domcontentloaded' });
   await page.getByRole('button', { name: /New Journey/ }).click();
   await page.waitForFunction(() => window.__AETHERBOUND__?.mode === 'field'); await settle();

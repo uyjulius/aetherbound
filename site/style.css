@@ -297,3 +297,12 @@ select { background: var(--ink); border: 1px solid var(--line); padding: .5rem; 
   #battle-commands { max-height: 38vh; }
   #battle-commands .menu-button { padding: .3rem .5rem; font-size: .72rem; }
 }
+@media (max-width: 720px) and (max-height: 740px) and (orientation: portrait) {
+  .battle-party { display: grid; grid-template-columns: repeat(3, 1fr); max-height: 140px; }
+  .battle-party .battle-clock { grid-column: 1 / -1; }
+  .battle-party .hero-row { min-width: 0; padding: 3px 4px; }
+  .battle-party .hero-head { flex-direction: column; gap: 1px; }
+  .battle-party .hero-detail span:first-child { display: none; }
+  .command-panel { bottom: 156px; max-height: 22vh; }
+  #battle-commands { max-height: 15vh; }
+}
