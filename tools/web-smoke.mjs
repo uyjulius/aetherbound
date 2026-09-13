@@ -2,6 +2,7 @@
  * Load the exported Godot build in a real browser and prove it started.
  *
  *   node tools/web-smoke.mjs [--dir build/web] [--headed] [--port 5178] [--timeout 180] [--boot-only]
+ *   node tools/web-smoke.mjs --battle-only
  *   node tools/web-smoke.mjs --url https://aetherbound.uy.sg/godot/
  *
  * With `--url` it checks a deployed build instead of a local export, which is
@@ -49,6 +50,7 @@ const headed = args.includes('--headed');
 // three hours and can drop input while the page's main thread is busy, turning a
 // healthy build into a flaky deployment gate.
 const bootOnly = args.includes('--boot-only');
+const battleOnly = args.includes('--battle-only');
 // Generous, and adjustable: compiling 40 MB of wasm under a software rasteriser
 // takes a minute on this machine and longer on a shared CI runner. A timeout
 // that fails on a slow runner teaches people to re-run the job, which is how a
@@ -201,9 +203,12 @@ let innDone = null;
 let compared = null;
 const scenery = [];
 const crowd = [];
+const fieldAnimations = [];
 let stage = null;
 const turns = [];
 const actions = [];
+const presented = [];
+let turnOpen = false;
 const fx = [];
 const fxCosts = [];
 const found = [];
@@ -271,9 +276,11 @@ page.on('console', (message) => {
   if (/^CREDITS /.test(text.trim())) creditsLine = text.trim();
   if (/^DOORS /.test(text.trim())) doors.push(text.trim());
   if (/^CROWD /.test(text.trim())) crowd.push(text.trim());
+  if (/^FIELD_ANIM /.test(text.trim())) fieldAnimations.push(text.trim());
   if (/^STAGE /.test(text.trim())) stage = text.trim();
-  if (/^TURN /.test(text.trim())) turns.push(text.trim());
-  if (/^ACTION /.test(text.trim())) actions.push(text.trim());
+  if (/^TURN /.test(text.trim())) { turns.push(text.trim()); turnOpen = true; }
+  if (/^ACTION /.test(text.trim())) { actions.push(text.trim()); turnOpen = false; }
+  if (/^PRESENTED /.test(text.trim())) presented.push(text.trim());
   if (/^FX /.test(text.trim())) fx.push(text.trim());
   if (/^FX_COST /.test(text.trim())) fxCosts.push(text.trim());
   if (/^CHEST /.test(text.trim())) chest = text.trim();
@@ -369,6 +376,33 @@ const clearField = async () => {
   await page.waitForTimeout(200);
 };
 
+/**
+ * Choose the default Attack command only when the game has actually opened a turn.
+ * Presentation deliberately blocks input through wind-up, impact and recovery, so spraying
+ * confirms on a timer both wastes work under SwiftShader and tests dropped input rather than
+ * a playable battle.
+ */
+const attackUntil = async (done, maxCommands) => {
+  let handled = turns.length - (turnOpen ? 1 : 0);
+  for (let command = 0; command < maxCommands && !done(); command++) {
+    const deadline = Date.now() + Math.max(60_000, READY_TIMEOUT_MS);
+    while (!done() && (!turnOpen || turns.length <= handled) && Date.now() < deadline) {
+      await page.waitForTimeout(200);
+    }
+    if (done() || !turnOpen || turns.length <= handled) break;
+    handled = turns.length;
+    // Two accepted presses choose Attack and its target. Under SwiftShader Chromium can
+    // acknowledge a keyboard event while Godot's main thread is still painting; continue
+    // until ACTION proves the menu received both. Further presses are harmless because the
+    // view blocks input as soon as presentation begins.
+    for (let press = 0; press < 6 && turnOpen && !done(); press++) {
+      await page.keyboard.press('Enter');
+      await page.waitForTimeout(350);
+    }
+  }
+  return done();
+};
+
 
 const started = Date.now();
 try {
@@ -456,6 +490,17 @@ if (ready) {
     remote ? 'godot-web-field-live.png' : 'godot-web-field.png');
   fs.mkdirSync(path.dirname(shot), { recursive: true });
   await capture(page, shot);
+
+  if (battleOnly && field) {
+    await page.keyboard.down('ArrowRight');
+    await page.waitForTimeout(900);
+    await page.keyboard.up('ArrowRight');
+    await page.waitForTimeout(350);
+    const locomotion = fieldAnimations.find((line) => /requested=(walk|run)\b/.test(line)
+      && !/resolved=$/.test(line));
+    check('moving the party starts an authored locomotion clip', Boolean(locomotion),
+      locomotion ?? (fieldAnimations.join(' | ') || 'no FIELD_ANIM lines'));
+  }
 
   // And into a scene. The scripted scenes are the largest part of the port and the
   // only way to know they *play* — rather than merely producing the right transcript
@@ -575,13 +620,27 @@ if (ready) {
       const battleShot = path.join(root, '.renders',
         remote ? 'godot-web-battle-live.png' : 'godot-web-battle.png');
       await capture(page, battleShot);
-      // Attack with whoever is ready, until somebody wins. Two confirms per turn: the
-      // command, then the target.
-      for (let i = 0; i < 80 && !battleEnded; i++) {
-        await page.keyboard.press('Enter');
-        await page.waitForTimeout(180);
+      // Attack on each actual menu until somebody wins. Input is held while the authored
+      // attack and hurt clips play, so the driver waits for the next TURN line.
+      await attackUntil(() => Boolean(battleEnded), 40);
+      check('the fight resolves', Boolean(battleEnded), battleEnded ?? 'no BATTLE_END in 40 turns');
+      check('every action finishes its visible presentation', presented.length === actions.length,
+        `${presented.length} presented for ${actions.length} actions`);
+      if (battleOnly) {
+        check('nothing 404s', badResponses.length === 0, badResponses.slice(0, 3).join('; '));
+        check('no console errors', errors.length === 0, errors.slice(0, 3).join(' | '));
+        check('no engine warnings', warnings.length === 0,
+          warnings.slice(0, 3).map((w) => w.replace(/^WARNING:\s*/, '')).join(' | '));
+        await browser.close();
+        server?.close();
+        console.log();
+        if (failures) {
+          console.log(`\x1b[31mFAIL\x1b[0m — ${failures} check(s) failed; this build must not deploy.`);
+          process.exit(1);
+        }
+        console.log('\x1b[32mOK\x1b[0m — movement and battle presentation work in the browser.');
+        process.exit(0);
       }
-      check('the fight resolves', Boolean(battleEnded), battleEnded ?? 'no BATTLE_END in 80 presses');
     }
 
     /**
@@ -1023,6 +1082,10 @@ const villagers = crowd.find((line) => line.includes('map=harrowmere'));
 check('the village has people in it',
   Boolean(villagers) && Number(villagers.match(/people=(\d+)/)?.[1] ?? 0) > 0,
   villagers ?? 'no CROWD line for harrowmere');
+const walking = fieldAnimations.find((line) => /requested=(walk|run)\b/.test(line)
+  && !/resolved=$/.test(line));
+check('the field plays a locomotion clip while the party moves', Boolean(walking),
+  walking ?? (fieldAnimations.slice(0, 5).join(' | ') || 'no FIELD_ANIM lines'));
 // The fight, too: both lines standing on a floor rather than a screen of text.
 check('a fight puts everybody on a stage',
   Boolean(stage) && Number(stage.match(/party=(\d+)/)?.[1] ?? 0) === 3
@@ -1102,13 +1165,10 @@ if (field) {
   check('a scene can start a fight', Boolean(sceneBattle),
     sceneBattle ?? `no SCENE_BATTLE in 90 confirms (${chatter.slice(-4).join(' / ')})`);
   if (sceneBattle) {
-    // Two confirms a turn, and a boss takes rather more turns than a rat.
-    for (let i = 0; i < 260 && !sceneBattleEnd; i++) {
-      await page.keyboard.press('Enter');
-      await page.waitForTimeout(150);
-    }
+    // A boss takes more turns than a rat, but each command still begins at a real menu.
+    await attackUntil(() => Boolean(sceneBattleEnd), 100);
     check('and the scene is still there when it ends', Boolean(sceneBattleEnd),
-      sceneBattleEnd ?? 'no SCENE_BATTLE_END in 260 presses');
+      sceneBattleEnd ?? 'no SCENE_BATTLE_END in 100 turns');
     // Whichever way it went, the game has to do the right thing with it. A win hands over what
     // the scene promised; a loss is a wipe inside a scene, which has to roll back to the last
     // save rather than stand the dead party up in the boss's chamber. The starting party fights

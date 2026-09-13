@@ -29,6 +29,8 @@ const Scheduler := preload("res://scripts/engine/scheduler.gd")
 const PARTY_Z := 2.4
 const ENEMY_Z := -4.2
 const SPACING := 2.4
+const ACTION_HOLD := 0.7
+const END_HOLD := 1.8
 
 ## Emitted with "victory", "defeat" or "flee" when the fight is over.
 signal finished(result: String)
@@ -76,6 +78,7 @@ var _fx_ctx
 var _fx_busy := false
 var _fx_peak := 0
 var _fx_cost_reported := false
+var _ending := false
 
 
 
@@ -93,7 +96,7 @@ func _input(event: InputEvent) -> void:
 	# banked when the first gauge filled, so the first menu chose its top row and the one
 	# after it chose a target, and no arrow key could get a word in. The dialogue box and the
 	# list screens learned the same lesson; this is the third.
-	if not visible or _fx_busy or event.is_echo():
+	if not visible or _fx_busy or _ending or event.is_echo():
 		return
 	if event.is_action_pressed("confirm"):
 		_confirms += 1
@@ -194,6 +197,8 @@ func begin(party: Party, encounter: Dictionary, database, ground := "grass.png",
 	# No policy: a player turn opens a menu and waits for `commit_action`, which is what
 	# the harness's scripted policies stand in for.
 	battle.command_policy = Callable()
+	battle.action_presenter = Callable(self, "_present_action")
+	_ending = false
 	_lines.clear()
 	var enemy_line := ", ".join(_enemy_names())
 	_note("A fight begins: %s" % enemy_line)
@@ -501,6 +506,7 @@ func _process(delta: float) -> void:
 	if battle == null:
 		return
 	if battle.phase == BattleModel.Phase.ENDING:
+		_end()
 		return
 
 	# Effects advance while the battle clock is held; otherwise awaiting one deadlocks.
@@ -876,6 +882,19 @@ func _commit(actor: Combatant, action: Dictionary) -> void:
 		return
 	var full := action.duplicate()
 	full["actor"] = actor
+	_present_action(full)
+
+
+## Put every action through the same visible sequence. The battle model invokes this for
+## enemies and forced party turns; the command menu invokes it for ordinary party turns.
+## Mechanics are committed only after the wind-up and effect have reached their target.
+func _present_action(full: Dictionary) -> void:
+	if battle == null or _fx_busy or _ending:
+		return
+	var actor: Combatant = full.get("actor", null)
+	if actor == null:
+		return
+	_fx_busy = true
 	_menus.clear()
 	_targeting = {}
 	_command_index = 0
@@ -896,6 +915,10 @@ func _commit(actor: Combatant, action: Dictionary) -> void:
 		"actor": actor.id, "kind": kind,
 		"what": String(full.get("spell", full.get("item", full.get("move", {}))).get("id", "")),
 		"element": _element_of(full)})
+	var action_clip := _clip_for_action(kind)
+	if not action_clip.is_empty():
+		_clips[actor.id] = ""
+		_play_clip(actor, action_clip)
 	var element := _effect_element(full)
 	await _play_effect(element, kind, Array(full.get("targets", [])))
 	# The effect may have been cancelled because the view was torn down while it awaited.
@@ -903,6 +926,20 @@ func _commit(actor: Combatant, action: Dictionary) -> void:
 		return
 	battle.commit_action(full)
 	_after_action(actor, kind, before, element)
+	_refresh()
+	await get_tree().create_timer(ACTION_HOLD).timeout
+	if battle == null:
+		return
+	_fx_busy = false
+	print("PRESENTED actor=%s kind=%s" % [actor.id, kind])
+
+
+func _clip_for_action(kind: String) -> String:
+	if kind in ["attack", "special", "steal", "limit", "mimic"]:
+		return "attack"
+	if kind in ["spell", "item", "summon", "scan"]:
+		return "cast"
+	return ""
 
 
 func _effect_element(action: Dictionary) -> String:
@@ -925,7 +962,6 @@ func _play_effect(element: String, kind: String, targets: Array) -> void:
 	var body: Node3D = _bodies.get(target.id, null) if target != null else null
 	var at := Vector3(0.0, 0.9, 0.0) if body == null \
 		else body.position + Vector3(0.0, 0.9, 0.0)
-	_fx_busy = true
 	_fx_peak = 0
 	_confirms = 0
 	_cancels = 0
@@ -937,7 +973,6 @@ func _play_effect(element: String, kind: String, targets: Array) -> void:
 	# before _process can sample the field, so include that final emission in the peak.
 	if _fx_field != null:
 		_fx_peak = maxi(_fx_peak, _fx_field.count)
-	_fx_busy = false
 	print("FX kind=%s element=%s peak=%d" % [kind, element, _fx_peak])
 
 
@@ -1036,16 +1071,12 @@ func _show_change(actor: Combatant, kind: String, target: Combatant, dealt: int)
 	if dealt > 0:
 		_popup(target, dealt)
 		Sound.sfx("hit")
-		_clips[actor.id] = ""
-		_play_clip(actor, "attack")
 		_clips[target.id] = ""
-		_play_clip(target, "hurt")
+		_play_clip(target, "dead" if target.is_ko() else "hurt")
 	elif dealt < 0:
 		# Healing is negative damage here, and it is worth showing: a potion that did nothing
 		# and a potion that gave back forty look identical without a number.
 		_popup(target, -dealt, true)
-		_clips[actor.id] = ""
-		_play_clip(actor, "cast")
 	# A miss is handled by the caller: it knows that *nobody* was struck, which is what a miss
 	# actually is — this function is only ever called about somebody whose health moved.
 
@@ -1314,6 +1345,9 @@ func _note(line: String) -> void:
 
 
 func _end() -> void:
+	if _ending or battle == null:
+		return
+	_ending = true
 	var rewards := battle.rewards
 	if _banner_tween != null and _banner_tween.is_valid():
 		_banner_tween.kill()
@@ -1351,6 +1385,21 @@ func _end() -> void:
 			_banner.text = "Defeat"
 		_:
 			_banner.text = "Escaped"
+	# Hold the finished formation on screen. Knocked-out bodies finish falling and the
+	# survivors celebrate before the stage is released back to the field.
+	for combatant in battle.party + battle.enemies:
+		_clips[combatant.id] = ""
+		if combatant.is_ko():
+			_play_clip(combatant, "dead")
+		elif battle.result == "victory" and battle.party.has(combatant):
+			_play_clip(combatant, "victory")
+		elif battle.result == "defeat" and battle.enemies.has(combatant):
+			_play_clip(combatant, "victory")
+	_refresh()
+	await get_tree().create_timer(END_HOLD).timeout
+	if battle == null:
+		_ending = false
+		return
 	print("BATTLE_END result=%s exp=%d gold=%d" % [battle.result,
 		int(rewards.get("exp_each", 0)), int(rewards.get("gold", 0))])
 	Telemetry.track(Telemetry.BATTLE_ENDED, {
@@ -1371,7 +1420,9 @@ func _end() -> void:
 		Telemetry.track(Telemetry.BOSS_DEFEATED, {
 			"boss": String(battle.enemies[0].id) if not battle.enemies.is_empty() else "",
 			"party_level": _party_level()})
-	_refresh()
+	var finished_result := battle.result
+	battle.action_presenter = Callable()
 	_tear_down_stage()
-	finished.emit(battle.result)
+	finished.emit(finished_result)
 	battle = null
+	_ending = false

@@ -664,7 +664,9 @@ func _spawn_walker() -> void:
 		push_warning("no model for the party leader — the field is empty")
 		return
 	_world.add_child(_walker)
-	_cast.play_character_clip(_walker, "idle")
+	var resolved := _cast.play_character_clip(_walker, "idle")
+	_walker_clip = "idle"
+	print("FIELD_ANIM leader requested=idle resolved=%s" % resolved)
 
 
 ## The rest of the party, walking behind.
@@ -689,8 +691,8 @@ func _spawn_followers() -> void:
 		if _world != null:
 			_world.add_child(node)
 		_followers.append(node)
-		_follower_clips.append("")
 		_cast.play_character_clip(node, "idle")
+		_follower_clips.append("idle")
 
 
 ## Everybody who lives here.
@@ -899,7 +901,8 @@ func _follow_camera() -> void:
 			wanted = "walk"
 		if wanted != _walker_clip:
 			_walker_clip = wanted
-			_cast.play_character_clip(_walker, wanted)
+			var resolved := _cast.play_character_clip(_walker, wanted)
+			print("FIELD_ANIM leader requested=%s resolved=%s" % [wanted, resolved])
 
 
 ## Whatever this map plays. Held in one place because five callers need to put it back:

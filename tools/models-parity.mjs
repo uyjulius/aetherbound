@@ -160,6 +160,26 @@ for (const [key, resolved] of Object.entries(ported.resolved ?? {})) {
 say(`  clips            ${Object.keys(charModels.clips).length} character clips, `
   + `${Object.keys(ported.resolved ?? {}).length} resolved against real models`);
 
+// Model fitting lives below the placement root. Field and battle assign that root to y=0 on
+// every move; the mesh still needs its feet on zero and its requested 1.7-unit height after
+// that assignment, or the animated cast appears to float above the map.
+const grounded = Object.entries(ported.grounded ?? {});
+if (!grounded.length) fail('grounding probe returned no placed models');
+for (const [key, [foot, height]] of grounded) {
+  compared += 2;
+  if (Math.abs(foot) > 0.01) fail(`${key}: feet are ${foot.toFixed(3)} from the ground`);
+  if (Math.abs(height - 1.7) > 0.02) fail(`${key}: fitted height is ${height.toFixed(3)}, not 1.7`);
+}
+say(`  grounding        ${grounded.length} placed models at y=0`);
+
+const animated = Object.entries(ported.animated ?? {});
+if (!animated.length) fail('animation probe returned no wrapped models');
+for (const [key, movement] of animated) {
+  compared++;
+  if (movement < 0.0005) fail(`${key}: wrapped model does not move during its action clip`);
+}
+say(`  animation        ${animated.length} placed rigs move through authored clips`);
+
 // --- the files ---------------------------------------------------------------
 const digest = (file) => crypto.createHash('sha256').update(fs.readFileSync(file)).digest('hex');
 for (const [from, to] of [

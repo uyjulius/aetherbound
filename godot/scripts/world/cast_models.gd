@@ -175,8 +175,16 @@ func _fit_height(node: Node3D, height: float) -> void:
 	if box.size.y <= 0.0001:
 		return
 	var scale := height / box.size.y
-	node.scale = Vector3(scale, scale, scale)
-	node.position.y -= box.position.y * scale
+	# The returned node is a placement root. Keep it at the caller's origin and fit the
+	# imported scene underneath it; field and battle both move the placement root every
+	# frame. Fitting that root directly meant the next `position = ...` erased the foot
+	# offset and left the cast hovering at the source model's arbitrary origin.
+	var content := node.get_child(0) as Node3D
+	if content == null:
+		return
+	var fit := Transform3D(Basis().scaled(Vector3.ONE * scale),
+		Vector3(0.0, -box.position.y * scale, 0.0))
+	content.transform = fit * content.transform
 
 
 ## The bounds of every mesh under a node, in the node's own space.
@@ -336,4 +344,13 @@ func _instance(path: String) -> Node3D:
 	if not _scenes.has(path):
 		_scenes[path] = load(path)
 	var scene: PackedScene = _scenes[path]
-	return scene.instantiate()
+	var content := scene.instantiate() as Node3D
+	if content == null:
+		return null
+	# World code owns this neutral root. The imported root keeps the scale and vertical
+	# correction that put its feet on y=0, even when the neutral root is moved later.
+	var root := Node3D.new()
+	root.name = content.name
+	content.name = "Model"
+	root.add_child(content)
+	return root

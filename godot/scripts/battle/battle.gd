@@ -52,6 +52,12 @@ var active_actor: Combatant = null
 ## dictionary. Null means "open a menu and wait for `commit_action`".
 var command_policy: Callable = Callable()
 
+## Optional presentation hook used by the interactive view. Automatic turns go through it
+## before they are resolved, so enemy and status-driven actions get the same visible wind-up,
+## impact and recovery as a command chosen from the menu. Headless parity runs leave it empty
+## and retain immediate, deterministic resolution.
+var action_presenter: Callable = Callable()
+
 ## One entry per completed turn, and one for the ending: what the port is compared
 ## against. See `tools/battle-parity.mjs`.
 var transcript: Array = []
@@ -206,29 +212,29 @@ func _begin_player_turn(actor: Combatant) -> void:
 		actor.remove_status("protect")
 
 	if actor.has_status("berserk"):
-		commit_action({"actor": actor, "kind": "attack", "targets": [_random_enemy()]})
+		_submit_action({"actor": actor, "kind": "attack", "targets": [_random_enemy()]})
 		return
 	if actor.has_status("confuse"):
 		var pool: Array = party if _battle_rng.next() < 0.5 else enemies
 		var living := _living_except(pool, null)
 		if living.is_empty():
-			commit_action({"actor": actor, "kind": "defend"})
+			_submit_action({"actor": actor, "kind": "defend"})
 			return
-		commit_action({"actor": actor, "kind": "attack", "targets": [_battle_rng.pick(living)]})
+		_submit_action({"actor": actor, "kind": "attack", "targets": [_battle_rng.pick(living)]})
 		return
 	# Charm always hits your own side, which is what makes it worth the extra MP;
 	# confuse hits either at random.
 	if actor.has_status("charm"):
 		var own := _living_except(party, actor)
 		if not own.is_empty():
-			commit_action({"actor": actor, "kind": "attack",
+			_submit_action({"actor": actor, "kind": "attack",
 				"targets": [_battle_rng.pick(own)]})
 			return
 
 	if command_policy.is_valid():
 		var action: Dictionary = command_policy.call(self, actor)
 		if not action.is_empty():
-			commit_action(action)
+			_submit_action(action)
 
 
 func _begin_enemy_turn(actor: Combatant) -> void:
@@ -243,18 +249,29 @@ func _begin_enemy_turn(actor: Combatant) -> void:
 	if actor.has_status("charm"):
 		var own := _living_except(enemies, actor)
 		if not own.is_empty():
-			commit_action({"actor": actor, "kind": "attack",
+			_submit_action({"actor": actor, "kind": "attack",
 				"targets": [_battle_rng.pick(own)]})
 			return
 	if actor.has_status("confuse"):
 		var pool: Array = enemies if _battle_rng.next() < 0.5 else party
 		var live := _living_except(pool, actor)
 		if not live.is_empty():
-			commit_action({"actor": actor, "kind": "attack",
+			_submit_action({"actor": actor, "kind": "attack",
 				"targets": [_battle_rng.pick(live)]})
 			return
 
-	commit_action(_evaluate_ai(actor))
+	_submit_action(_evaluate_ai(actor))
+
+
+## Present an automatic action when a view is attached; otherwise resolve it now. Setting the
+## phase before invoking the asynchronous presenter prevents another ready gauge from opening
+## a turn while the wind-up is playing.
+func _submit_action(action: Dictionary) -> void:
+	if action_presenter.is_valid():
+		phase = Phase.EXECUTING
+		action_presenter.call(action)
+	else:
+		commit_action(action)
 
 
 ## Which move this creature reaches for.
