@@ -58,6 +58,7 @@ jobs:
         with:
           name: browser-verification-${{ matrix.check }}
           path: .renders/*.png
+          include-hidden-files: true
           retention-days: 7
 
   deploy:
